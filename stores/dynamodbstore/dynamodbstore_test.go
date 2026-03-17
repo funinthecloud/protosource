@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
@@ -39,9 +40,9 @@ func (m *mockDynamoer) ensureTable(name string) map[string]map[string]types.Attr
 }
 
 func compositeKey(item map[string]types.AttributeValue) string {
-	pk := item["aggregate_id"].(*types.AttributeValueMemberS).Value
+	pk := item["a"].(*types.AttributeValueMemberS).Value
 	sk := ""
-	if v, ok := item["version"]; ok {
+	if v, ok := item["v"]; ok {
 		sk = v.(*types.AttributeValueMemberN).Value
 	}
 	return pk + "|" + sk
@@ -105,7 +106,7 @@ func (m *mockDynamoer) Query(ctx context.Context, input *dynamodb.QueryInput, _ 
 	// Collect matching items.
 	var items []map[string]types.AttributeValue
 	for _, item := range table {
-		if item["aggregate_id"].(*types.AttributeValueMemberS).Value == pkVal {
+		if item["a"].(*types.AttributeValueMemberS).Value == pkVal {
 			items = append(items, item)
 		}
 	}
@@ -113,8 +114,8 @@ func (m *mockDynamoer) Query(ctx context.Context, input *dynamodb.QueryInput, _ 
 	// Sort by version.
 	ascending := input.ScanIndexForward == nil || *input.ScanIndexForward
 	sort.Slice(items, func(i, j int) bool {
-		vi, _ := strconv.ParseInt(items[i]["version"].(*types.AttributeValueMemberN).Value, 10, 64)
-		vj, _ := strconv.ParseInt(items[j]["version"].(*types.AttributeValueMemberN).Value, 10, 64)
+		vi, _ := strconv.ParseInt(items[i]["v"].(*types.AttributeValueMemberN).Value, 10, 64)
+		vj, _ := strconv.ParseInt(items[j]["v"].(*types.AttributeValueMemberN).Value, 10, 64)
 		if ascending {
 			return vi < vj
 		}
@@ -137,7 +138,7 @@ func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	pk := input.Item["aggregate_id"].(*types.AttributeValueMemberS).Value
+	pk := input.Item["a"].(*types.AttributeValueMemberS).Value
 	// For the aggregates table there is no sort key, so use pk alone.
 	table[pk] = input.Item
 	return &dynamodb.PutItemOutput{}, nil
@@ -151,7 +152,7 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	pk := input.Key["aggregate_id"].(*types.AttributeValueMemberS).Value
+	pk := input.Key["a"].(*types.AttributeValueMemberS).Value
 	item, ok := table[pk]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
@@ -523,6 +524,44 @@ func TestSaveBatching_Over100Records(t *testing.T) {
 	require.Len(t, h.Records, 150)
 	assert.Equal(t, int64(1), h.Records[0].Version)
 	assert.Equal(t, int64(150), h.Records[149].Version)
+}
+
+// ---------------------------------------------------------------------------
+// TTL
+// ---------------------------------------------------------------------------
+
+func TestWithTTL_SetsTTLAttribute(t *testing.T) {
+	store, mock := newTestStore(t, WithTTL(24*time.Hour))
+	ctx := context.Background()
+
+	before := time.Now().Add(24 * time.Hour).Unix()
+	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("data"))))
+	after := time.Now().Add(24 * time.Hour).Unix()
+
+	// Inspect the raw item in the mock to verify TTL was set.
+	table := mock.tables[DefaultEventsTable]
+	require.Len(t, table, 1)
+	for _, item := range table {
+		ttlVal, ok := item["t"].(*types.AttributeValueMemberN)
+		require.True(t, ok, "TTL attribute 't' should be present")
+		ttl, err := strconv.ParseInt(ttlVal.Value, 10, 64)
+		require.NoError(t, err)
+		assert.GreaterOrEqual(t, ttl, before)
+		assert.LessOrEqual(t, ttl, after)
+	}
+}
+
+func TestWithoutTTL_NoTTLAttribute(t *testing.T) {
+	store, mock := newTestStore(t) // no WithTTL
+	ctx := context.Background()
+
+	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("data"))))
+
+	table := mock.tables[DefaultEventsTable]
+	for _, item := range table {
+		_, hasTTL := item["t"]
+		assert.False(t, hasTTL, "TTL attribute should not be present when TTL is not configured")
+	}
 }
 
 // ---------------------------------------------------------------------------

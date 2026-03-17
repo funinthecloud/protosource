@@ -1,31 +1,40 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: DynamoDB tables for protosource event sourcing
 
+# Attribute name mapping (single-char to minimize per-item byte costs):
+#   a = partition key (aggregate ID, string)
+#   v = sort key (version number, numeric)
+#   d = data payload (binary)
+#   t = TTL epoch seconds (numeric, optional)
+
 Resources:
   EventsTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: events
       KeySchema:
-        - AttributeName: aggregate_id
+        - AttributeName: a
           KeyType: HASH
-        - AttributeName: version
+        - AttributeName: v
           KeyType: RANGE
       AttributeDefinitions:
-        - AttributeName: aggregate_id
+        - AttributeName: a
           AttributeType: S
-        - AttributeName: version
+        - AttributeName: v
           AttributeType: N
       BillingMode: PAY_PER_REQUEST
+      TimeToLiveSpecification:
+        AttributeName: t
+        Enabled: true
 
   AggregatesTable:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: aggregates
       KeySchema:
-        - AttributeName: aggregate_id
+        - AttributeName: a
           KeyType: HASH
       AttributeDefinitions:
-        - AttributeName: aggregate_id
+        - AttributeName: a
           AttributeType: S
       BillingMode: PAY_PER_REQUEST

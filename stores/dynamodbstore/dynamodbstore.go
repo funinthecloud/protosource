@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -21,7 +22,16 @@ type Dynamoer interface {
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 
+// DynamoDB attribute names are kept to single characters to minimize read/write
+// costs. DynamoDB charges per byte for both reads and writes, and attribute
+// names are included in every item's stored and transferred size. At scale
+// (millions of events), the savings from "a" vs "aggregate_id" are material.
 const (
+	attrPartitionKey = "a" // partition key (aggregate ID)
+	attrSortKey      = "v" // sort key (version number)
+	attrData         = "d" // event/aggregate payload
+	attrTTL          = "t" // TTL epoch seconds (optional)
+
 	DefaultEventsTable     = "events"
 	DefaultAggregatesTable = "aggregates"
 	maxTransactItems       = 100
@@ -34,6 +44,7 @@ type DynamoDBStore struct {
 	eventsTable     string
 	aggregatesTable string
 	tenantPrefix    string
+	ttl             time.Duration // when non-zero, sets TTL attribute on event writes
 }
 
 // New creates a new DynamoDBStore. The client must not be nil.
@@ -71,6 +82,16 @@ func WithTenantPrefix(prefix string) Option {
 	return func(s *DynamoDBStore) { s.tenantPrefix = prefix }
 }
 
+// WithTTL sets a time-to-live duration for event records. When set, each saved
+// event includes a TTL attribute ("t") containing the Unix epoch second at
+// which the record should expire. The DynamoDB table must have TTL enabled on
+// the "t" attribute for automatic deletion to occur.
+//
+// A zero or negative duration disables TTL (the default).
+func WithTTL(ttl time.Duration) Option {
+	return func(s *DynamoDBStore) { s.ttl = ttl }
+}
+
 // Save stores records for the given aggregate ID using TransactWriteItems for
 // atomicity. If there are more than 100 records, they are written in batches
 // of 100 (DynamoDB's per-transaction limit). Each record uses a condition
@@ -97,15 +118,20 @@ func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ..
 
 		items := make([]types.TransactWriteItem, len(batch))
 		for j, rec := range batch {
+			item := map[string]types.AttributeValue{
+				attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+				attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetVersion(), 10)},
+				attrData:         &types.AttributeValueMemberB{Value: rec.GetData()},
+			}
+			if s.ttl > 0 {
+				expiry := time.Now().Add(s.ttl).Unix()
+				item[attrTTL] = &types.AttributeValueMemberN{Value: strconv.FormatInt(expiry, 10)}
+			}
 			items[j] = types.TransactWriteItem{
 				Put: &types.Put{
-					TableName: &s.eventsTable,
-					Item: map[string]types.AttributeValue{
-						"aggregate_id": &types.AttributeValueMemberS{Value: key},
-						"version":      &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetVersion(), 10)},
-						"data":         &types.AttributeValueMemberB{Value: rec.GetData()},
-					},
-					ConditionExpression: aws.String("attribute_not_exists(aggregate_id) AND attribute_not_exists(version)"),
+					TableName:           &s.eventsTable,
+					Item:                item,
+					ConditionExpression: aws.String("attribute_not_exists(a) AND attribute_not_exists(v)"),
 				},
 			}
 		}
@@ -136,7 +162,7 @@ func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv
 			TableName:              &s.eventsTable,
 			ConsistentRead:         aws.Bool(true),
 			ScanIndexForward:       aws.Bool(true),
-			KeyConditionExpression: aws.String("aggregate_id = :id"),
+			KeyConditionExpression: aws.String("a = :id"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
 				":id": &types.AttributeValueMemberS{Value: key},
 			},
@@ -181,7 +207,7 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 		ConsistentRead:         aws.Bool(true),
 		ScanIndexForward:       aws.Bool(false),
 		Limit:                  aws.Int32(int32(n)),
-		KeyConditionExpression: aws.String("aggregate_id = :id"),
+		KeyConditionExpression: aws.String("a = :id"),
 		ExpressionAttributeValues: map[string]types.AttributeValue{
 			":id": &types.AttributeValueMemberS{Value: key},
 		},
@@ -220,9 +246,9 @@ func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregateID string, d
 	_, err := s.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &s.aggregatesTable,
 		Item: map[string]types.AttributeValue{
-			"aggregate_id": &types.AttributeValueMemberS{Value: key},
-			"version":      &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
-			"data":         &types.AttributeValueMemberB{Value: data},
+			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+			attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
+			attrData:         &types.AttributeValueMemberB{Value: data},
 		},
 	})
 	if err != nil {
@@ -243,7 +269,7 @@ func (s *DynamoDBStore) LoadAggregate(ctx context.Context, aggregateID string) (
 		TableName:      &s.aggregatesTable,
 		ConsistentRead: aws.Bool(true),
 		Key: map[string]types.AttributeValue{
-			"aggregate_id": &types.AttributeValueMemberS{Value: key},
+			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
 		},
 	})
 	if err != nil {
@@ -254,7 +280,7 @@ func (s *DynamoDBStore) LoadAggregate(ctx context.Context, aggregateID string) (
 		return nil, 0, nil
 	}
 
-	versionStr, ok := resp.Item["version"].(*types.AttributeValueMemberN)
+	versionStr, ok := resp.Item[attrSortKey].(*types.AttributeValueMemberN)
 	if !ok {
 		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: version is not a number")
 	}
@@ -263,7 +289,7 @@ func (s *DynamoDBStore) LoadAggregate(ctx context.Context, aggregateID string) (
 		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: failed to parse version: %w", err)
 	}
 
-	dataVal, ok := resp.Item["data"].(*types.AttributeValueMemberB)
+	dataVal, ok := resp.Item[attrData].(*types.AttributeValueMemberB)
 	if !ok {
 		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: data is not binary")
 	}
@@ -282,7 +308,7 @@ func (s *DynamoDBStore) makeKey(aggregateID string) string {
 
 // itemToRecord converts a DynamoDB item into a recordv1.Record.
 func itemToRecord(item map[string]types.AttributeValue) (*recordv1.Record, error) {
-	versionVal, ok := item["version"].(*types.AttributeValueMemberN)
+	versionVal, ok := item[attrSortKey].(*types.AttributeValueMemberN)
 	if !ok {
 		return nil, fmt.Errorf("version attribute is not a number")
 	}
@@ -290,7 +316,7 @@ func itemToRecord(item map[string]types.AttributeValue) (*recordv1.Record, error
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse version: %w", err)
 	}
-	dataVal, ok := item["data"].(*types.AttributeValueMemberB)
+	dataVal, ok := item[attrData].(*types.AttributeValueMemberB)
 	if !ok {
 		return nil, fmt.Errorf("data attribute is not binary")
 	}
