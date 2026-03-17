@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: DynamoDB tables for protosource event sourcing
+
+Resources:
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: events
+      KeySchema:
+        - AttributeName: aggregate_id
+          KeyType: HASH
+        - AttributeName: version
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: aggregate_id
+          AttributeType: S
+        - AttributeName: version
+          AttributeType: N
+      BillingMode: PAY_PER_REQUEST
+
+  AggregatesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: aggregates
+      KeySchema:
+        - AttributeName: aggregate_id
+          KeyType: HASH
+      AttributeDefinitions:
+        - AttributeName: aggregate_id
+          AttributeType: S
+      BillingMode: PAY_PER_REQUEST
