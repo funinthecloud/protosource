@@ -5,7 +5,7 @@ import (
 
 	"github.com/davecgh/go-spew/spew"
 	"github.com/funinthecloud/protosource"
-	samplev1 "github.com/funinthecloud/protosource/acme/app/sample/v1"
+	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 )

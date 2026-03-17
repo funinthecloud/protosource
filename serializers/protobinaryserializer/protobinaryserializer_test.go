@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/funinthecloud/protosource"
-	testv1 "github.com/funinthecloud/protosource/acme/app/test/v1"
+	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -59,7 +59,7 @@ func TestSerializer_MarshalEvent(t *testing.T) {
 			if err := proto.Unmarshal(got.Data, &a); err != nil {
 				t.Fatalf("MarshalEvent() Record.Data is not a valid anypb.Any: %v", err)
 			}
-			wantTypeURL := "type.googleapis.com/acme.app.test.v1.Created"
+			wantTypeURL := "type.googleapis.com/example.app.test.v1.Created"
 			if a.TypeUrl != wantTypeURL {
 				t.Errorf("MarshalEvent() anypb.Any.TypeUrl = %q, want %q", a.TypeUrl, wantTypeURL)
 			}
@@ -129,7 +129,7 @@ func TestSerializer_MarshalEventAsData(t *testing.T) {
 			if err := proto.Unmarshal(got, &a); err != nil {
 				t.Fatalf("MarshalEventAsData() result is not a valid anypb.Any: %v", err)
 			}
-			wantTypeURL := "type.googleapis.com/acme.app.test.v1.Created"
+			wantTypeURL := "type.googleapis.com/example.app.test.v1.Created"
 			if a.TypeUrl != wantTypeURL {
 				t.Errorf("MarshalEventAsData() anypb.Any.TypeUrl = %q, want %q", a.TypeUrl, wantTypeURL)
 			}

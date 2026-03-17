@@ -28,13 +28,13 @@ proto/                  — protobuf definitions (buf module root)
   funinthecloud/protosource/options/v1/ — custom options proto (aggregate, command, event, snapshot, projection)
   funinthecloud/protosource/record/v1/ — record proto (version + data)
   funinthecloud/protosource/history/v1/ — history proto (list of records)
-  acme/app/sample/v1/            — sample domain with snapshots (fictitious org)
-  acme/app/samplenosnapshot/v1/  — sample domain without snapshots (fictitious org)
-  acme/app/test/v1/              — test domain (fictitious org)
+  example/app/sample/v1/            — sample domain with snapshots (fictitious org)
+  example/app/samplenosnapshot/v1/  — sample domain without snapshots (fictitious org)
+  example/app/test/v1/              — test domain (fictitious org)
 options/v1/             — generated Go code for options proto (do not edit by hand)
 record/v1/              — generated Go code for record proto (do not edit by hand)
 history/v1/             — generated Go code for history proto (do not edit by hand)
-acme/app/               — generated Go code for example protos (do not edit by hand)
+example/app/               — generated Go code for example protos (do not edit by hand)
 tools/                  — go:generate tool installs (buf, wire, protoc-gen-go)
 ```
 
@@ -109,7 +109,7 @@ Event messages must have `id` (field 1), `version` (field 2, int64), `at` (field
 
 - Module path: `github.com/funinthecloud/protosource`
 - Go 1.25+
-- Generated Go files (`options/v1/`, `record/v1/`, `history/v1/`, `acme/app/`) are auto-generated — never edit by hand
+- Generated Go files (`options/v1/`, `record/v1/`, `history/v1/`, `example/app/`) are auto-generated — never edit by hand
 - The options proto lives in this repo; no external BSR dependency
 - `buf.gen.yaml` uses `module=` option to strip the Go module prefix, placing generated code at the repo root
 - Proto files use explicit `option go_package` to control Go output paths independently of proto directory structure
@@ -139,7 +139,7 @@ git checkout -b <branch-name> origin/main
 - [ ] Create annotations for auto-generating single aggregate projections (has legacy code examples to reference)
 - [x] ~~Finish growing test coverage of memorystore~~ (100% coverage)
 - [x] ~~Create a boltdb store with good test coverage~~ (84.2% coverage)
-- [ ] Analyze dynamodbstore to ensure it still works with current framework changes
+- [x] ~~Analyze dynamodbstore to ensure it still works with current framework changes~~ (rewritten to implement all framework interfaces in PR #11)
 - [ ] Add capabilities to all stores to store the aggregate post-apply each time an apply runs
 - [ ] Look deeper into multi-package projections and auto-generation possibilities
 - [x] ~~Add plugin validation for `sets_state` references (verify enum value exists in file)~~
