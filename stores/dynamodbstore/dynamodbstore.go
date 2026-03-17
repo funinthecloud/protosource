@@ -92,10 +92,15 @@ func WithTTL(ttl time.Duration) Option {
 	return func(s *DynamoDBStore) { s.ttl = ttl }
 }
 
-// Save stores records for the given aggregate ID using TransactWriteItems for
-// atomicity. If there are more than 100 records, they are written in batches
-// of 100 (DynamoDB's per-transaction limit). Each record uses a condition
-// expression to prevent duplicate versions.
+// Save stores records for the given aggregate ID. Each batch of up to 100
+// records is written atomically using TransactWriteItems with condition
+// expressions to prevent duplicate versions.
+//
+// When len(records) exceeds 100, Save splits the work into multiple
+// transactions. Atomicity is guaranteed within each batch, but NOT across
+// batches: if a later batch fails, earlier batches are already committed.
+// Callers that require all-or-nothing semantics for large writes should
+// pre-validate or limit batch size upstream.
 //
 // Saving zero records is a no-op.
 func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ...*recordv1.Record) error {
@@ -194,37 +199,72 @@ func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv
 }
 
 // LoadTail returns the last n events for the given aggregate, ordered by
-// version ascending. It queries DynamoDB in descending order with a limit,
+// version ascending. It queries DynamoDB in descending order with a per-page
+// limit of n, paginating until n records are collected or no more pages remain,
 // then reverses the results.
+//
+// If n <= 0, an empty History is returned immediately.
 func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int) (*historyv1.History, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
 	}
+	if n <= 0 {
+		return &historyv1.History{}, nil
+	}
+
+	// Clamp to int32 range for the DynamoDB Limit parameter.
+	limit := n
+	const maxInt32 = 1<<31 - 1
+	if limit > maxInt32 {
+		limit = maxInt32
+	}
 
 	key := s.makeKey(aggregateID)
-	input := &dynamodb.QueryInput{
-		TableName:              &s.eventsTable,
-		ConsistentRead:         aws.Bool(true),
-		ScanIndexForward:       aws.Bool(false),
-		Limit:                  aws.Int32(int32(n)),
-		KeyConditionExpression: aws.String("a = :id"),
-		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":id": &types.AttributeValueMemberS{Value: key},
-		},
-	}
-
-	resp, err := s.client.Query(ctx, input)
-	if err != nil {
-		return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
-	}
-
 	history := &historyv1.History{}
-	for _, item := range resp.Items {
-		rec, err := itemToRecord(item)
+	remaining := n
+
+	var exclusiveStartKey map[string]types.AttributeValue
+	for remaining > 0 {
+		pageLimit := remaining
+		if pageLimit > maxInt32 {
+			pageLimit = maxInt32
+		}
+
+		input := &dynamodb.QueryInput{
+			TableName:              &s.eventsTable,
+			ConsistentRead:         aws.Bool(true),
+			ScanIndexForward:       aws.Bool(false),
+			Limit:                  aws.Int32(int32(pageLimit)),
+			KeyConditionExpression: aws.String("a = :id"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":id": &types.AttributeValueMemberS{Value: key},
+			},
+		}
+		if exclusiveStartKey != nil {
+			input.ExclusiveStartKey = exclusiveStartKey
+		}
+
+		resp, err := s.client.Query(ctx, input)
 		if err != nil {
 			return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
 		}
-		history.Records = append(history.Records, rec)
+
+		for _, item := range resp.Items {
+			if remaining <= 0 {
+				break
+			}
+			rec, err := itemToRecord(item)
+			if err != nil {
+				return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
+			}
+			history.Records = append(history.Records, rec)
+			remaining--
+		}
+
+		if resp.LastEvaluatedKey == nil || remaining <= 0 {
+			break
+		}
+		exclusiveStartKey = resp.LastEvaluatedKey
 	}
 
 	// Reverse to ascending version order.

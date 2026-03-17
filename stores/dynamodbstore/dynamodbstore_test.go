@@ -21,9 +21,12 @@ import (
 // ---------------------------------------------------------------------------
 
 // mockDynamoer simulates DynamoDB behavior in memory for unit testing.
+// When pageSize > 0, Query results are paginated to exercise LastEvaluatedKey
+// handling in the store.
 type mockDynamoer struct {
-	mu     sync.Mutex
-	tables map[string]map[string]map[string]types.AttributeValue // table -> compositeKey -> item
+	mu       sync.Mutex
+	tables   map[string]map[string]map[string]types.AttributeValue // table -> compositeKey -> item
+	pageSize int                                                    // 0 = no pagination
 }
 
 func newMockDynamoer() *mockDynamoer {
@@ -122,12 +125,50 @@ func (m *mockDynamoer) Query(ctx context.Context, input *dynamodb.QueryInput, _ 
 		return vi > vj
 	})
 
-	// Apply limit.
-	if input.Limit != nil && int(*input.Limit) < len(items) {
-		items = items[:*input.Limit]
+	// Handle ExclusiveStartKey: skip items up to and including the start key.
+	if input.ExclusiveStartKey != nil {
+		startVersion := input.ExclusiveStartKey["v"].(*types.AttributeValueMemberN).Value
+		startV, _ := strconv.ParseInt(startVersion, 10, 64)
+		skip := 0
+		for _, item := range items {
+			iv, _ := strconv.ParseInt(item["v"].(*types.AttributeValueMemberN).Value, 10, 64)
+			if ascending && iv <= startV {
+				skip++
+			} else if !ascending && iv >= startV {
+				skip++
+			} else {
+				break
+			}
+		}
+		items = items[skip:]
 	}
 
-	return &dynamodb.QueryOutput{Items: items}, nil
+	// Determine effective page size: the smallest of Limit, pageSize (if set),
+	// or the total number of items.
+	effectiveLimit := len(items)
+	if input.Limit != nil && int(*input.Limit) < effectiveLimit {
+		effectiveLimit = int(*input.Limit)
+	}
+	if m.pageSize > 0 && m.pageSize < effectiveLimit {
+		effectiveLimit = m.pageSize
+	}
+
+	var lastEvaluatedKey map[string]types.AttributeValue
+	if effectiveLimit < len(items) {
+		items = items[:effectiveLimit]
+		// Set LastEvaluatedKey to the last item returned so the caller can
+		// resume from this position.
+		last := items[len(items)-1]
+		lastEvaluatedKey = map[string]types.AttributeValue{
+			"a": last["a"],
+			"v": last["v"],
+		}
+	}
+
+	return &dynamodb.QueryOutput{
+		Items:            items,
+		LastEvaluatedKey: lastEvaluatedKey,
+	}, nil
 }
 
 func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
@@ -169,6 +210,15 @@ func strPtr(s string) *string { return &s }
 func newTestStore(t *testing.T, opts ...Option) (*DynamoDBStore, *mockDynamoer) {
 	t.Helper()
 	mock := newMockDynamoer()
+	store, err := New(mock, opts...)
+	require.NoError(t, err)
+	return store, mock
+}
+
+func newPaginatingTestStore(t *testing.T, pageSize int, opts ...Option) (*DynamoDBStore, *mockDynamoer) {
+	t.Helper()
+	mock := newMockDynamoer()
+	mock.pageSize = pageSize
 	store, err := New(mock, opts...)
 	require.NoError(t, err)
 	return store, mock
@@ -375,6 +425,21 @@ func TestLoadTail_NonExistent(t *testing.T) {
 	assert.Empty(t, h.Records)
 }
 
+func TestLoadTail_ZeroOrNegative(t *testing.T) {
+	store, _ := newTestStore(t)
+	ctx := context.Background()
+
+	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("a"))))
+
+	h, err := store.LoadTail(ctx, "agg-1", 0)
+	require.NoError(t, err)
+	assert.Empty(t, h.Records)
+
+	h, err = store.LoadTail(ctx, "agg-1", -5)
+	require.NoError(t, err)
+	assert.Empty(t, h.Records)
+}
+
 // ---------------------------------------------------------------------------
 // Context handling
 // ---------------------------------------------------------------------------
@@ -505,6 +570,43 @@ func TestTenantPrefix_AggregateStore(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, int64(2), v2)
 	assert.Equal(t, []byte("t2-data"), d2)
+}
+
+func TestLoad_PaginatesAcrossPages(t *testing.T) {
+	// Use a mock with a tiny page size to force multiple round-trips.
+	store, _ := newPaginatingTestStore(t, 3)
+	ctx := context.Background()
+
+	for i := int64(1); i <= 10; i++ {
+		require.NoError(t, store.Save(ctx, "agg-1", makeRecord(i, []byte(fmt.Sprintf("e%d", i)))))
+	}
+
+	h, err := store.Load(ctx, "agg-1")
+	require.NoError(t, err)
+	require.Len(t, h.Records, 10)
+	for i, rec := range h.Records {
+		assert.Equal(t, int64(i+1), rec.Version)
+	}
+}
+
+func TestLoadTail_PaginatesAcrossPages(t *testing.T) {
+	// Use a mock with page size 2, request last 5 from 10 records.
+	store, _ := newPaginatingTestStore(t, 2)
+	ctx := context.Background()
+
+	for i := int64(1); i <= 10; i++ {
+		require.NoError(t, store.Save(ctx, "agg-1", makeRecord(i, []byte(fmt.Sprintf("e%d", i)))))
+	}
+
+	h, err := store.LoadTail(ctx, "agg-1", 5)
+	require.NoError(t, err)
+	require.Len(t, h.Records, 5)
+	// Ascending: 6, 7, 8, 9, 10
+	assert.Equal(t, int64(6), h.Records[0].Version)
+	assert.Equal(t, int64(7), h.Records[1].Version)
+	assert.Equal(t, int64(8), h.Records[2].Version)
+	assert.Equal(t, int64(9), h.Records[3].Version)
+	assert.Equal(t, int64(10), h.Records[4].Version)
 }
 
 func TestSaveBatching_Over100Records(t *testing.T) {
