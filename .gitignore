@@ -1,0 +1,47 @@
+############################################################
+### The perfect golang .gitignore
+############################################################
+#### Recursively ignore EVERYTHING!
+/**
+
+#### Still descend into directories
+!*/
+
+#### Dont ignore these patterns
+# Duh!
+!.gitignore
+
+## go files
+!*.go
+!*.gotext
+!*.gohtml
+!go.mod
+!go.sum
+
+## Proto files
+!*.proto
+
+## sql files
+!*.sql
+
+## Dockerfiles
+!Dockerfile
+
+## Markdown docs
+!*.md
+
+## Get templates in there.
+!*.tpl
+!*.tmpl
+
+## yaml
+!*.yaml
+
+## GitHub config
+!CODEOWNERS
+
+##### End dont ignore
+
+vendor/
+
+.idea/
