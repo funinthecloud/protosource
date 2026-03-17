@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -264,6 +265,10 @@ func (s *BoltDBStore) SaveAggregate(ctx context.Context, aggregateID string, dat
 	db, err := s.openShard(shardNum)
 	if err != nil {
 		return fmt.Errorf("open shard: %w", err)
+	}
+
+	if len(data) > math.MaxInt-8 {
+		return fmt.Errorf("save aggregate: data too large (%d bytes)", len(data))
 	}
 
 	return db.Update(func(tx *bbolt.Tx) error {
