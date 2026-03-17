@@ -1,0 +1,190 @@
+syntax = "proto3";
+
+package funinthecloud.protosource.options.v1;
+
+option go_package = "github.com/funinthecloud/protosource/options/v1;optionsv1";
+
+import "google/protobuf/descriptor.proto";
+
+// ── File Options
+// ────────────────────────────────────────────────────────────── Wrapped in a
+// message to allow future metadata fields without consuming a new extension
+// field number.
+
+message FileOptions {
+  bool enabled = 1;
+  // Future growth is free — add fields here without a new extension number:
+  // string domain_namespace = 2;
+  // bool   strict_validation = 3;
+}
+
+extend google.protobuf.FileOptions {
+  FileOptions protosource_file = 60106;
+}
+
+// Usage:
+//   option (protosource_file).enabled = true;
+
+// ── Message Options
+// ─────────────────────────────────────────────────────────── Discriminated
+// union — each role carries only the metadata relevant to it. The oneof
+// enforces that a message has exactly one role. Prefixed field name guards
+// against collision when consumers import multiple option packages.
+
+extend google.protobuf.MessageOptions {
+  MessageOptions protosource_message_type = 60105;
+}
+
+message MessageOptions {
+  oneof role {
+    CommandOptions    command    = 1;
+    EventOptions      event      = 2;
+    AggregateOptions  aggregate  = 3;
+    ProjectionOptions projection = 4;
+    SnapshotOptions   snapshot   = 5;
+  }
+}
+
+// ── Command
+// ─────────────────────────────────────────────────────────────────── Present
+// tense verb. Validated before execution. Emits one or more events upon
+// successful execution.
+//
+// produces_events names are validated at generation time — the plugin confirms
+// each name exists in the file set and is annotated as an event type.
+//
+// The generated Execute signature always returns []protosource.Event regardless
+// of how many events are declared here. Per-event typed constructors (NewXxx())
+// are generated on the command struct for each declared event.
+
+// CommandLifecycle describes when a command is valid relative to the aggregate's
+// existence. UNSPECIFIED skips version validation entirely, giving authors full
+// control. CREATION requires the aggregate to be new (version == 0). MUTATION
+// requires the aggregate to already exist (version > 0).
+enum CommandLifecycle {
+  COMMAND_LIFECYCLE_UNSPECIFIED = 0;
+  COMMAND_LIFECYCLE_CREATION    = 1;
+  COMMAND_LIFECYCLE_MUTATION    = 2;
+}
+
+message CommandOptions {
+  // The event message names this command produces upon successful execution.
+  // Typically one. Two is uncommon but valid.
+  // More than two is a signal the command is doing too much.
+  repeated string produces_events = 1;
+
+  // When this command is valid relative to the aggregate's lifecycle.
+  // UNSPECIFIED (default) skips version validation.
+  // CREATION requires version == 0 (new aggregate).
+  // MUTATION requires version > 0 (existing aggregate).
+  CommandLifecycle lifecycle = 2;
+
+  // The aggregate states in which this command is allowed. When specified,
+  // the plugin generates an Authorize(aggregate) method that rejects the
+  // command if the aggregate's current state is not in this list.
+  //
+  // Values must be valid enum value names defined in the same proto file.
+  // The plugin validates this at generation time.
+  //
+  // When empty (default), no Authorize method is generated — the command
+  // is allowed in any state. Hand-written Authorize methods can still be
+  // used for complex authorization logic.
+  repeated string allowed_states = 3;
+}
+
+// Usage:
+//   option (protosource_message_type).command = {
+//     produces_events: ["OrderCreated"]
+//     lifecycle: COMMAND_LIFECYCLE_CREATION
+//   };
+
+// ── Event
+// ───────────────────────────────────────────────────────────────────── Past
+// tense verb. Immutable fact. Represents a change that has occurred.
+//
+// Every event message MUST have the following fields to satisfy the
+// protosource.Event runtime interface. Field numbers 1-4 are reserved
+// for this contract — domain fields must start at 5.
+//
+//   string id      = 1;  // GetId()      — aggregate ID
+//   int64  version = 2;  // GetVersion() — position in the stream
+//   int64  at      = 3;  // GetAt()      — Unix microseconds
+//   string actor   = 4;  // GetActor()   — responsible actor
+//
+// The plugin validates these fields exist with the correct types at
+// generation time.
+
+message EventOptions {
+  // The aggregate type that owns this event's stream. e.g. "Order"
+  string aggregate_type = 1;
+
+  // If set, the generated On method will assign this state enum value to the
+  // aggregate's State field when this event is applied. Use the full enum value
+  // name, e.g. "STATE_LOCKED". The plugin validates that the value exists in
+  // the same proto file at generation time.
+  string sets_state = 2;
+}
+
+// Usage:
+//   option (protosource_message_type).event = {
+//     aggregate_type: "Order"
+//   };
+
+// ── Aggregate
+// ─────────────────────────────────────────────────────────────────
+// Reconstituted state derived from replaying an event stream.
+// The stream ID is constructed as: stream_prefix + aggregate_id
+
+message AggregateOptions {
+  // Prefix for the event stream ID. e.g. "order-" → stream ID = "order-{id}"
+  string stream_prefix = 1;
+}
+
+// Usage:
+//   option (protosource_message_type).aggregate = {
+//     stream_prefix: "order-"
+//   };
+
+// ── Projection
+// ──────────────────────────────────────────────────────────────── Read-side
+// view model built by subscribing to one or more aggregate streams.
+
+message ProjectionOptions {
+  // The aggregate types this projection subscribes to.
+  repeated string source_aggregates = 1;
+}
+
+// Usage:
+//   option (protosource_message_type).projection = {
+//     source_aggregates: ["Order", "Customer"]
+//   };
+
+// ── Snapshot
+// ──────────────────────────────────────────────────────────────────
+// Point-in-time aggregate state written to truncate event replay cost.
+//
+// every_n_events controls both write frequency and read lookback window —
+// they are the same number by design. The lookback must always equal the
+// snapshot frequency to guarantee the most recent snapshot is within the
+// query window. These are not independently tunable.
+//
+// Resolution order for every_n_events:
+//   annotation value > 0  →  use annotation value
+//   annotation value = 0  →  use runtime config value
+//   runtime config absent →  use hardcoded default
+
+message SnapshotOptions {
+  // How frequently to write a snapshot, and the exact lookback window on
+  // replay. 0 = defer to runtime default.
+  uint32 every_n_events = 1;
+
+  // Explicit opt-out for low-velocity aggregates where replay is always cheap.
+  // Prefer this over omitting the annotation entirely — intent is explicit.
+  bool disabled = 2;
+}
+
+// Usage:
+//   option (protosource_message_type).snapshot = { every_n_events: 50 };
+//   option (protosource_message_type).snapshot = { disabled: true };
+//   option (protosource_message_type).snapshot = {}; // defer to runtime
+//   default

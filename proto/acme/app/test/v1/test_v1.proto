@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package acme.app.test.v1;
+
+option go_package = "github.com/funinthecloud/protosource/acme/app/test/v1;testv1";
+
+import "buf/validate/validate.proto";
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+// Tell the plugin that this is a protosource file
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_UNLOCKED    = 1;
+  STATE_LOCKED      = 2;
+}
+
+// Test is the aggregate.
+//  It must be defined first in the proto,
+//  its name must match the first part of the package.
+message Test {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+  };
+  string id        = 1;
+  int64  version   = 2;
+  int64  create_at = 3;
+  string create_by = 4;
+  int64  modify_at = 5;
+  string modify_by = 6;
+  string body      = 7;
+  State  state     = 8;
+}
+
+// Create is the command that is used to create a test.
+// Emits Created (domain fields) then Unlocked (initial state).
+message Create {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "Created", "Unlocked" ]
+    lifecycle: COMMAND_LIFECYCLE_CREATION
+  };
+  string id    = 1 [(buf.validate.field).string.min_len = 1];
+  string actor = 2 [(buf.validate.field).string.min_len = 1];
+  string body  = 3 [(buf.validate.field).string.min_len = 1];
+}
+
+// Update is the command that is used to update a test.
+message Update {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "Updated" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_UNLOCKED" ]
+  };
+  string id    = 1;
+  string actor = 2;
+  string body  = 3;
+}
+
+// Lock is the command that locks the aggregate.
+message Lock {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "Locked" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_UNLOCKED" ]
+  };
+  string id    = 1;
+  string actor = 2;
+}
+
+// Unlock is the command that unlocks the aggregate.
+message Unlock {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "Unlocked" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_LOCKED" ]
+  };
+  string id    = 1;
+  string actor = 2;
+}
+
+// Created is the event emitted when we create a test.
+message Created {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string body    = 5;
+}
+
+// Updated is the event emitted when we update a test.
+message Updated {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string body    = 5;
+}
+
+// Locked is the event emitted when the aggregate is locked.
+message Locked {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+    sets_state: "STATE_LOCKED"
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+}
+
+// Unlocked is the event emitted when the aggregate is unlocked.
+message Unlocked {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+    sets_state: "STATE_UNLOCKED"
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+}
+
+// Snapshot is the snapshot of the aggregate
+message Snapshot {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).snapshot = {
+    every_n_events: 50
+  };
+  string id       = 1;
+  int64  version  = 2;
+  int64  at       = 3;
+  string actor    = 4;
+  Test   snapshot = 5;
+}

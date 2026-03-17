@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package funinthecloud.protosource.history.v1;
+
+option go_package = "github.com/funinthecloud/protosource/history/v1;historyv1";
+
+import "funinthecloud/protosource/record/v1/record_v1.proto";
+
+message History {
+  repeated funinthecloud.protosource.record.v1.Record records = 1;
+}

@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package funinthecloud.protosource.record.v1;
+
+option go_package = "github.com/funinthecloud/protosource/record/v1;recordv1";
+
+message Record {
+  int64 version = 1;
+  bytes data    = 2;
+}

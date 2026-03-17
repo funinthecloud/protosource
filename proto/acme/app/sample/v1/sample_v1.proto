@@ -1,0 +1,135 @@
+syntax = "proto3";
+
+package acme.app.sample.v1;
+
+option go_package = "github.com/funinthecloud/protosource/acme/app/sample/v1;samplev1";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+// Tell the plugin that this is a protosource file
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+// PUT THE AGGREGATE HERE
+// What is an aggregate?
+// An aggregate is the sum of all the events that have occurred.
+// It is usually directly analogous to a row in a traditional SQL table.
+// The aggregate must be defined as the first message defined
+// in the proto.
+// The name of the aggregate must be the lower case equivalent of the prefix on the package name.
+
+// Sample is the aggregate.
+//  It must be defined first in the proto,
+//  its name must match the first part of the package.
+message Sample {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+  };
+  string id        = 1;
+  int64  version   = 2;
+  int64  create_at = 3;
+  string create_by = 4;
+  int64  modify_at = 5;
+  string modify_by = 6;
+  string body      = 7;
+}
+
+// PUT THE COMMANDS IN THIS SECTION
+// What are commands?
+// Commands are present tense verbs use to describe an action to be
+// taken either on, or for an aggregate.
+//
+// Commands are the unit over which business logic will be applied to determine
+// if the command should be executed.
+//
+// If a command is permitted to be executed, it must emit one or more events.
+//
+// When you are specifying a command, please make sure to suppose its past
+// tense equivalent because every command must be accompanied by at least
+// one event.
+//
+// Example pairs in the form of COMMAND:EVENT:
+//  Create:Created
+//  Update:Updated
+//  SetFoo:FooSet
+//
+
+// Create is the command that is used to create a sample.
+message Create {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "Created" ]
+    lifecycle: COMMAND_LIFECYCLE_CREATION
+  };
+  string id    = 1;
+  string actor = 2;
+  string body  = 3;
+}
+
+// Update is the command that is used to update a sample.
+message Update {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "Updated" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+  };
+  string id    = 1;
+  string actor = 2;
+  string body  = 3;
+}
+
+// PUT EVENTS IN THIS SECTION
+// What is an event?
+// An event is the result of a command being applied to an aggregate.
+// An event typically contains the information necessary to make changes,
+// as well as some book keeping items such as when the change happened, and
+// what actor made the change.
+//
+// Events should be past tense words that indicate what happened, or what body
+// of change is being applied to the aggregate.
+
+// Created is the event emitted when we create a sample.
+message Created {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string body    = 5;
+}
+
+// Updated is the event emitted when we update a sample.
+message Updated {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string body    = 5;
+}
+
+// PUT THE SNAPSHOT (IF USING ONE) in this section
+// What is a snapshot?
+// A snapshot is a recorded version of the aggregate at a point in time.
+// Its main purpose is cost control, but it also helps with archival
+// and record retention.
+// Snapshots are NOT required, but they are EXTREMELY helpful for the operational
+// folks managing the data.
+//
+// Snapshots facilitate rules such as:
+//   1.  After every snapshot, delete all older versions.
+//   2.  After every snapshot, set a TTL on older versions of 30 days so that they delete themselves
+//   2.  After every snapshot
+//      1. Extract, serialize, and write the older records to durable storage
+//      2. Delete the older records.
+//
+// The format of the snapshot must be EXACTLY as detailed below.
+// The only change is the name of the aggregate.
+message Snapshot {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).snapshot = {
+    every_n_events: 50
+  };
+  string id       = 1;
+  int64  version  = 2;
+  int64  at       = 3;
+  string actor    = 4;
+  Sample snapshot = 5;
+}
