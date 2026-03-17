@@ -47,52 +47,66 @@ type Record struct {
 
 ## Design Guidelines
 
+### Field Names
+
+**All Cosmos DB document field names use single characters** to minimize per-document byte costs. Cosmos DB charges based on Request Units (RU), which are directly proportional to document size. Field names are stored in every document's JSON representation, so shorter names reduce both storage and RU consumption at scale.
+
+| Field | Purpose | Type | Description |
+|-------|---------|------|-------------|
+| `id` | Document ID | string | Required by Cosmos DB; `<aggregateId>_<version>` for events, `<aggregateId>` for aggregates |
+| `a` | Partition key | string | Aggregate ID (with optional tenant prefix) |
+| `v` | — | number | Version number |
+| `d` | — | string | Event/aggregate payload (base64-encoded) |
+| `y` | — | string | Document type discriminator (`"e"` for event, `"a"` for aggregate) |
+| `t` | — | number | TTL epoch seconds (optional, events only; Cosmos DB native TTL) |
+
 ### Package and Naming
 
 - Package: `cosmosdbstore`
 - Main type: `CosmosDBStore`
 - Constructor: `New(container *azcosmos.ContainerClient, opts ...Option) *CosmosDBStore`
 - Accept an already-created `*azcosmos.ContainerClient` — the caller owns the lifecycle
-- Use separate containers for events and aggregates (or a single container with a `type` discriminator field)
+- Use separate containers for events and aggregates (or a single container with a `y` discriminator field)
 
 ### Container and Document Structure
 
 **Events container** (default: `events`):
-- Partition key: `/aggregateId`
+- Partition key: `/a`
 - Documents:
 
 ```json
 {
     "id": "<aggregateId>_<version>",
-    "aggregateId": "<aggregateId>",
-    "version": 42,
-    "data": "<base64-encoded bytes>",
-    "type": "event"
+    "a": "<aggregateId>",
+    "v": 42,
+    "d": "<base64-encoded bytes>",
+    "y": "e",
+    "t": 1742169600
 }
 ```
 
-The `id` field must be unique within the partition. Combining aggregate ID and version ensures uniqueness. Store `data` as base64-encoded string since Cosmos DB JSON doesn't have a native binary type.
+The `id` field must be unique within the partition. Combining aggregate ID and version ensures uniqueness. Store `d` as base64-encoded string since Cosmos DB JSON doesn't have a native binary type. The `t` field is only present when TTL is configured.
 
-**Aggregates container** (default: `aggregates`, or same container with `type: "aggregate"`):
-- Partition key: `/aggregateId`
+**Aggregates container** (default: `aggregates`, or same container with `y: "a"`):
+- Partition key: `/a`
 - Documents:
 
 ```json
 {
     "id": "<aggregateId>",
-    "aggregateId": "<aggregateId>",
-    "version": 42,
-    "data": "<base64-encoded bytes>",
-    "type": "aggregate"
+    "a": "<aggregateId>",
+    "v": 42,
+    "d": "<base64-encoded bytes>",
+    "y": "a"
 }
 ```
 
 ### Single-Container Alternative
 
 If using one container for both events and aggregates:
-- Partition key: `/aggregateId`
-- Discriminate by `type` field (`"event"` vs `"aggregate"`)
-- Queries filter by `type` in the WHERE clause
+- Partition key: `/a`
+- Discriminate by `y` field (`"e"` vs `"a"`)
+- Queries filter by `y` in the WHERE clause
 - This reduces container count but slightly complicates queries
 
 Either approach works. Document the choice in the code.
@@ -102,24 +116,28 @@ Either approach works. Document the choice in the code.
 - Use Cosmos DB transactional batch (`ContainerClient.NewTransactionalBatch`) for atomicity
 - All items in a batch must share the same partition key — this works since all records share the same aggregate ID
 - Transactional batches are limited to 100 operations — batch accordingly
+- Atomicity is per-batch only; when len(records) > 100, earlier batches persist even if a later batch fails
 - For each record: `batch.CreateItem` with a condition to prevent overwrite
+- When TTL is configured, include the `t` field with the expiry epoch
 - Check `ctx.Err()` before starting
 - Save with no records should succeed (no-op)
-- Encode `data` as base64 for JSON storage
+- Encode `d` as base64 for JSON storage
 
 ### Load Implementation
 
-- Query: `SELECT * FROM c WHERE c.aggregateId = @id AND c.type = 'event' ORDER BY c.version ASC`
+- Query: `SELECT * FROM c WHERE c.a = @id AND c.y = 'e' ORDER BY c.v ASC`
 - Use `ContainerClient.NewQueryItemsPager` with partition key
 - Iterate all pages, build `[]*recordv1.Record`
-- Decode `data` from base64
+- Decode `d` from base64
 - Return empty `&historyv1.History{}` if no documents found
 
 ### LoadTail Implementation
 
-- Query: `SELECT TOP @n * FROM c WHERE c.aggregateId = @id AND c.type = 'event' ORDER BY c.version DESC`
+- Query: `SELECT TOP @n * FROM c WHERE c.a = @id AND c.y = 'e' ORDER BY c.v DESC`
 - Reverse the results to return ascending version order
-- Or use a subquery: `SELECT * FROM (SELECT TOP @n ... ORDER BY c.version DESC) ORDER BY c.version ASC` (Cosmos DB supports this in some API versions)
+- Or use a subquery: `SELECT * FROM (SELECT TOP @n ... ORDER BY c.v DESC) ORDER BY c.v ASC` (Cosmos DB supports this in some API versions)
+- If n <= 0, return empty History immediately
+- Paginate across pages until n records are collected
 
 ### SaveAggregate / LoadAggregate
 
@@ -133,7 +151,24 @@ type Option func(*CosmosDBStore)
 
 func WithEventsContainer(name string) Option     // default: "events"
 func WithAggregatesContainer(name string) Option // default: "aggregates"
+func WithTenantPrefix(prefix string) Option      // prepends "prefix#" to aggregate IDs for multi-tenant containers
+func WithTTL(ttl time.Duration) Option           // sets TTL on event documents; container must have TTL enabled
 ```
+
+### TTL (Time To Live)
+
+Use `WithTTL(duration)` to set an expiration on event documents. When configured, each saved event includes a `t` field containing the Unix epoch second at which the document should expire. Cosmos DB's native TTL feature handles automatic deletion.
+
+**Requirements:**
+- The events container must have a default TTL configured (e.g., `-1` for per-item TTL) — see [Cosmos DB TTL docs](https://learn.microsoft.com/en-us/azure/cosmos-db/nosql/time-to-live)
+- Cosmos DB TTL uses a `ttl` property (seconds relative to `_ts`) or you can use an absolute epoch in a custom field and a Cosmos DB TTL policy
+- TTL is only applied to events, not aggregates (aggregate state should persist)
+- A zero or negative duration disables TTL (the default)
+
+**Use cases:**
+- Event expiration after snapshots: once a snapshot captures aggregate state, older events can age off
+- Temporary/ephemeral aggregates with bounded lifetimes
+- Cost control for high-volume event streams
 
 ## Testing Strategy
 
@@ -167,6 +202,7 @@ Alternatively, define a wrapper interface for the Cosmos DB container client and
 - LoadTail returns last N records in ascending order
 - LoadTail with fewer records than N returns all records
 - LoadTail for non-existent aggregate returns empty history
+- LoadTail with n <= 0 returns empty history
 
 **Context handling:**
 - All methods return error on cancelled context
@@ -181,6 +217,10 @@ Alternatively, define a wrapper interface for the Cosmos DB container client and
 - Transactional batch with > 100 items (batching)
 - Base64 encoding preserves binary data with null bytes
 - Partition key routing is correct
+
+**TTL:**
+- WithTTL sets TTL field with correct expiry epoch
+- Without TTL, no TTL field is present
 
 ### Test Helper
 
@@ -200,7 +240,7 @@ func newTestStore(t *testing.T, opts ...Option) *CosmosDBStore {
 
 ## Reference Implementation
 
-Use `stores/boltdbstore/` as the structural reference for interface implementation, and `stores/memorystore/` for the test patterns. The boltdbstore tests demonstrate the expected coverage areas.
+Use `stores/dynamodbstore/` as the primary reference — it shares the same document-oriented, short-field-name, TTL-enabled design. Also reference `stores/boltdbstore/` for interface implementation patterns and `stores/memorystore/` for test patterns.
 
 ## Build & Test
 

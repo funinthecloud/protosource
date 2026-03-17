@@ -2,7 +2,6 @@ package dynamodbstore
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"time"
@@ -14,232 +13,355 @@ import (
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 )
 
+// Dynamoer is a minimal interface covering the DynamoDB operations needed by
+// the store. It is satisfied by *dynamodb.Client.
 type Dynamoer interface {
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
+	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
+	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 
+// DynamoDB attribute names are kept to single characters to minimize read/write
+// costs. DynamoDB charges per byte for both reads and writes, and attribute
+// names are included in every item's stored and transferred size. At scale
+// (millions of events), the savings from "a" vs "aggregate_id" are material.
 const (
-	DefaultHashKey          = "a"
-	DefaultSortKey          = "v"
-	DefaultTTLKey           = "t"
-	DefaultDataKey          = "d"
-	DefaultTTL              = 0
-	DefaultTableName        = "events"
-	DefaultSnapshotInterval = 10
-	MaxRecords              = 100
+	attrPartitionKey = "a" // partition key (aggregate ID)
+	attrSortKey      = "v" // sort key (version number)
+	attrData         = "d" // event/aggregate payload
+	attrTTL          = "t" // TTL epoch seconds (optional)
+
+	DefaultEventsTable     = "events"
+	DefaultAggregatesTable = "aggregates"
+	maxTransactItems       = 100
 )
 
-var (
-	ErrNoRecords        = errors.New("no records to save")
-	ErrDuplicateVersion = errors.New("version numbers must be unique")
-	ErrTooManyRecords   = errors.New("too many records, maximum 100") // Refactor this to accept more than 100 records in groups.
-)
-
-// DynamoDBStore is an implementation of the Store interface that uses DynamoDB as the backend.
+// DynamoDBStore implements the protosource Store, AggregateStore, and
+// SnapshotTailStore interfaces backed by DynamoDB.
 type DynamoDBStore struct {
-	client                 Dynamoer // DynamoDB client
-	tableName              string   // DynamoDB table name
-	tenantPrefix           string   // For tenant segregation.
-	hashKey                string   // The string to use for the hash key
-	sortKey                string   // The string to use for the sort key
-	ttlKey                 string   // the string to use for the ttl key
-	dataKey                string   // the string to use for the data key
-	ttl                    int64    // The default TTL to use.
-	snapshotInterval       int32    // Snapshot interval
-	keyConditionExpression string   // Only calculate and store this once
-	hashKeyConditionString string   // Only calculate and store this once
+	client          Dynamoer
+	eventsTable     string
+	aggregatesTable string
+	tenantPrefix    string
+	ttl             time.Duration // when non-zero, sets TTL attribute on event writes
 }
 
-// NewDynamoDBStore initializes and returns a new instance of DynamoDBStore.
-// Requires a Dynamoer.
-func NewDynamoDBStore(client Dynamoer, opts ...Option) (*DynamoDBStore, error) {
-	dbs := &DynamoDBStore{
-		client:           client,
-		tableName:        DefaultTableName,
-		tenantPrefix:     "",
-		hashKey:          DefaultHashKey,
-		sortKey:          DefaultSortKey,
-		ttlKey:           DefaultTTLKey,
-		dataKey:          DefaultDataKey,
-		ttl:              DefaultTTL,
-		snapshotInterval: DefaultSnapshotInterval,
+// New creates a new DynamoDBStore. The client must not be nil.
+func New(client Dynamoer, opts ...Option) (*DynamoDBStore, error) {
+	s := &DynamoDBStore{
+		client:          client,
+		eventsTable:     DefaultEventsTable,
+		aggregatesTable: DefaultAggregatesTable,
 	}
 	for _, opt := range opts {
-		opt(dbs)
+		opt(s)
 	}
-
-	dbs.keyConditionExpression = fmt.Sprintf("%s = :aggregate_id", dbs.hashKey)
-	dbs.hashKeyConditionString = fmt.Sprintf("attribute_not_exists(%s) AND attribute_not_exists(%s)", dbs.hashKey, dbs.sortKey)
-
-	if err := dbs.OK(); err != nil {
-		return nil, fmt.Errorf("dynamodbstore.NewDynamoDBStore: %w", err)
-	}
-	return dbs, nil
-}
-
-func (s *DynamoDBStore) OK() error {
 	if s.client == nil {
-		return errors.New("dynamodbstore.OK: no client provided")
+		return nil, fmt.Errorf("dynamodbstore.New: client must not be nil")
 	}
-	return nil
+	return s, nil
 }
 
-// Option represents a functional configuration of *DynamoDBStore.
-type Option func(store *DynamoDBStore)
+// Option configures a DynamoDBStore.
+type Option func(*DynamoDBStore)
 
-// WithTableName sets the table name to use within DynamoDB.
-func WithTableName(tableName string) Option {
-	return func(r *DynamoDBStore) {
-		r.tableName = tableName
-	}
+// WithEventsTable sets the DynamoDB table name used for event storage.
+func WithEventsTable(name string) Option {
+	return func(s *DynamoDBStore) { s.eventsTable = name }
 }
 
-// WithTenantPrefix allows the underlying store to prefix the AggregateId when putting them into DynamoDB.
+// WithAggregatesTable sets the DynamoDB table name used for aggregate state.
+func WithAggregatesTable(name string) Option {
+	return func(s *DynamoDBStore) { s.aggregatesTable = name }
+}
+
+// WithTenantPrefix prepends "prefix#" to all aggregate IDs for multi-tenant
+// table sharing.
+func WithTenantPrefix(prefix string) Option {
+	return func(s *DynamoDBStore) { s.tenantPrefix = prefix }
+}
+
+// WithTTL sets a time-to-live duration for event records. When set, each saved
+// event includes a TTL attribute ("t") containing the Unix epoch second at
+// which the record should expire. The DynamoDB table must have TTL enabled on
+// the "t" attribute for automatic deletion to occur.
 //
-// The purpose here is to be able to re-use the same DynamoDB table for MANY different tenants.
-func WithTenantPrefix(tenantPrefix string) Option {
-	return func(r *DynamoDBStore) {
-		r.tenantPrefix = tenantPrefix
-	}
+// A zero or negative duration disables TTL (the default).
+func WithTTL(ttl time.Duration) Option {
+	return func(s *DynamoDBStore) { s.ttl = ttl }
 }
 
-// WithHashKey sets the hash key to be used with DynamoDB.
-func WithHashKey(hashKey string) Option {
-	return func(r *DynamoDBStore) {
-		r.hashKey = hashKey
-	}
-}
-
-// WithSortKey sets the sort key to be used with DynamoDB.
-func WithSortKey(sortKey string) Option {
-	return func(r *DynamoDBStore) {
-		r.sortKey = sortKey
-	}
-}
-
-// WithTTLKey sets the TTL (Time To Live) key to be used with DynamoDB.
-func WithTTLKey(ttlKey string) Option {
-	return func(r *DynamoDBStore) {
-		r.ttlKey = ttlKey
-	}
-}
-
-// WithDataKey sets the data key to be used with DynamoDB.
-func WithDataKey(dataKey string) Option {
-	return func(r *DynamoDBStore) {
-		r.dataKey = dataKey
-	}
-}
-
-// WithTTL sets the TTL (Time To Live) for records being put into DynamoDB.
+// Save stores records for the given aggregate ID. Each batch of up to 100
+// records is written atomically using TransactWriteItems with condition
+// expressions to prevent duplicate versions.
 //
-// The purpose here is to be able to re-use the same DynamoDB table for MANY different types of events/changes/aggregates.
-func WithTTL(ttl int64) Option {
-	return func(r *DynamoDBStore) {
-		r.ttl = ttl
+// When len(records) exceeds 100, Save splits the work into multiple
+// transactions. Atomicity is guaranteed within each batch, but NOT across
+// batches: if a later batch fails, earlier batches are already committed.
+// Callers that require all-or-nothing semantics for large writes should
+// pre-validate or limit batch size upstream.
+//
+// Saving zero records is a no-op.
+func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ...*recordv1.Record) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("dynamodbstore.Save: %w", err)
 	}
-}
-
-// WithSnapshotInterval sets the snapshot interval for the store.
-func WithSnapshotInterval(snapshotInterval int32) Option {
-	return func(r *DynamoDBStore) {
-		r.snapshotInterval = snapshotInterval
-	}
-}
-
-// SnapshotInterval returns the configured snapshot interval.
-func (s *DynamoDBStore) SnapshotInterval() int32 {
-	return s.snapshotInterval
-}
-
-// Save stores a list of records for a given aggregate ID in the DynamoDB table.
-// If any record conflicts (duplicate version for the same aggregate), an error is returned.
-func (s *DynamoDBStore) Save(ctx context.Context, aggregateId string, records ...*recordv1.Record) error {
 	if len(records) == 0 {
-		return ErrNoRecords
-	}
-	if len(records) > MaxRecords {
-		return ErrTooManyRecords
+		return nil
 	}
 
-	// Use a transaction to ensure atomicity across multiple writes
-	var writeItems []types.TransactWriteItem
-	for _, record := range records {
-		writeItems = append(writeItems, types.TransactWriteItem{
-			Put: &types.Put{
-				TableName: &s.tableName,
-				Item: map[string]types.AttributeValue{
-					"a": &types.AttributeValueMemberS{Value: aggregateId},
-					"v": &types.AttributeValueMemberN{Value: strconv.FormatInt(record.Version, 10)},
-					"d": &types.AttributeValueMemberB{Value: record.Data},
-					"l": &types.AttributeValueMemberN{Value: strconv.FormatInt(time.Now().Unix(), 10)},
+	key := s.makeKey(aggregateID)
+
+	// Batch into groups of maxTransactItems.
+	for i := 0; i < len(records); i += maxTransactItems {
+		end := i + maxTransactItems
+		if end > len(records) {
+			end = len(records)
+		}
+		batch := records[i:end]
+
+		items := make([]types.TransactWriteItem, len(batch))
+		for j, rec := range batch {
+			item := map[string]types.AttributeValue{
+				attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+				attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetVersion(), 10)},
+				attrData:         &types.AttributeValueMemberB{Value: rec.GetData()},
+			}
+			if s.ttl > 0 {
+				expiry := time.Now().Add(s.ttl).Unix()
+				item[attrTTL] = &types.AttributeValueMemberN{Value: strconv.FormatInt(expiry, 10)}
+			}
+			items[j] = types.TransactWriteItem{
+				Put: &types.Put{
+					TableName:           &s.eventsTable,
+					Item:                item,
+					ConditionExpression: aws.String("attribute_not_exists(a) AND attribute_not_exists(v)"),
 				},
-				ConditionExpression: aws.String("attribute_not_exists(a) AND attribute_not_exists(v)"),
-			},
-		})
-	}
+			}
+		}
 
-	// Execute the transaction
-	_, err := s.client.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
-		TransactItems: writeItems,
-	})
-	if err != nil {
-		return fmt.Errorf("dynamodbstore.Save: failed to save records: %w", err)
+		if _, err := s.client.TransactWriteItems(ctx, &dynamodb.TransactWriteItemsInput{
+			TransactItems: items,
+		}); err != nil {
+			return fmt.Errorf("dynamodbstore.Save: %w", err)
+		}
 	}
 
 	return nil
 }
 
-// Load retrieves the history for a given aggregate ID from the DynamoDB table.
-// If no history exists for the specified ID, an empty History object is returned.
-func (s *DynamoDBStore) Load(ctx context.Context, aggregateId string) (*historyv1.History, error) {
-	queryInput := &dynamodb.QueryInput{
-		TableName:                 aws.String(s.tableName),
-		ConsistentRead:            aws.Bool(true),
-		ScanIndexForward:          aws.Bool(false),
-		KeyConditionExpression:    aws.String(s.keyConditionExpression),
-		ExpressionAttributeValues: s.makeExpressionAttributeValues(aggregateId),
-	}
-	if s.snapshotInterval > 0 {
-		queryInput.Limit = aws.Int32(s.snapshotInterval)
+// Load retrieves the full event history for the given aggregate ID in ascending
+// version order. Paginates automatically if DynamoDB returns partial results.
+func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv1.History, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("dynamodbstore.Load: %w", err)
 	}
 
-	resp, err := s.client.Query(ctx, queryInput)
-	if err != nil {
-		return nil, fmt.Errorf("dynamodbstore.Load: failed to query history: %w", err)
-	}
-
-	// Build the history object from the query result
+	key := s.makeKey(aggregateID)
 	history := &historyv1.History{}
-	for _, item := range resp.Items {
-		version, err := strconv.ParseInt(item["v"].(*types.AttributeValueMemberN).Value, 10, 64) // Adjusted key to match the Save method
+
+	var exclusiveStartKey map[string]types.AttributeValue
+	for {
+		input := &dynamodb.QueryInput{
+			TableName:              &s.eventsTable,
+			ConsistentRead:         aws.Bool(true),
+			ScanIndexForward:       aws.Bool(true),
+			KeyConditionExpression: aws.String("a = :id"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":id": &types.AttributeValueMemberS{Value: key},
+			},
+		}
+		if exclusiveStartKey != nil {
+			input.ExclusiveStartKey = exclusiveStartKey
+		}
+
+		resp, err := s.client.Query(ctx, input)
 		if err != nil {
-			return nil, fmt.Errorf("dynamodbstore.Load: failed to parse version: %w", err)
+			return nil, fmt.Errorf("dynamodbstore.Load: %w", err)
 		}
-		data, ok := item["d"].(*types.AttributeValueMemberB)
-		if !ok {
-			return nil, errors.New("dynamodbstore.Load: data field is not of type binary")
+
+		for _, item := range resp.Items {
+			rec, err := itemToRecord(item)
+			if err != nil {
+				return nil, fmt.Errorf("dynamodbstore.Load: %w", err)
+			}
+			history.Records = append(history.Records, rec)
 		}
-		record := &recordv1.Record{
-			Version: version,
-			Data:    data.Value,
+
+		if resp.LastEvaluatedKey == nil {
+			break
 		}
-		history.Records = append(history.Records, record)
+		exclusiveStartKey = resp.LastEvaluatedKey
 	}
 
 	return history, nil
 }
 
-func (s *DynamoDBStore) makeExpressionAttributeValues(aggregateId string) map[string]types.AttributeValue {
-	result := make(map[string]types.AttributeValue)
-	result[":aggregate_id"] = &types.AttributeValueMemberS{Value: makeDBKey(aggregateId, s.tenantPrefix)}
-	return result
-}
-func makeDBKey(aggregateId string, tenantPrefix string) string {
-	if tenantPrefix != "" {
-		return tenantPrefix + "#" + aggregateId
+// LoadTail returns the last n events for the given aggregate, ordered by
+// version ascending. It queries DynamoDB in descending order with a per-page
+// limit of n, paginating until n records are collected or no more pages remain,
+// then reverses the results.
+//
+// If n <= 0, an empty History is returned immediately.
+func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int) (*historyv1.History, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
 	}
-	return aggregateId
+	if n <= 0 {
+		return &historyv1.History{}, nil
+	}
 
+	// Clamp to int32 range for the DynamoDB Limit parameter.
+	limit := n
+	const maxInt32 = 1<<31 - 1
+	if limit > maxInt32 {
+		limit = maxInt32
+	}
+
+	key := s.makeKey(aggregateID)
+	history := &historyv1.History{}
+	remaining := n
+
+	var exclusiveStartKey map[string]types.AttributeValue
+	for remaining > 0 {
+		pageLimit := remaining
+		if pageLimit > maxInt32 {
+			pageLimit = maxInt32
+		}
+
+		input := &dynamodb.QueryInput{
+			TableName:              &s.eventsTable,
+			ConsistentRead:         aws.Bool(true),
+			ScanIndexForward:       aws.Bool(false),
+			Limit:                  aws.Int32(int32(pageLimit)),
+			KeyConditionExpression: aws.String("a = :id"),
+			ExpressionAttributeValues: map[string]types.AttributeValue{
+				":id": &types.AttributeValueMemberS{Value: key},
+			},
+		}
+		if exclusiveStartKey != nil {
+			input.ExclusiveStartKey = exclusiveStartKey
+		}
+
+		resp, err := s.client.Query(ctx, input)
+		if err != nil {
+			return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
+		}
+
+		for _, item := range resp.Items {
+			if remaining <= 0 {
+				break
+			}
+			rec, err := itemToRecord(item)
+			if err != nil {
+				return nil, fmt.Errorf("dynamodbstore.LoadTail: %w", err)
+			}
+			history.Records = append(history.Records, rec)
+			remaining--
+		}
+
+		if resp.LastEvaluatedKey == nil || remaining <= 0 {
+			break
+		}
+		exclusiveStartKey = resp.LastEvaluatedKey
+	}
+
+	// Reverse to ascending version order.
+	for i, j := 0, len(history.Records)-1; i < j; i, j = i+1, j-1 {
+		history.Records[i], history.Records[j] = history.Records[j], history.Records[i]
+	}
+
+	return history, nil
+}
+
+// SaveAggregate persists the serialized aggregate state and its current version
+// to the aggregates table.
+func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
+	if err := ctx.Err(); err != nil {
+		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
+	}
+
+	key := s.makeKey(aggregateID)
+	_, err := s.client.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &s.aggregatesTable,
+		Item: map[string]types.AttributeValue{
+			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+			attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
+			attrData:         &types.AttributeValueMemberB{Value: data},
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
+	}
+	return nil
+}
+
+// LoadAggregate retrieves the most recently saved aggregate state. Returns nil
+// data with version 0 and no error if the aggregate has not been saved.
+func (s *DynamoDBStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: %w", err)
+	}
+
+	key := s.makeKey(aggregateID)
+	resp, err := s.client.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName:      &s.aggregatesTable,
+		ConsistentRead: aws.Bool(true),
+		Key: map[string]types.AttributeValue{
+			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+		},
+	})
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: %w", err)
+	}
+
+	if resp.Item == nil {
+		return nil, 0, nil
+	}
+
+	versionStr, ok := resp.Item[attrSortKey].(*types.AttributeValueMemberN)
+	if !ok {
+		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: version is not a number")
+	}
+	version, err := strconv.ParseInt(versionStr.Value, 10, 64)
+	if err != nil {
+		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: failed to parse version: %w", err)
+	}
+
+	dataVal, ok := resp.Item[attrData].(*types.AttributeValueMemberB)
+	if !ok {
+		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: data is not binary")
+	}
+
+	return dataVal.Value, version, nil
+}
+
+// makeKey returns the DynamoDB partition key for the given aggregate ID,
+// prepending the tenant prefix if configured.
+func (s *DynamoDBStore) makeKey(aggregateID string) string {
+	if s.tenantPrefix != "" {
+		return s.tenantPrefix + "#" + aggregateID
+	}
+	return aggregateID
+}
+
+// itemToRecord converts a DynamoDB item into a recordv1.Record.
+func itemToRecord(item map[string]types.AttributeValue) (*recordv1.Record, error) {
+	versionVal, ok := item[attrSortKey].(*types.AttributeValueMemberN)
+	if !ok {
+		return nil, fmt.Errorf("version attribute is not a number")
+	}
+	version, err := strconv.ParseInt(versionVal.Value, 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse version: %w", err)
+	}
+	dataVal, ok := item[attrData].(*types.AttributeValueMemberB)
+	if !ok {
+		return nil, fmt.Errorf("data attribute is not binary")
+	}
+	return &recordv1.Record{
+		Version: version,
+		Data:    dataVal.Value,
+	}, nil
 }
