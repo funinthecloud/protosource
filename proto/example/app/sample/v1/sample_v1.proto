@@ -1,8 +1,8 @@
 syntax = "proto3";
 
-package acme.app.samplenosnapshot.v1;
+package example.app.sample.v1;
 
-option go_package = "github.com/funinthecloud/protosource/acme/app/samplenosnapshot/v1;samplenoprefixv1";
+option go_package = "github.com/funinthecloud/protosource/example/app/sample/v1;samplev1";
 
 import "funinthecloud/protosource/options/v1/options_v1.proto";
 
@@ -104,4 +104,32 @@ message Updated {
   int64  at      = 3;
   string actor   = 4;
   string body    = 5;
+}
+
+// PUT THE SNAPSHOT (IF USING ONE) in this section
+// What is a snapshot?
+// A snapshot is a recorded version of the aggregate at a point in time.
+// Its main purpose is cost control, but it also helps with archival
+// and record retention.
+// Snapshots are NOT required, but they are EXTREMELY helpful for the operational
+// folks managing the data.
+//
+// Snapshots facilitate rules such as:
+//   1.  After every snapshot, delete all older versions.
+//   2.  After every snapshot, set a TTL on older versions of 30 days so that they delete themselves
+//   2.  After every snapshot
+//      1. Extract, serialize, and write the older records to durable storage
+//      2. Delete the older records.
+//
+// The format of the snapshot must be EXACTLY as detailed below.
+// The only change is the name of the aggregate.
+message Snapshot {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).snapshot = {
+    every_n_events: 50
+  };
+  string id       = 1;
+  int64  version  = 2;
+  int64  at       = 3;
+  string actor    = 4;
+  Sample snapshot = 5;
 }

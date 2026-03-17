@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/funinthecloud/protosource"
-	testv1 "github.com/funinthecloud/protosource/acme/app/test/v1"
+	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 )
 
 func TestMarshalUnmarshal_RoundTrip(t *testing.T) {
