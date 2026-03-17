@@ -47,6 +47,17 @@ type Record struct {
 
 ## Design Guidelines
 
+### Field Names
+
+**All Firestore document field names use single characters** to minimize per-document byte costs. Firestore charges per document read/write, and document size directly affects storage costs and read latency. Field names are stored in every document, so shorter names reduce both storage and bandwidth at scale.
+
+| Field | Purpose | Type | Description |
+|-------|---------|------|-------------|
+| `a` | — | string | Aggregate ID (with optional tenant prefix) |
+| `v` | — | number | Version number |
+| `d` | — | bytes | Event/aggregate payload (Firestore has native `[]byte` support) |
+| `t` | — | number | TTL epoch seconds (optional, events only) |
+
 ### Package and Naming
 
 - Package: `firestorestore`
@@ -61,43 +72,49 @@ Firestore is a document database with collections and subcollections:
 ```
 <events_collection>/                     (default: "events")
   <aggregateID>/                         (document — can be empty or hold metadata)
-    records/                             (subcollection)
+    r/                                   (subcollection, short for "records")
       <version as string>/               (document ID — zero-padded for ordering, e.g., "0000000001")
-        version: int64
-        data: []byte
+        v: int64                         (version number)
+        d: []byte                        (event payload)
+        t: int64                         (TTL epoch, optional)
 
 <aggregates_collection>/                 (default: "aggregates")
   <aggregateID>/                         (document)
-    version: int64
-    data: []byte
+    v: int64                             (version number)
+    d: []byte                            (aggregate state)
 ```
 
-Using the aggregate ID as the document ID and events as a subcollection keeps queries scoped and efficient. Zero-pad version strings (e.g., `fmt.Sprintf("%019d", version)`) so document IDs sort lexicographically.
+Using the aggregate ID as the document ID and events as a subcollection keeps queries scoped and efficient. Zero-pad version strings (e.g., `fmt.Sprintf("%019d", version)`) so document IDs sort lexicographically. The subcollection is named `r` (not `records`) to keep paths short — Firestore paths contribute to document reference size.
 
 ### Save Implementation
 
 - Use a Firestore `WriteBatch` or transaction for atomicity
 - Firestore batches support up to 500 operations — batch accordingly if needed
-- For each record: `Set` a document in `events/<aggregateID>/records/<paddedVersion>`
+- Atomicity is per-batch only; when len(records) > 500, earlier batches persist even if a later batch fails
+- For each record: `Set` a document in `events/<aggregateID>/r/<paddedVersion>`
 - Use `Create` (not `Set`) if you want to enforce no-overwrite (returns `AlreadyExists` on duplicate)
+- When TTL is configured, include the `t` field with the expiry epoch
 - Check `ctx.Err()` before starting
 - Save with no records should succeed (no-op)
 
 ### Load Implementation
 
-- Query: `client.Collection("events").Doc(aggregateID).Collection("records").OrderBy("version", firestore.Asc).Documents(ctx)`
+- Query: `client.Collection("events").Doc(aggregateID).Collection("r").OrderBy("v", firestore.Asc).Documents(ctx)`
 - Iterate all documents, build `[]*recordv1.Record`
+- Paginate across all pages
 - Return empty `&historyv1.History{}` if no documents found
 
 ### LoadTail Implementation
 
-- Query: `client.Collection("events").Doc(aggregateID).Collection("records").OrderBy("version", firestore.Desc).Limit(n).Documents(ctx)`
+- Query: `client.Collection("events").Doc(aggregateID).Collection("r").OrderBy("v", firestore.Desc).Limit(n).Documents(ctx)`
 - Reverse the results to return ascending version order
 - This is a single indexed query — Firestore handles it natively
+- If n <= 0, return empty History immediately
+- Paginate across pages until n records are collected
 
 ### SaveAggregate / LoadAggregate
 
-- `SaveAggregate`: `client.Collection("aggregates").Doc(aggregateID).Set(ctx, map[string]interface{}{"version": version, "data": data})`
+- `SaveAggregate`: `client.Collection("aggregates").Doc(aggregateID).Set(ctx, map[string]interface{}{"v": version, "d": data})`
 - `LoadAggregate`: `client.Collection("aggregates").Doc(aggregateID).Get(ctx)`; return `nil, 0, nil` if `status.Code(err) == codes.NotFound`
 
 ### Functional Options
@@ -107,11 +124,29 @@ type Option func(*FirestoreStore)
 
 func WithEventsCollection(name string) Option     // default: "events"
 func WithAggregatesCollection(name string) Option // default: "aggregates"
+func WithTenantPrefix(prefix string) Option       // prepends "prefix#" to aggregate IDs for multi-tenant collections
+func WithTTL(ttl time.Duration) Option            // sets TTL field on event documents
 ```
+
+### TTL (Time To Live)
+
+Use `WithTTL(duration)` to set an expiration on event documents. When configured, each saved event includes a `t` field containing the Unix epoch second at which the document should expire.
+
+**Requirements:**
+- Firestore supports TTL natively via a [TTL policy](https://cloud.google.com/firestore/docs/ttl) configured on a timestamp field. Create a TTL policy on the `t` field for the events subcollection.
+- Note: Firestore TTL expects a `Timestamp` type, so you may need to store `t` as a `time.Time` (which Firestore maps to a Timestamp) rather than a raw epoch integer. Adjust the field type accordingly.
+- TTL is only applied to events, not aggregates (aggregate state should persist)
+- A zero or negative duration disables TTL (the default)
+- Firestore deletes expired documents asynchronously (typically within 24 hours of expiry)
+
+**Use cases:**
+- Event expiration after snapshots: once a snapshot captures aggregate state, older events can age off
+- Temporary/ephemeral aggregates with bounded lifetimes
+- Cost control for high-volume event streams
 
 ## Firestore Indexes
 
-Firestore requires composite indexes for queries with ordering. The subcollection query `OrderBy("version", ...)` on a single field should work with the automatic single-field index. No manual composite index should be needed for these queries, but verify in testing.
+Firestore requires composite indexes for queries with ordering. The subcollection query `OrderBy("v", ...)` on a single field should work with the automatic single-field index. No manual composite index should be needed for these queries, but verify in testing.
 
 ## Testing Strategy
 
@@ -147,6 +182,7 @@ Alternatively, define a `Firestorer` interface wrapping the Firestore client met
 - LoadTail returns last N records in ascending order
 - LoadTail with fewer records than N returns all records
 - LoadTail for non-existent aggregate returns empty history
+- LoadTail with n <= 0 returns empty history
 
 **Context handling:**
 - All methods return error on cancelled context
@@ -159,6 +195,10 @@ Alternatively, define a `Firestorer` interface wrapping the Firestore client met
 **Firestore-specific:**
 - Batch writes > 500 operations (if applicable)
 - Document not found handling (codes.NotFound)
+
+**TTL:**
+- WithTTL sets TTL field with correct expiry
+- Without TTL, no TTL field is present
 
 ### Test Helper
 
@@ -176,7 +216,7 @@ func newTestStore(t *testing.T, opts ...Option) *FirestoreStore {
 
 ## Reference Implementation
 
-Use `stores/boltdbstore/` as the structural reference for interface implementation, and `stores/memorystore/` for the test patterns. The boltdbstore tests demonstrate the expected coverage areas.
+Use `stores/dynamodbstore/` as the primary reference — it shares the same document-oriented, short-field-name, TTL-enabled design. Also reference `stores/boltdbstore/` for interface implementation patterns and `stores/memorystore/` for test patterns.
 
 ## Build & Test
 
