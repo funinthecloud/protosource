@@ -1,0 +1,57 @@
+syntax = "proto3";
+
+package funinthecloud.protosource.opaquedata.v1;
+
+option go_package = "github.com/funinthecloud/protosource/opaquedata/v1;opaquedatav1";
+
+message OpaqueData {
+  string pk  = 1;
+  string sk  = 2;
+  int64  ttl = 3;
+
+  // Reserved for future optimistic locking. Always 0 for now.
+  int64 version = 4;
+
+  bytes body = 5;
+
+  string gsi1pk  = 6;
+  string gsi1sk  = 7;
+  string gsi2pk  = 8;
+  string gsi2sk  = 9;
+  string gsi3pk  = 10;
+  string gsi3sk  = 11;
+  string gsi4pk  = 12;
+  string gsi4sk  = 13;
+  string gsi5pk  = 14;
+  string gsi5sk  = 15;
+  string gsi6pk  = 16;
+  string gsi6sk  = 17;
+  string gsi7pk  = 18;
+  string gsi7sk  = 19;
+  string gsi8pk  = 20;
+  string gsi8sk  = 21;
+  string gsi9pk  = 22;
+  string gsi9sk  = 23;
+  string gsi10pk = 24;
+  string gsi10sk = 25;
+  string gsi11pk = 26;
+  string gsi11sk = 27;
+  string gsi12pk = 28;
+  string gsi12sk = 29;
+  string gsi13pk = 30;
+  string gsi13sk = 31;
+  string gsi14pk = 32;
+  string gsi14sk = 33;
+  string gsi15pk = 34;
+  string gsi15sk = 35;
+  string gsi16pk = 36;
+  string gsi16sk = 37;
+  string gsi17pk = 38;
+  string gsi17sk = 39;
+  string gsi18pk = 40;
+  string gsi18sk = 41;
+  string gsi19pk = 42;
+  string gsi19sk = 43;
+  string gsi20pk = 44;
+  string gsi20sk = 45;
+}
