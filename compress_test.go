@@ -43,8 +43,8 @@ func TestCompression_EventRoundTrip(t *testing.T) {
 	if test.GetBody() != "updated body content" {
 		t.Errorf("expected body 'updated body content', got %q", test.GetBody())
 	}
-	if test.GetVersion() != 3 {
-		t.Errorf("expected version 3, got %d", test.GetVersion())
+	if test.GetVersion() != 4 {
+		t.Errorf("expected version 4, got %d", test.GetVersion())
 	}
 	if test.GetState() != testv1.State_STATE_UNLOCKED {
 		t.Errorf("expected STATE_UNLOCKED, got %s", test.GetState())

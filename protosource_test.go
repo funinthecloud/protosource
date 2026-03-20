@@ -14,6 +14,7 @@ import (
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
+	"google.golang.org/protobuf/proto"
 )
 
 // newTestRepo creates a Repository wired to the test domain with memorystore and protobinary serializer.
@@ -374,8 +375,8 @@ func TestApply_MaterializedAggregateUpdatesOnMutation(t *testing.T) {
 		t.Fatalf("load failed: %v", err)
 	}
 	test := agg.(*testv1.Test)
-	if test.GetVersion() != 3 {
-		t.Errorf("expected version 3, got %d", test.GetVersion())
+	if test.GetVersion() != 4 {
+		t.Errorf("expected version 4, got %d", test.GetVersion())
 	}
 	if test.GetBody() != "v2" {
 		t.Errorf("expected body 'v2', got %q", test.GetBody())
@@ -394,8 +395,8 @@ func TestApply_MaterializedAggregateReflectsStateTransitions(t *testing.T) {
 		t.Fatalf("load failed: %v", err)
 	}
 	test := agg.(*testv1.Test)
-	if test.GetVersion() != 3 {
-		t.Errorf("expected version 3, got %d", test.GetVersion())
+	if test.GetVersion() != 4 {
+		t.Errorf("expected version 4, got %d", test.GetVersion())
 	}
 	if test.GetState() != testv1.State_STATE_LOCKED {
 		t.Errorf("expected STATE_LOCKED, got %s", test.GetState())
@@ -602,12 +603,8 @@ func (s *snapshotTailStore) Load(ctx context.Context, aggregateID string) (*hist
 	return s.inner.Load(ctx, aggregateID)
 }
 
-func (s *snapshotTailStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
-	return s.inner.SaveAggregate(ctx, aggregateID, data, version)
-}
-
-func (s *snapshotTailStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
-	return s.inner.LoadAggregate(ctx, aggregateID)
+func (s *snapshotTailStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
+	return s.inner.SaveAggregate(ctx, aggregate)
 }
 
 func (s *snapshotTailStore) LoadTail(ctx context.Context, aggregateID string, n int) (*historyv1.History, error) {
