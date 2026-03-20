@@ -537,11 +537,11 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 		seen := make(map[int32]bool)
 		for _, fm := range fields {
 			if fm.Order <= 0 {
-				return fmt.Errorf("message %s: composite key %s has %d fields — all must have positive order values, but field %s has order %d",
+				return fmt.Errorf("message %s: composite key %v has %d fields — all must have positive order values, but field %s has order %d",
 					m.Name(), kt, len(fields), fm.Field.Name(), fm.Order)
 			}
 			if seen[fm.Order] {
-				return fmt.Errorf("message %s: duplicate order %d for key type %s", m.Name(), fm.Order, kt)
+				return fmt.Errorf("message %s: duplicate order %d for key type %v", m.Name(), fm.Order, kt)
 			}
 			seen[fm.Order] = true
 		}
