@@ -55,7 +55,7 @@ func (aggregate *Test) Snapshot(version int64) protosource.Event {
 	}
 }
 func (aggregate *Test) SnapshotInterval() int32 {
-	return 50
+	return 3
 }
 func (aggregate *Test) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
@@ -67,7 +67,7 @@ func (aggregate *Test) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Test) {
-	if b.version%int64(50) == 0 {
+	if b.version%int64(3) == 0 {
 		event := &Snapshot{
 			Id:       b.id,
 			Snapshot: proto.Clone(aggregate).(*Test),
@@ -136,7 +136,7 @@ func (m *Create) ValidateVersion(version int64) error {
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := aggregate.(*Test)
+	a := proto.Clone(aggregate).(*Test)
 	b.Created(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)
@@ -174,7 +174,7 @@ func (m *Update) Authorize(aggregate protosource.Aggregate) error {
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := aggregate.(*Test)
+	a := proto.Clone(aggregate).(*Test)
 	b.Updated(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)
@@ -209,7 +209,7 @@ func (m *Lock) Authorize(aggregate protosource.Aggregate) error {
 }
 func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := aggregate.(*Test)
+	a := proto.Clone(aggregate).(*Test)
 	b.Locked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)
@@ -244,7 +244,7 @@ func (m *Unlock) Authorize(aggregate protosource.Aggregate) error {
 }
 func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := aggregate.(*Test)
+	a := proto.Clone(aggregate).(*Test)
 	b.Unlocked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)

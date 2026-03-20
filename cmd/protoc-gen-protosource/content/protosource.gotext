@@ -200,7 +200,7 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     b := NewBuilder(m.GetId(), aggregate.GetVersion())
     {{ $file := $ -}}
     {{ if $hasSnapshot -}}
-    a := aggregate.(*{{$aggregate}})
+    a := proto.Clone(aggregate).(*{{$aggregate}})
     {{ end -}}
     {{ range $eventName := commandEvents $message -}}
     {{ $evt := eventMessage $eventName $file -}}
