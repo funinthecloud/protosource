@@ -37,15 +37,14 @@ type Store interface {
 // read-optimized view of the current aggregate without needing to replay events.
 //
 // Repository checks for this interface via type assertion after persisting events.
-// If the store implements it, the aggregate is serialized and saved automatically.
+// If the store implements it, the fully materialized aggregate is passed directly,
+// letting the store decide how to serialize, compress, and index it. Stores backed
+// by NoSQL databases (DynamoDB, Cosmos, Firestore) can type-assert the aggregate
+// to AutoPKSK for GSI-indexed single-table storage via opaquedata.
 type AggregateStore interface {
-	// SaveAggregate persists the serialized aggregate state and its current version.
-	SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error
-
-	// LoadAggregate retrieves the most recently saved aggregate state.
-	// Returns the serialized data, version, and any error.
-	// If no aggregate has been saved, returns nil data with version 0 and no error.
-	LoadAggregate(ctx context.Context, aggregateID string) (data []byte, version int64, err error)
+	// SaveAggregate persists the materialized aggregate state.
+	// The store owns serialization and key computation.
+	SaveAggregate(ctx context.Context, aggregate proto.Message) error
 }
 
 // SnapshotTailStore is an optional interface that stores can implement to
@@ -283,14 +282,7 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 				return version, nil // events saved; aggregate store is best-effort
 			}
 		}
-		if data, err := proto.Marshal(aggregate); err == nil {
-			if r.compressThreshold > 0 {
-				if compressed, cErr := maybeCompress(data, r.compressThreshold); cErr == nil {
-					data = compressed
-				}
-			}
-			_ = as.SaveAggregate(ctx, aggregateID, data, version)
-		}
+		_ = as.SaveAggregate(ctx, aggregate)
 	}
 
 	return version, nil

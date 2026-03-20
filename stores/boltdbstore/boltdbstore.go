@@ -12,6 +12,7 @@ import (
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"go.etcd.io/bbolt"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -248,10 +249,29 @@ func (s *BoltDBStore) LoadTail(ctx context.Context, aggregateID string, n int) (
 	return h, err
 }
 
-// SaveAggregate persists the serialized aggregate state and its current version.
-func (s *BoltDBStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
+// SaveAggregate persists the materialized aggregate state. The aggregate is
+// serialized via proto.Marshal and stored keyed by aggregate ID.
+func (s *BoltDBStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("save aggregate failed: context error: %w", err)
+	}
+
+	type idGetter interface{ GetId() string }
+	ag, ok := aggregate.(idGetter)
+	if !ok {
+		return fmt.Errorf("save aggregate: aggregate does not implement GetId()")
+	}
+	aggregateID := ag.GetId()
+
+	type versionGetter interface{ GetVersion() int64 }
+	var version int64
+	if vg, ok := aggregate.(versionGetter); ok {
+		version = vg.GetVersion()
+	}
+
+	data, err := proto.Marshal(aggregate)
+	if err != nil {
+		return fmt.Errorf("save aggregate: marshal: %w", err)
 	}
 
 	shardNum, found, err := s.lookupShard(aggregateID)
@@ -282,49 +302,6 @@ func (s *BoltDBStore) SaveAggregate(ctx context.Context, aggregateID string, dat
 		copy(val[8:], data)
 		return ab.Put([]byte(aggregateID), val)
 	})
-}
-
-// LoadAggregate retrieves the most recently saved aggregate state.
-// Returns nil data with version 0 if no aggregate has been saved.
-func (s *BoltDBStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, 0, fmt.Errorf("load aggregate failed: context error: %w", err)
-	}
-
-	shardNum, found, err := s.lookupShard(aggregateID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("lookup shard: %w", err)
-	}
-	if !found {
-		return nil, 0, nil
-	}
-
-	db, err := s.openShard(shardNum)
-	if err != nil {
-		return nil, 0, fmt.Errorf("open shard: %w", err)
-	}
-
-	var data []byte
-	var version int64
-	err = db.View(func(tx *bbolt.Tx) error {
-		ab := tx.Bucket(aggsBucket)
-		if ab == nil {
-			return nil
-		}
-		val := ab.Get([]byte(aggregateID))
-		if val == nil {
-			return nil
-		}
-		if len(val) < 8 {
-			return fmt.Errorf("corrupt aggregate value for %s", aggregateID)
-		}
-		version = int64(binary.BigEndian.Uint64(val[:8]))
-		data = make([]byte, len(val)-8)
-		copy(data, val[8:])
-		return nil
-	})
-
-	return data, version, err
 }
 
 // Close closes the index DB and all open shard DBs.

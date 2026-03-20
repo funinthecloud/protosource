@@ -7,6 +7,7 @@ import (
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // aggregateEntry holds the serialized aggregate state and its version.
@@ -103,36 +104,38 @@ func (m *MemoryStore) Load(ctx context.Context, aggregateId string) (*historyv1.
 	return &historyv1.History{}, nil
 }
 
-// SaveAggregate persists the serialized aggregate state for a given aggregate ID.
-func (m *MemoryStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
+// SaveAggregate persists the materialized aggregate state. The aggregate is
+// serialized via proto.Marshal and stored keyed by aggregate ID.
+func (m *MemoryStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
 	if err := validateContext(ctx); err != nil {
 		return fmt.Errorf("save aggregate failed: %w", err)
+	}
+
+	type idGetter interface{ GetId() string }
+	ag, ok := aggregate.(idGetter)
+	if !ok {
+		return fmt.Errorf("save aggregate failed: aggregate does not implement GetId()")
+	}
+
+	data, err := proto.Marshal(aggregate)
+	if err != nil {
+		return fmt.Errorf("save aggregate failed: marshal: %w", err)
+	}
+
+	type versionGetter interface{ GetVersion() int64 }
+	var version int64
+	if vg, ok := aggregate.(versionGetter); ok {
+		version = vg.GetVersion()
 	}
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	m.aggregates[aggregateID] = &aggregateEntry{
+	m.aggregates[ag.GetId()] = &aggregateEntry{
 		data:    data,
 		version: version,
 	}
 	return nil
-}
-
-// LoadAggregate retrieves the most recently saved aggregate state.
-// Returns nil data with version 0 if no aggregate has been saved.
-func (m *MemoryStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
-	if err := validateContext(ctx); err != nil {
-		return nil, 0, fmt.Errorf("load aggregate failed: %w", err)
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if entry, exists := m.aggregates[aggregateID]; exists {
-		return entry.data, entry.version, nil
-	}
-	return nil, 0, nil
 }
 
 // validateContext checks if a context has been canceled or exceeded its deadline.
