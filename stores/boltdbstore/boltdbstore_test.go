@@ -1,4 +1,4 @@
-package boltdbstore
+package boltdbstore_test
 
 import (
 	"bytes"
@@ -9,7 +9,9 @@ import (
 	"sync"
 	"testing"
 
+	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	"github.com/funinthecloud/protosource/stores/boltdbstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -18,10 +20,10 @@ func record(version int64, data string) *recordv1.Record {
 	return &recordv1.Record{Version: version, Data: []byte(data)}
 }
 
-func newTestStore(t *testing.T, opts ...Option) *BoltDBStore {
+func newTestStore(t *testing.T, opts ...boltdbstore.Option) *boltdbstore.BoltDBStore {
 	t.Helper()
 	dir := t.TempDir()
-	store, err := New(dir, "test", opts...)
+	store, err := boltdbstore.New(dir, "test", opts...)
 	require.NoError(t, err)
 	t.Cleanup(func() { store.Close() })
 	return store
@@ -188,20 +190,7 @@ func TestSaveAggregate_Basic(t *testing.T) {
 	// Must save events first to assign a shard.
 	require.NoError(t, s.Save(ctx, "agg-1", record(1, "event")))
 
-	require.NoError(t, s.SaveAggregate(ctx, "agg-1", []byte("serialized-aggregate"), 5))
-
-	data, version, err := s.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(5), version)
-	assert.Equal(t, "serialized-aggregate", string(data))
-}
-
-func TestLoadAggregate_NonExistent(t *testing.T) {
-	s := newTestStore(t)
-	data, version, err := s.LoadAggregate(context.Background(), "does-not-exist")
-	require.NoError(t, err)
-	assert.Nil(t, data)
-	assert.Equal(t, int64(0), version)
+	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "hello"}))
 }
 
 func TestSaveAggregate_OverwritesPrevious(t *testing.T) {
@@ -209,31 +198,8 @@ func TestSaveAggregate_OverwritesPrevious(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, s.Save(ctx, "agg-1", record(1, "e")))
-	require.NoError(t, s.SaveAggregate(ctx, "agg-1", []byte("v1-state"), 1))
-	require.NoError(t, s.SaveAggregate(ctx, "agg-1", []byte("v3-state"), 3))
-
-	data, version, _ := s.LoadAggregate(ctx, "agg-1")
-	assert.Equal(t, int64(3), version)
-	assert.Equal(t, "v3-state", string(data))
-}
-
-func TestSaveAggregate_IndependentAggregates(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	require.NoError(t, s.Save(ctx, "agg-1", record(1, "e")))
-	require.NoError(t, s.Save(ctx, "agg-2", record(1, "e")))
-
-	require.NoError(t, s.SaveAggregate(ctx, "agg-1", []byte("first"), 1))
-	require.NoError(t, s.SaveAggregate(ctx, "agg-2", []byte("second"), 2))
-
-	d1, v1, _ := s.LoadAggregate(ctx, "agg-1")
-	d2, v2, _ := s.LoadAggregate(ctx, "agg-2")
-
-	assert.Equal(t, "first", string(d1))
-	assert.Equal(t, int64(1), v1)
-	assert.Equal(t, "second", string(d2))
-	assert.Equal(t, int64(2), v2)
+	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "v1"}))
+	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 3, Body: "v3"}))
 }
 
 func TestSaveAggregate_CancelledContext(t *testing.T) {
@@ -241,16 +207,7 @@ func TestSaveAggregate_CancelledContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	err := s.SaveAggregate(ctx, "agg-1", []byte("data"), 1)
-	assert.Error(t, err)
-}
-
-func TestLoadAggregate_CancelledContext(t *testing.T) {
-	s := newTestStore(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	_, _, err := s.LoadAggregate(ctx, "agg-1")
+	err := s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1})
 	assert.Error(t, err)
 }
 
@@ -259,7 +216,7 @@ func TestSaveAggregate_DoesNotAffectEventHistory(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, s.Save(ctx, "agg-1", record(1, "event-data")))
-	require.NoError(t, s.SaveAggregate(ctx, "agg-1", []byte("aggregate-state"), 1))
+	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate-state"}))
 
 	h, _ := s.Load(ctx, "agg-1")
 	require.Len(t, h.GetRecords(), 1)
@@ -269,7 +226,10 @@ func TestSaveAggregate_DoesNotAffectEventHistory(t *testing.T) {
 // --- Sharding ---
 
 func TestSharding_MultipleShards(t *testing.T) {
-	s := newTestStore(t, WithMaxPerShard(3))
+	dir := t.TempDir()
+	s, err := boltdbstore.New(dir, "test", boltdbstore.WithMaxPerShard(3))
+	require.NoError(t, err)
+	t.Cleanup(func() { s.Close() })
 	ctx := context.Background()
 
 	// Save 10 aggregates — should create ceil(10/3) = 4 shards.
@@ -285,8 +245,8 @@ func TestSharding_MultipleShards(t *testing.T) {
 	}
 
 	// Verify multiple shard files exist.
-	dir := filepath.Join(s.basePath, s.pkg)
-	entries, err := os.ReadDir(dir)
+	shardDir := filepath.Join(dir, "test")
+	entries, err := os.ReadDir(shardDir)
 	require.NoError(t, err)
 
 	shardCount := 0
@@ -303,7 +263,7 @@ func TestSharding_SurvivesRestart(t *testing.T) {
 	ctx := context.Background()
 
 	// First session: save 5 aggregates across shards.
-	s1, err := New(dir, "test", WithMaxPerShard(2))
+	s1, err := boltdbstore.New(dir, "test", boltdbstore.WithMaxPerShard(2))
 	require.NoError(t, err)
 	for i := 0; i < 5; i++ {
 		require.NoError(t, s1.Save(ctx, fmt.Sprintf("agg-%d", i), record(1, fmt.Sprintf("data-%d", i))))
@@ -311,7 +271,7 @@ func TestSharding_SurvivesRestart(t *testing.T) {
 	require.NoError(t, s1.Close())
 
 	// Second session: reopen and verify data.
-	s2, err := New(dir, "test", WithMaxPerShard(2))
+	s2, err := boltdbstore.New(dir, "test", boltdbstore.WithMaxPerShard(2))
 	require.NoError(t, err)
 	defer s2.Close()
 
@@ -330,7 +290,7 @@ func TestSharding_SurvivesRestart(t *testing.T) {
 }
 
 func TestSharding_SameAggregateSameShard(t *testing.T) {
-	s := newTestStore(t, WithMaxPerShard(2))
+	s := newTestStore(t, boltdbstore.WithMaxPerShard(2))
 	ctx := context.Background()
 
 	// Save to one aggregate multiple times — should always go to same shard.
@@ -398,7 +358,7 @@ func TestConcurrent_MixedReadsWrites(t *testing.T) {
 	assert.Equal(t, numGoroutines+1, len(h.GetRecords()))
 }
 
-func TestConcurrent_SaveAndLoadAggregate(t *testing.T) {
+func TestConcurrent_SaveAggregate(t *testing.T) {
 	s := newTestStore(t)
 	ctx := context.Background()
 	const numGoroutines = 20
@@ -407,22 +367,19 @@ func TestConcurrent_SaveAndLoadAggregate(t *testing.T) {
 
 	var wg sync.WaitGroup
 	for i := 0; i < numGoroutines; i++ {
-		wg.Add(2)
+		wg.Add(1)
 		go func(v int) {
 			defer wg.Done()
-			_ = s.SaveAggregate(ctx, "shared", []byte(fmt.Sprintf("state-%d", v)), int64(v))
+			_ = s.SaveAggregate(ctx, &testv1.Test{
+				Id:      "shared",
+				Version: int64(v),
+				Body:    fmt.Sprintf("state-%d", v),
+			})
 		}(i)
-		go func() {
-			defer wg.Done()
-			_, _, _ = s.LoadAggregate(ctx, "shared")
-		}()
 	}
 	wg.Wait()
 
-	data, version, err := s.LoadAggregate(ctx, "shared")
-	require.NoError(t, err)
-	assert.NotNil(t, data)
-	assert.GreaterOrEqual(t, version, int64(0))
+	// Just verify no panic occurred
 }
 
 // --- Edge cases ---
@@ -576,14 +533,14 @@ func TestLifecycle_CloseAndReopen(t *testing.T) {
 	dir := t.TempDir()
 	ctx := context.Background()
 
-	s1, err := New(dir, "test")
+	s1, err := boltdbstore.New(dir, "test")
 	require.NoError(t, err)
 
 	require.NoError(t, s1.Save(ctx, "agg-1", record(1, "persisted")))
-	require.NoError(t, s1.SaveAggregate(ctx, "agg-1", []byte("agg-state"), 1))
+	require.NoError(t, s1.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "agg-state"}))
 	require.NoError(t, s1.Close())
 
-	s2, err := New(dir, "test")
+	s2, err := boltdbstore.New(dir, "test")
 	require.NoError(t, err)
 	defer s2.Close()
 
@@ -591,18 +548,13 @@ func TestLifecycle_CloseAndReopen(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, h.GetRecords(), 1)
 	assert.Equal(t, "persisted", string(h.GetRecords()[0].GetData()))
-
-	data, version, err := s2.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), version)
-	assert.Equal(t, "agg-state", string(data))
 }
 
 func TestNew_CreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
 	nested := filepath.Join(dir, "deep", "nested")
 
-	s, err := New(nested, "pkg")
+	s, err := boltdbstore.New(nested, "pkg")
 	require.NoError(t, err)
 	defer s.Close()
 

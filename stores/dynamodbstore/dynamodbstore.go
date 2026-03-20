@@ -10,16 +10,22 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
+	"github.com/funinthecloud/protosource/opaquedata"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	"google.golang.org/protobuf/proto"
 )
 
-// Dynamoer is a minimal interface covering the DynamoDB operations needed by
-// the store. It is satisfied by *dynamodb.Client.
+// Dynamoer is the interface covering all DynamoDB operations needed by the
+// store and opaquedata. It is satisfied by *dynamodb.Client and also satisfies
+// opaquedata.DynamoDBer, so the same client can be used for both event storage
+// and opaquedata aggregate storage.
 type Dynamoer interface {
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 }
 
 // DynamoDB attribute names are kept to single characters to minimize read/write
@@ -43,6 +49,7 @@ type DynamoDBStore struct {
 	client          Dynamoer
 	eventsTable     string
 	aggregatesTable string
+	opaqueTable     string // when set, SaveAggregate uses opaquedata single-table for AutoPKSK aggregates
 	tenantPrefix    string
 	ttl             time.Duration // when non-zero, sets TTL attribute on event writes
 }
@@ -80,6 +87,14 @@ func WithAggregatesTable(name string) Option {
 // table sharing.
 func WithTenantPrefix(prefix string) Option {
 	return func(s *DynamoDBStore) { s.tenantPrefix = prefix }
+}
+
+// WithOpaqueTable enables opaquedata single-table storage for aggregates that
+// implement AutoPKSK. When set, SaveAggregate uses opaquedata to store the
+// aggregate with full GSI indexing. Dynamoer satisfies opaquedata.DynamoDBer,
+// so the same client handles both event storage and opaquedata operations.
+func WithOpaqueTable(name string) Option {
+	return func(s *DynamoDBStore) { s.opaqueTable = name }
 }
 
 // WithTTL sets a time-to-live duration for event records. When set, each saved
@@ -275,15 +290,53 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 	return history, nil
 }
 
-// SaveAggregate persists the serialized aggregate state and its current version
-// to the aggregates table.
-func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
+// SaveAggregate persists the materialized aggregate state. If an opaque table
+// is configured and the aggregate implements opaquedata.AutoPKSK, the aggregate
+// is stored via opaquedata with full GSI indexing. Otherwise, it falls back to
+// proto.Marshal + PutItem to the aggregates table.
+func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 	}
 
-	key := s.makeKey(aggregateID)
-	_, err := s.client.PutItem(ctx, &dynamodb.PutItemInput{
+	// Opaquedata path: aggregate implements AutoPKSK and opaque table is configured.
+	if s.opaqueTable != "" {
+		if apk, ok := aggregate.(opaquedata.AutoPKSK); ok {
+			od, err := opaquedata.NewOpaqueDataFromProto(apk)
+			if err != nil {
+				return fmt.Errorf("dynamodbstore.SaveAggregate: opaquedata: %w", err)
+			}
+			_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
+				TableName: &s.opaqueTable,
+				Item:      opaquedata.GetItem(od),
+			})
+			if err != nil {
+				return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
+			}
+			return nil
+		}
+	}
+
+	// Fallback: marshal and store in the aggregates table.
+	type idGetter interface{ GetId() string }
+	ag, ok := aggregate.(idGetter)
+	if !ok {
+		return fmt.Errorf("dynamodbstore.SaveAggregate: aggregate does not implement GetId()")
+	}
+
+	type versionGetter interface{ GetVersion() int64 }
+	var version int64
+	if vg, ok := aggregate.(versionGetter); ok {
+		version = vg.GetVersion()
+	}
+
+	data, err := proto.Marshal(aggregate)
+	if err != nil {
+		return fmt.Errorf("dynamodbstore.SaveAggregate: marshal: %w", err)
+	}
+
+	key := s.makeKey(ag.GetId())
+	_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &s.aggregatesTable,
 		Item: map[string]types.AttributeValue{
 			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
@@ -295,46 +348,6 @@ func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregateID string, d
 		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 	}
 	return nil
-}
-
-// LoadAggregate retrieves the most recently saved aggregate state. Returns nil
-// data with version 0 and no error if the aggregate has not been saved.
-func (s *DynamoDBStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: %w", err)
-	}
-
-	key := s.makeKey(aggregateID)
-	resp, err := s.client.GetItem(ctx, &dynamodb.GetItemInput{
-		TableName:      &s.aggregatesTable,
-		ConsistentRead: aws.Bool(true),
-		Key: map[string]types.AttributeValue{
-			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
-		},
-	})
-	if err != nil {
-		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: %w", err)
-	}
-
-	if resp.Item == nil {
-		return nil, 0, nil
-	}
-
-	versionStr, ok := resp.Item[attrSortKey].(*types.AttributeValueMemberN)
-	if !ok {
-		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: version is not a number")
-	}
-	version, err := strconv.ParseInt(versionStr.Value, 10, 64)
-	if err != nil {
-		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: failed to parse version: %w", err)
-	}
-
-	dataVal, ok := resp.Item[attrData].(*types.AttributeValueMemberB)
-	if !ok {
-		return nil, 0, fmt.Errorf("dynamodbstore.LoadAggregate: data is not binary")
-	}
-
-	return dataVal.Value, version, nil
 }
 
 // makeKey returns the DynamoDB partition key for the given aggregate ID,
