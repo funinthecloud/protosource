@@ -101,6 +101,7 @@ func TestPrefixPKs(t *testing.T) {
 		Gsi1Pk:  "ORG#A",
 		Gsi1Sk:  "ROLE#admin",
 		Gsi3Pk:  "REGION#us",
+		Gsi5Pk:  "NA",
 		Gsi20Pk: "STATUS#active",
 	}
 	PrefixPKs(od, "tenant1")
@@ -110,6 +111,7 @@ func TestPrefixPKs(t *testing.T) {
 	assert.Equal(t, "tenant1#ORG#A", od.Gsi1Pk)
 	assert.Equal(t, "ROLE#admin", od.Gsi1Sk, "GSI SK should not be prefixed")
 	assert.Equal(t, "tenant1#REGION#us", od.Gsi3Pk)
+	assert.Equal(t, "NA", od.Gsi5Pk, "NA sentinel should not be prefixed")
 	assert.Equal(t, "tenant1#STATUS#active", od.Gsi20Pk)
 	assert.Equal(t, "", od.Gsi2Pk, "empty GSI PK should remain empty")
 }

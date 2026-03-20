@@ -13,6 +13,9 @@ func WithTTL(ttl time.Duration) Option {
 	return func(o *OpaqueDataOptions) { o.ttl = ttl }
 }
 
+// WithCompressThreshold overrides the compression threshold (in bytes) for
+// proto body data. Data at or above this size is gzip-compressed before storage.
+// Pass 0 or a negative value to disable compression. The default is 300 bytes.
 func WithCompressThreshold(threshold int) Option {
 	return func(o *OpaqueDataOptions) { o.compressThreshold = threshold }
 }

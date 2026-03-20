@@ -254,11 +254,11 @@ func TestQueryPKSK_InvalidGSIIndex(t *testing.T) {
 	mock := &mockQuerier{}
 	_, err := QueryPKSK(context.Background(), mock, "table", "pk", "pk1", "sk", nil, WithGSIIndex(21))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "GSI index 21 out of range")
+	assert.Contains(t, err.Error(), "GSI index 21 out of range [0,20]")
 
 	_, err = QueryPKSK(context.Background(), mock, "table", "pk", "pk1", "sk", nil, WithGSIIndex(-1))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "GSI index -1 out of range")
+	assert.Contains(t, err.Error(), "GSI index -1 out of range [0,20]")
 }
 
 // ---------------------------------------------------------------------------

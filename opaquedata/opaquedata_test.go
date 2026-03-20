@@ -111,8 +111,8 @@ func TestRoundTrip_WithCompressThresholdOverride(t *testing.T) {
 	inner := &opaquedatav1.OpaqueData{Pk: "test"}
 	msg := &testItem{OpaqueData: inner, pk: "PK", sk: "SK"}
 
-	// Threshold 0 = always compress
-	od, err := NewOpaqueDataFromProto(msg, WithCompressThreshold(0))
+	// Threshold 1 = always compress (0 disables)
+	od, err := NewOpaqueDataFromProto(msg, WithCompressThreshold(1))
 	require.NoError(t, err)
 	assert.True(t, isGzipped(od.GetBody()))
 

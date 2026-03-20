@@ -10,7 +10,7 @@ import (
 
 func TestMaybeCompress_RoundTrip(t *testing.T) {
 	original := bytes.Repeat([]byte("hello world "), 100)
-	compressed, err := maybeCompress(original, 0)
+	compressed, err := maybeCompress(original, 1)
 	require.NoError(t, err)
 	assert.True(t, isGzipped(compressed))
 
@@ -66,9 +66,10 @@ func TestMaybeCompress_NegativeThresholdNeverCompresses(t *testing.T) {
 	assert.False(t, isGzipped(result))
 }
 
-func TestMaybeCompress_ZeroThresholdAlwaysCompresses(t *testing.T) {
-	data := []byte("tiny")
+func TestMaybeCompress_ZeroThresholdDisablesCompression(t *testing.T) {
+	data := bytes.Repeat([]byte("x"), 1000)
 	result, err := maybeCompress(data, 0)
 	require.NoError(t, err)
-	assert.True(t, isGzipped(result))
+	assert.Equal(t, data, result)
+	assert.False(t, isGzipped(result))
 }

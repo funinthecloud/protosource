@@ -530,7 +530,11 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 	// Validate ordering within each key type
 	for kt, fields := range mappings {
 		if len(fields) == 1 {
-			// Single field: order 0 or 1 are both acceptable
+			// Single field: order 0 or 1 are both acceptable, but reject negative
+			if fields[0].Order < 0 {
+				return fmt.Errorf("message %s: key type %v field %s has negative order %d",
+					m.Name(), kt, fields[0].Field.Name(), fields[0].Order)
+			}
 			continue
 		}
 		// Composite key: require unique positive orders

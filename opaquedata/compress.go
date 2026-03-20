@@ -14,7 +14,7 @@ func isGzipped(data []byte) bool {
 }
 
 func maybeCompress(data []byte, threshold int) ([]byte, error) {
-	if threshold < 0 || len(data) < threshold {
+	if threshold <= 0 || len(data) < threshold {
 		return data, nil
 	}
 	var buf bytes.Buffer
