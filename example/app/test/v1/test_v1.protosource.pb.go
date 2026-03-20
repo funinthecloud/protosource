@@ -44,15 +44,6 @@ func (b *Builder) nextVersion() int64 {
 	return b.version
 }
 
-func (b *Builder) maybeSnapshot(aggregate protosource.Aggregate) {
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-			b.version++
-		}
-	}
-}
-
 func (aggregate *Test) Snapshot(version int64) protosource.Event {
 	return &Snapshot{
 		Id:       aggregate.GetId(),
@@ -73,6 +64,18 @@ func (aggregate *Test) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.Body = snapshot.GetSnapshot().GetBody()
 	aggregate.State = snapshot.GetSnapshot().GetState()
 	aggregate.Version = snapshot.GetVersion()
+}
+func (b *Builder) Snapshot(aggregate *Test) {
+	if b.version%int64(50) == 0 {
+		event := &Snapshot{
+			Id:       b.id,
+			Snapshot: aggregate,
+			Version:  b.nextVersion(),
+			At:       protosource.NowMicros(),
+			Actor:    "snapshot@system",
+		}
+		b.Events = append(b.Events, event)
+	}
 }
 func (aggregate *Test) setCreated(event protosource.Event) {
 	aggregate.CreateAt = event.GetAt()
@@ -132,10 +135,11 @@ func (m *Create) ValidateVersion(version int64) error {
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := aggregate.(*Test)
 	b.Created(m.GetActor(), m.GetBody())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	b.Unlocked(m.GetActor())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	return b.Events
 }
 
@@ -167,8 +171,9 @@ func (m *Update) Authorize(aggregate protosource.Aggregate) error {
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := aggregate.(*Test)
 	b.Updated(m.GetActor(), m.GetBody())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	return b.Events
 }
 
@@ -200,8 +205,9 @@ func (m *Lock) Authorize(aggregate protosource.Aggregate) error {
 }
 func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := aggregate.(*Test)
 	b.Locked(m.GetActor())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	return b.Events
 }
 
@@ -233,8 +239,9 @@ func (m *Unlock) Authorize(aggregate protosource.Aggregate) error {
 }
 func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := aggregate.(*Test)
 	b.Unlocked(m.GetActor())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	return b.Events
 }
 

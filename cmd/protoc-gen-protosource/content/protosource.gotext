@@ -45,15 +45,6 @@ func (b *Builder) nextVersion() int64 {
     return b.version
 }
 
-func (b *Builder) maybeSnapshot(aggregate protosource.Aggregate) {
-    if s, ok := aggregate.(protosource.Snapshoter); ok {
-        if interval := s.SnapshotInterval(); interval > 0 && b.version % int64(interval) == 0 {
-            b.Events = append(b.Events, s.Snapshot(b.version))
-            b.version++
-        }
-    }
-}
-
 {{/* These are global variables to help with the processing.*/}}
 {{ $aggregate := "" }}
 {{ $hasSnapshot := false }}
@@ -91,6 +82,18 @@ func (aggregate *{{$aggregate}}) RestoreSnapshot(snapshot *Snapshot) {
     aggregate.{{ name $field}} = snapshot.GetSnapshot().Get{{ name $field }}()
     {{end -}}
     aggregate.Version = snapshot.GetVersion()
+}
+func (b *Builder) Snapshot(aggregate *{{$aggregate}}) {
+    if b.version % int64({{ $everyN }}) == 0 {
+        event := &Snapshot{
+            Id:       b.id,
+            Snapshot: aggregate,
+            Version:  b.nextVersion(),
+            At:       protosource.NowMicros(),
+            Actor:    "snapshot@system",
+        }
+        b.Events = append(b.Events, event)
+    }
 }
         {{ end -}}
 func (aggregate *{{$aggregate}}) setCreated(event protosource.Event) {
@@ -193,10 +196,15 @@ func (m *{{ $message.Name }}) Authorize(aggregate protosource.Aggregate) error {
 func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
     b := NewBuilder(m.GetId(), aggregate.GetVersion())
     {{ $file := $ -}}
+    {{ if $hasSnapshot -}}
+    a := aggregate.(*{{$aggregate}})
+    {{ end -}}
     {{ range $eventName := commandEvents $message -}}
     {{ $evt := eventMessage $eventName $file -}}
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
-    b.maybeSnapshot(aggregate)
+    {{ if $hasSnapshot -}}
+    b.Snapshot(a)
+    {{ end -}}
     {{ end -}}
     return b.Events
 }

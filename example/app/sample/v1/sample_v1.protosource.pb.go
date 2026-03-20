@@ -44,15 +44,6 @@ func (b *Builder) nextVersion() int64 {
 	return b.version
 }
 
-func (b *Builder) maybeSnapshot(aggregate protosource.Aggregate) {
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-			b.version++
-		}
-	}
-}
-
 func (aggregate *Sample) Snapshot(version int64) protosource.Event {
 	return &Snapshot{
 		Id:       aggregate.GetId(),
@@ -72,6 +63,18 @@ func (aggregate *Sample) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
 	aggregate.Body = snapshot.GetSnapshot().GetBody()
 	aggregate.Version = snapshot.GetVersion()
+}
+func (b *Builder) Snapshot(aggregate *Sample) {
+	if b.version%int64(50) == 0 {
+		event := &Snapshot{
+			Id:       b.id,
+			Snapshot: aggregate,
+			Version:  b.nextVersion(),
+			At:       protosource.NowMicros(),
+			Actor:    "snapshot@system",
+		}
+		b.Events = append(b.Events, event)
+	}
 }
 func (aggregate *Sample) setCreated(event protosource.Event) {
 	aggregate.CreateAt = event.GetAt()
@@ -125,8 +128,9 @@ func (m *Create) ValidateVersion(version int64) error {
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := aggregate.(*Sample)
 	b.Created(m.GetActor(), m.GetBody())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	return b.Events
 }
 
@@ -149,8 +153,9 @@ func (m *Update) ValidateVersion(version int64) error {
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := aggregate.(*Sample)
 	b.Updated(m.GetActor(), m.GetBody())
-	b.maybeSnapshot(aggregate)
+	b.Snapshot(a)
 	return b.Events
 }
 
