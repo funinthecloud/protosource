@@ -95,11 +95,6 @@ func (m *Create) ValidateVersion(version int64) error {
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	b.Created(m.GetActor(), m.GetBody())
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-		}
-	}
 	return b.Events
 }
 
@@ -123,11 +118,6 @@ func (m *Update) ValidateVersion(version int64) error {
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	b.Updated(m.GetActor(), m.GetBody())
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-		}
-	}
 	return b.Events
 }
 

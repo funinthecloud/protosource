@@ -125,7 +125,7 @@ message Unlocked {
 // Snapshot is the snapshot of the aggregate
 message Snapshot {
   option (funinthecloud.protosource.options.v1.protosource_message_type).snapshot = {
-    every_n_events: 50
+    every_n_events: 3
   };
   string id       = 1;
   int64  version  = 2;

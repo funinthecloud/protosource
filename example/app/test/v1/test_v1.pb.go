@@ -838,7 +838,7 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x125\n" +
-	"\bsnapshot\x18\x05 \x01(\v2\x19.example.app.test.v1.TestR\bsnapshot:\bʬ\x1d\x04*\x02\b2*D\n" +
+	"\bsnapshot\x18\x05 \x01(\v2\x19.example.app.test.v1.TestR\bsnapshot:\bʬ\x1d\x04*\x02\b\x03*D\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSTATE_UNLOCKED\x10\x01\x12\x10\n" +

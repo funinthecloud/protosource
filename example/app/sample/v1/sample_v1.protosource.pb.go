@@ -8,6 +8,7 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/funinthecloud/protosource"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -64,6 +65,18 @@ func (aggregate *Sample) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.Body = snapshot.GetSnapshot().GetBody()
 	aggregate.Version = snapshot.GetVersion()
 }
+func (b *Builder) Snapshot(aggregate *Sample) {
+	if b.version%int64(50) == 0 {
+		event := &Snapshot{
+			Id:       b.id,
+			Snapshot: proto.Clone(aggregate).(*Sample),
+			Version:  b.nextVersion(),
+			At:       protosource.NowMicros(),
+			Actor:    "snapshot@system",
+		}
+		b.Events = append(b.Events, event)
+	}
+}
 func (aggregate *Sample) setCreated(event protosource.Event) {
 	aggregate.CreateAt = event.GetAt()
 	aggregate.CreateBy = event.GetActor()
@@ -116,12 +129,10 @@ func (m *Create) ValidateVersion(version int64) error {
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Sample)
 	b.Created(m.GetActor(), m.GetBody())
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-		}
-	}
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)
 	return b.Events
 }
 
@@ -144,12 +155,10 @@ func (m *Update) ValidateVersion(version int64) error {
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Sample)
 	b.Updated(m.GetActor(), m.GetBody())
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-		}
-	}
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)
 	return b.Events
 }
 

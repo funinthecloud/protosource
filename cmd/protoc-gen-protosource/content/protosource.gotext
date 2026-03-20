@@ -9,6 +9,9 @@ import (
 
     "buf.build/go/protovalidate"
     "github.com/funinthecloud/protosource"
+    {{ if gt (snapshotEveryN .) 0 -}}
+    "google.golang.org/protobuf/proto"
+    {{ end -}}
 )
 
 var (
@@ -82,6 +85,18 @@ func (aggregate *{{$aggregate}}) RestoreSnapshot(snapshot *Snapshot) {
     aggregate.{{ name $field}} = snapshot.GetSnapshot().Get{{ name $field }}()
     {{end -}}
     aggregate.Version = snapshot.GetVersion()
+}
+func (b *Builder) Snapshot(aggregate *{{$aggregate}}) {
+    if b.version % int64({{ $everyN }}) == 0 {
+        event := &Snapshot{
+            Id:       b.id,
+            Snapshot: proto.Clone(aggregate).(*{{$aggregate}}),
+            Version:  b.nextVersion(),
+            At:       protosource.NowMicros(),
+            Actor:    "snapshot@system",
+        }
+        b.Events = append(b.Events, event)
+    }
 }
         {{ end -}}
 func (aggregate *{{$aggregate}}) setCreated(event protosource.Event) {
@@ -184,15 +199,17 @@ func (m *{{ $message.Name }}) Authorize(aggregate protosource.Aggregate) error {
 func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
     b := NewBuilder(m.GetId(), aggregate.GetVersion())
     {{ $file := $ -}}
+    {{ if $hasSnapshot -}}
+    a := proto.Clone(aggregate).(*{{$aggregate}})
+    {{ end -}}
     {{ range $eventName := commandEvents $message -}}
     {{ $evt := eventMessage $eventName $file -}}
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
+    {{ if $hasSnapshot -}}
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a)
     {{ end -}}
-    if s, ok := aggregate.(protosource.Snapshoter); ok {
-        if interval := s.SnapshotInterval(); interval > 0 && b.version % int64(interval) == 0 {
-            b.Events = append(b.Events, s.Snapshot(b.version))
-        }
-    }
+    {{ end -}}
     return b.Events
 }
 {{ end }}
