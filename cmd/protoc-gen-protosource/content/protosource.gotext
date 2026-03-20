@@ -9,6 +9,9 @@ import (
 
     "buf.build/go/protovalidate"
     "github.com/funinthecloud/protosource"
+    {{ if gt (snapshotEveryN .) 0 -}}
+    "google.golang.org/protobuf/proto"
+    {{ end -}}
 )
 
 var (
@@ -87,7 +90,7 @@ func (b *Builder) Snapshot(aggregate *{{$aggregate}}) {
     if b.version % int64({{ $everyN }}) == 0 {
         event := &Snapshot{
             Id:       b.id,
-            Snapshot: aggregate,
+            Snapshot: proto.Clone(aggregate).(*{{$aggregate}}),
             Version:  b.nextVersion(),
             At:       protosource.NowMicros(),
             Actor:    "snapshot@system",
@@ -203,6 +206,7 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     {{ $evt := eventMessage $eventName $file -}}
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
     {{ if $hasSnapshot -}}
+    _ = a.On(b.Events[len(b.Events)-1])
     b.Snapshot(a)
     {{ end -}}
     {{ end -}}

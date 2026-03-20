@@ -8,6 +8,7 @@ import (
 
 	"buf.build/go/protovalidate"
 	"github.com/funinthecloud/protosource"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -69,7 +70,7 @@ func (b *Builder) Snapshot(aggregate *Test) {
 	if b.version%int64(50) == 0 {
 		event := &Snapshot{
 			Id:       b.id,
-			Snapshot: aggregate,
+			Snapshot: proto.Clone(aggregate).(*Test),
 			Version:  b.nextVersion(),
 			At:       protosource.NowMicros(),
 			Actor:    "snapshot@system",
@@ -137,8 +138,10 @@ func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := aggregate.(*Test)
 	b.Created(m.GetActor(), m.GetBody())
+	_ = a.On(b.Events[len(b.Events)-1])
 	b.Snapshot(a)
 	b.Unlocked(m.GetActor())
+	_ = a.On(b.Events[len(b.Events)-1])
 	b.Snapshot(a)
 	return b.Events
 }
@@ -173,6 +176,7 @@ func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := aggregate.(*Test)
 	b.Updated(m.GetActor(), m.GetBody())
+	_ = a.On(b.Events[len(b.Events)-1])
 	b.Snapshot(a)
 	return b.Events
 }
@@ -207,6 +211,7 @@ func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := aggregate.(*Test)
 	b.Locked(m.GetActor())
+	_ = a.On(b.Events[len(b.Events)-1])
 	b.Snapshot(a)
 	return b.Events
 }
@@ -241,6 +246,7 @@ func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := aggregate.(*Test)
 	b.Unlocked(m.GetActor())
+	_ = a.On(b.Events[len(b.Events)-1])
 	b.Snapshot(a)
 	return b.Events
 }
