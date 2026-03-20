@@ -187,6 +187,9 @@ func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput
 	} else if v, ok := input.Item["pk"]; ok {
 		pk = v.(*types.AttributeValueMemberS).Value
 	}
+	if pk == "" {
+		return nil, fmt.Errorf("mockDynamoer.PutItem: no 'a' or 'pk' attribute in item — malformed write")
+	}
 	table[pk] = input.Item
 	return &dynamodb.PutItemOutput{}, nil
 }
@@ -199,12 +202,43 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	pk := input.Key["a"].(*types.AttributeValueMemberS).Value
+	// Support both "a" (events/aggregates tables) and "pk" (opaquedata tables).
+	var pk string
+	if v, ok := input.Key["a"]; ok {
+		pk = v.(*types.AttributeValueMemberS).Value
+	} else if v, ok := input.Key["pk"]; ok {
+		pk = v.(*types.AttributeValueMemberS).Value
+	}
 	item, ok := table[pk]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
 	}
 	return &dynamodb.GetItemOutput{Item: item}, nil
+}
+
+func (m *mockDynamoer) DeleteItem(ctx context.Context, input *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	table := m.ensureTable(*input.TableName)
+	var pk string
+	if v, ok := input.Key["a"]; ok {
+		pk = v.(*types.AttributeValueMemberS).Value
+	} else if v, ok := input.Key["pk"]; ok {
+		pk = v.(*types.AttributeValueMemberS).Value
+	}
+	delete(table, pk)
+	return &dynamodb.DeleteItemOutput{}, nil
+}
+
+func (m *mockDynamoer) UpdateItem(ctx context.Context, input *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return &dynamodb.UpdateItemOutput{}, nil
 }
 
 func strPtr(s string) *string { return &s }

@@ -268,6 +268,13 @@ func (c *SampleClient) SelectSampleByCreateBy(ctx context.Context, create_by str
 
 // SelectSampleByCreateByWithCreateAt queries GSI1 with a sort key condition.
 func (c *SampleClient) SelectSampleByCreateByWithCreateAt(ctx context.Context, create_by string, op opaquedata.SortOperator, vals ...SampleGSI1SK) ([]*Sample, error) {
+	if op == opaquedata.Between {
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("SampleClient.Select: Between requires exactly 2 values, got %d", len(vals))
+		}
+	} else if len(vals) != 1 {
+		return nil, fmt.Errorf("SampleClient.Select: operator %d requires exactly 1 value, got %d", op, len(vals))
+	}
 	pk := &Sample{
 		CreateBy: create_by,
 	}
@@ -276,7 +283,7 @@ func (c *SampleClient) SelectSampleByCreateByWithCreateAt(ctx context.Context, c
 		Operator: op,
 		Value:    vals[0].String(),
 	}
-	if op == opaquedata.Between && len(vals) > 1 {
+	if op == opaquedata.Between {
 		sort.Value2 = vals[1].String()
 	}
 	results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))

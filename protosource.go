@@ -169,14 +169,16 @@ func WithSerializer(serializer Serializer) Option {
 	}
 }
 
-// WithCompression enables gzip compression for event and aggregate data stored
-// by the repository. Data at or above the threshold (in bytes) is compressed
+// WithCompression enables gzip compression for event record data stored by the
+// repository. Record data at or above the threshold (in bytes) is compressed
 // before writing to the store. Data below the threshold is stored uncompressed.
 // Decompression is automatic on read (detected via gzip magic bytes), so
 // compressed and uncompressed data can coexist safely.
 //
-// Use defaultCompressThreshold (300 bytes) as a sensible starting point, or
-// pass 0 to disable compression (the default).
+// Note: this only affects event records (Save/Load). Materialized aggregate
+// state is passed directly to AggregateStore, which owns its own serialization.
+//
+// Use 300 as a sensible starting threshold, or pass 0 to disable (the default).
 func WithCompression(threshold int) Option {
 	return func(r *Repository) {
 		r.compressThreshold = threshold
