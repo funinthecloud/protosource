@@ -15,13 +15,17 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Dynamoer is a minimal interface covering the DynamoDB operations needed by
-// the store. It is satisfied by *dynamodb.Client.
+// Dynamoer is the interface covering all DynamoDB operations needed by the
+// store and opaquedata. It is satisfied by *dynamodb.Client and also satisfies
+// opaquedata.DynamoDBer, so the same client can be used for both event storage
+// and opaquedata aggregate storage.
 type Dynamoer interface {
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
 	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
 	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
+	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
+	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
 }
 
 // DynamoDB attribute names are kept to single characters to minimize read/write
@@ -87,8 +91,8 @@ func WithTenantPrefix(prefix string) Option {
 
 // WithOpaqueTable enables opaquedata single-table storage for aggregates that
 // implement AutoPKSK. When set, SaveAggregate uses opaquedata to store the
-// aggregate with full GSI indexing. The DynamoDB client must satisfy
-// opaquedata.DynamoDBer (which Dynamoer already covers for the needed methods).
+// aggregate with full GSI indexing. Dynamoer satisfies opaquedata.DynamoDBer,
+// so the same client handles both event storage and opaquedata operations.
 func WithOpaqueTable(name string) Option {
 	return func(s *DynamoDBStore) { s.opaqueTable = name }
 }

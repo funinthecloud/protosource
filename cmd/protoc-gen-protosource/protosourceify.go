@@ -527,14 +527,32 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 		return fmt.Errorf("message %s: opaque annotations present but no PK field defined", m.Name())
 	}
 
-	// Check for duplicate orders within each key type
+	// Validate ordering within each key type
 	for kt, fields := range mappings {
+		if len(fields) == 1 {
+			// Single field: order 0 or 1 are both acceptable
+			continue
+		}
+		// Composite key: require unique positive orders
 		seen := make(map[int32]bool)
 		for _, fm := range fields {
-			if fm.Order != 0 && seen[fm.Order] {
+			if fm.Order <= 0 {
+				return fmt.Errorf("message %s: composite key %s has %d fields — all must have positive order values, but field %s has order %d",
+					m.Name(), kt, len(fields), fm.Field.Name(), fm.Order)
+			}
+			if seen[fm.Order] {
 				return fmt.Errorf("message %s: duplicate order %d for key type %s", m.Name(), fm.Order, kt)
 			}
 			seen[fm.Order] = true
+		}
+	}
+
+	// Validate GSI completeness: if a GSI SK is annotated, require a corresponding GSI PK
+	for i := 1; i <= 20; i++ {
+		skType := optionsv1.OpaqueKeyType(4 + (i-1)*2)
+		pkType := optionsv1.OpaqueKeyType(3 + (i-1)*2)
+		if len(mappings[skType]) > 0 && len(mappings[pkType]) == 0 {
+			return fmt.Errorf("message %s: GSI%d has SK fields but no PK fields — annotate a PK for this index", m.Name(), i)
 		}
 	}
 

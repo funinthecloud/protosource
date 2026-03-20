@@ -382,6 +382,13 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
 {{ if $gsi.HasSK -}}
 // Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries GSI{{ $gsi.Num }} with a sort key condition.
 func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}, op opaquedata.SortOperator, vals ...{{ $msgName }}GSI{{ $gsi.Num }}SK) ([]*{{ $msgName }}, error) {
+    if op == opaquedata.Between {
+        if len(vals) != 2 {
+            return nil, fmt.Errorf("{{ $msgName }}Client.Select: Between requires exactly 2 values, got %d", len(vals))
+        }
+    } else if len(vals) != 1 {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Select: operator %d requires exactly 1 value, got %d", op, len(vals))
+    }
     pk := &{{ $msgName }}{
 {{ range $fm := $gsi.PKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
 {{ end }}    }
@@ -390,7 +397,7 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
         Operator: op,
         Value:    vals[0].String(),
     }
-    if op == opaquedata.Between && len(vals) > 1 {
+    if op == opaquedata.Between {
         sort.Value2 = vals[1].String()
     }
     results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", sort, opaquedata.WithGSIIndex({{ $gsi.Num }}))
