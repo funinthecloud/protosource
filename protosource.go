@@ -20,6 +20,8 @@ type Repo interface {
 	Apply(ctx context.Context, command Commander) (int64, error)
 	// Load retrieves an aggregate by its ID from storage
 	Load(ctx context.Context, aggregateID string) (Aggregate, error)
+	// History returns the full event history for an aggregate
+	History(ctx context.Context, aggregateID string) (*historyv1.History, error)
 }
 
 // Store provides an abstraction for the Repository to save and load data.
@@ -200,6 +202,15 @@ func (r *Repository) Load(ctx context.Context, aggregateId string) (Aggregate, e
 		return nil, fmt.Errorf("load aggregate version: %w", err)
 	}
 	return a, nil
+}
+
+// History returns the full event history for an aggregate, bypassing any snapshot
+// tail optimization. This is intended for query endpoints that need the complete stream.
+func (r *Repository) History(ctx context.Context, aggregateID string) (*historyv1.History, error) {
+	if aggregateID == "" {
+		return nil, ErrEmptyAggregateId
+	}
+	return r.store.Load(ctx, aggregateID)
 }
 
 // Apply processes the given command and returns the current version of the aggregate.
@@ -458,6 +469,28 @@ type Snapshoter interface {
 func (r *Repository) new() Aggregate {
 	return reflect.New(r.prototype).Interface().(Aggregate)
 }
+
+// Request is a provider-agnostic representation of an incoming HTTP request.
+// Cloud-specific adapters convert their native request types into this struct
+// before calling generated handlers. The Actor field is pre-populated by the
+// adapter's ActorExtractor — generated handlers never parse auth context.
+type Request struct {
+	Body            string
+	PathParameters  map[string]string
+	QueryParameters map[string]string
+	Actor           string
+}
+
+// Response is a provider-agnostic representation of an HTTP response.
+// Cloud-specific adapters convert this back to their native response type.
+type Response struct {
+	StatusCode int
+	Body       string
+	Headers    map[string]string
+}
+
+// HandlerFunc is the signature for provider-agnostic request handlers.
+type HandlerFunc func(ctx context.Context, request Request) Response
 
 // Utility functions for time conversion
 

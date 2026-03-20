@@ -140,15 +140,16 @@ git checkout -b <branch-name> origin/main
 ## TODO
 
 - [x] ~~Generate starter `aggregate.go`~~ (superseded: `On` method is now fully generated from proto annotations)
-- [ ] Create annotations for auto-generating single aggregate projections (has legacy code examples to reference)
+- [x] ~~Create annotations for auto-generating single aggregate projections~~ (has legacy code examples to reference)
 - [x] ~~Finish growing test coverage of memorystore~~ (100% coverage)
 - [x] ~~Create a boltdb store with good test coverage~~ (84.2% coverage)
 - [x] ~~Analyze dynamodbstore to ensure it still works with current framework changes~~ (rewritten to implement all framework interfaces in PR #11)
 - [x] ~~Add capabilities to all stores to store the aggregate post-apply~~ (AggregateStore is now opt-in per store; only dynamodbstore implements it for GSI-indexed opaquedata storage)
 - [ ] Look deeper into multi-package projections and auto-generation possibilities
 - [x] ~~Add plugin validation for `sets_state` references (verify enum value exists in file)~~
-- [ ] Update sample and samplenosnapshot protos to use two-event pattern and `sets_state` if applicable
-- [ ] Investigate TTL / event expiration: when a snapshot is recorded, events older than the most recent snapshot could age off via a background mechanism (e.g., DynamoDB TTL, scheduled cleanup for SQL/BoltDB stores)
+- [x] ~~Update sample and samplenosnapshot protos to use two-event pattern and `sets_state` if applicable~~
+- [x] ~~Investigate TTL / event expiration~~ (DynamoDB TTL, scheduled cleanup for SQL/BoltDB stores)
+- [x] ~~Auto-generate a Lambda (or similar) endpoint for receiving event data~~ (lambda.gotext generates per-command handlers, Get, and History endpoints)
 - [x] ~~Create a protojsonserializer that uses proto JSON serialization~~
 - [x] ~~Remove scenario package~~ (superseded: use memorystore + real serializer for testing)
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)
