@@ -206,7 +206,7 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     {{ $evt := eventMessage $eventName $file -}}
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
     {{ if $hasSnapshot -}}
-    _ = a.On(b.Events[len(b.Events)-1])
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
     b.Snapshot(a)
     {{ end -}}
     {{ end -}}
