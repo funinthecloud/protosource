@@ -45,6 +45,15 @@ func (b *Builder) nextVersion() int64 {
     return b.version
 }
 
+func (b *Builder) maybeSnapshot(aggregate protosource.Aggregate) {
+    if s, ok := aggregate.(protosource.Snapshoter); ok {
+        if interval := s.SnapshotInterval(); interval > 0 && b.version % int64(interval) == 0 {
+            b.Events = append(b.Events, s.Snapshot(b.version))
+            b.version++
+        }
+    }
+}
+
 {{/* These are global variables to help with the processing.*/}}
 {{ $aggregate := "" }}
 {{ $hasSnapshot := false }}
@@ -187,12 +196,8 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     {{ range $eventName := commandEvents $message -}}
     {{ $evt := eventMessage $eventName $file -}}
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
+    b.maybeSnapshot(aggregate)
     {{ end -}}
-    if s, ok := aggregate.(protosource.Snapshoter); ok {
-        if interval := s.SnapshotInterval(); interval > 0 && b.version % int64(interval) == 0 {
-            b.Events = append(b.Events, s.Snapshot(b.version))
-        }
-    }
     return b.Events
 }
 {{ end }}

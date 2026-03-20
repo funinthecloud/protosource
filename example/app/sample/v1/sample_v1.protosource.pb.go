@@ -44,6 +44,15 @@ func (b *Builder) nextVersion() int64 {
 	return b.version
 }
 
+func (b *Builder) maybeSnapshot(aggregate protosource.Aggregate) {
+	if s, ok := aggregate.(protosource.Snapshoter); ok {
+		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
+			b.Events = append(b.Events, s.Snapshot(b.version))
+			b.version++
+		}
+	}
+}
+
 func (aggregate *Sample) Snapshot(version int64) protosource.Event {
 	return &Snapshot{
 		Id:       aggregate.GetId(),
@@ -117,11 +126,7 @@ func (m *Create) ValidateVersion(version int64) error {
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	b.Created(m.GetActor(), m.GetBody())
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-		}
-	}
+	b.maybeSnapshot(aggregate)
 	return b.Events
 }
 
@@ -145,11 +150,7 @@ func (m *Update) ValidateVersion(version int64) error {
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	b.Updated(m.GetActor(), m.GetBody())
-	if s, ok := aggregate.(protosource.Snapshoter); ok {
-		if interval := s.SnapshotInterval(); interval > 0 && b.version%int64(interval) == 0 {
-			b.Events = append(b.Events, s.Snapshot(b.version))
-		}
-	}
+	b.maybeSnapshot(aggregate)
 	return b.Events
 }
 
