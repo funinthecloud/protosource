@@ -188,3 +188,83 @@ message SnapshotOptions {
 //   option (protosource_message_type).snapshot = { disabled: true };
 //   option (protosource_message_type).snapshot = {}; // defer to runtime
 //   default
+
+// ── OpaqueData Field Options
+// ──────────────────────────────────────────────────────────────────
+// Field-level annotations that declare which fields form PK, SK, and GSI keys
+// for single-table DynamoDB storage via the opaquedata package.
+//
+// Each annotated field contributes to one or more composite key strings.
+// The key prefix is auto-derived from the proto package + message name.
+// Fields within a key type are ordered by the `order` field (1-based).
+
+extend google.protobuf.FieldOptions {
+  OpaqueFieldOptions protosource_opaque_field = 60104;
+}
+
+message OpaqueFieldOptions {
+  repeated OpaqueKeyMapping attributes = 1;
+}
+
+message OpaqueKeyMapping {
+  OpaqueKeyType type  = 1;
+  int32         order = 2;  // 1-based ordering within a composite key; 0 = sole field
+}
+
+// OpaqueKeyType identifies which DynamoDB key slot a field maps to.
+enum OpaqueKeyType {
+  OPAQUE_KEY_TYPE_UNSPECIFIED = 0;
+  OPAQUE_KEY_TYPE_PK          = 1;
+  OPAQUE_KEY_TYPE_SK          = 2;
+  OPAQUE_KEY_TYPE_GSI1PK      = 3;
+  OPAQUE_KEY_TYPE_GSI1SK      = 4;
+  OPAQUE_KEY_TYPE_GSI2PK      = 5;
+  OPAQUE_KEY_TYPE_GSI2SK      = 6;
+  OPAQUE_KEY_TYPE_GSI3PK      = 7;
+  OPAQUE_KEY_TYPE_GSI3SK      = 8;
+  OPAQUE_KEY_TYPE_GSI4PK      = 9;
+  OPAQUE_KEY_TYPE_GSI4SK      = 10;
+  OPAQUE_KEY_TYPE_GSI5PK      = 11;
+  OPAQUE_KEY_TYPE_GSI5SK      = 12;
+  OPAQUE_KEY_TYPE_GSI6PK      = 13;
+  OPAQUE_KEY_TYPE_GSI6SK      = 14;
+  OPAQUE_KEY_TYPE_GSI7PK      = 15;
+  OPAQUE_KEY_TYPE_GSI7SK      = 16;
+  OPAQUE_KEY_TYPE_GSI8PK      = 17;
+  OPAQUE_KEY_TYPE_GSI8SK      = 18;
+  OPAQUE_KEY_TYPE_GSI9PK      = 19;
+  OPAQUE_KEY_TYPE_GSI9SK      = 20;
+  OPAQUE_KEY_TYPE_GSI10PK     = 21;
+  OPAQUE_KEY_TYPE_GSI10SK     = 22;
+  OPAQUE_KEY_TYPE_GSI11PK     = 23;
+  OPAQUE_KEY_TYPE_GSI11SK     = 24;
+  OPAQUE_KEY_TYPE_GSI12PK     = 25;
+  OPAQUE_KEY_TYPE_GSI12SK     = 26;
+  OPAQUE_KEY_TYPE_GSI13PK     = 27;
+  OPAQUE_KEY_TYPE_GSI13SK     = 28;
+  OPAQUE_KEY_TYPE_GSI14PK     = 29;
+  OPAQUE_KEY_TYPE_GSI14SK     = 30;
+  OPAQUE_KEY_TYPE_GSI15PK     = 31;
+  OPAQUE_KEY_TYPE_GSI15SK     = 32;
+  OPAQUE_KEY_TYPE_GSI16PK     = 33;
+  OPAQUE_KEY_TYPE_GSI16SK     = 34;
+  OPAQUE_KEY_TYPE_GSI17PK     = 35;
+  OPAQUE_KEY_TYPE_GSI17SK     = 36;
+  OPAQUE_KEY_TYPE_GSI18PK     = 37;
+  OPAQUE_KEY_TYPE_GSI18SK     = 38;
+  OPAQUE_KEY_TYPE_GSI19PK     = 39;
+  OPAQUE_KEY_TYPE_GSI19SK     = 40;
+  OPAQUE_KEY_TYPE_GSI20PK     = 41;
+  OPAQUE_KEY_TYPE_GSI20SK     = 42;
+}
+
+// Usage:
+//   string id = 1 [(protosource_opaque_field) = {
+//     attributes: [{ type: OPAQUE_KEY_TYPE_PK, order: 1 }]
+//   }];
+//   string ref_type = 11 [(protosource_opaque_field) = {
+//     attributes: [{ type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 }]
+//   }];
+//   int64 create_at = 3 [(protosource_opaque_field) = {
+//     attributes: [{ type: OPAQUE_KEY_TYPE_GSI1SK }, { type: OPAQUE_KEY_TYPE_GSI4SK }]
+//   }];

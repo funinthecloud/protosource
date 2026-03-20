@@ -126,9 +126,10 @@ type Event interface {
 // Repository provides the primary abstraction for saving and loading events.
 // It uses a store to persist data and a serializer to convert between events and records.
 type Repository struct {
-	prototype  reflect.Type // The type of aggregate prototype used to create new instances
-	store      Store        // Underlying storage for events
-	serializer Serializer   // Converts between events and records
+	prototype         reflect.Type // The type of aggregate prototype used to create new instances
+	store             Store        // Underlying storage for events
+	serializer        Serializer   // Converts between events and records
+	compressThreshold int          // 0 = disabled; >0 = compress data at or above this byte size
 }
 
 // New creates a new Repository with the given prototype and options.
@@ -166,6 +167,20 @@ func WithStore(store Store) Option {
 func WithSerializer(serializer Serializer) Option {
 	return func(r *Repository) {
 		r.serializer = serializer
+	}
+}
+
+// WithCompression enables gzip compression for event and aggregate data stored
+// by the repository. Data at or above the threshold (in bytes) is compressed
+// before writing to the store. Data below the threshold is stored uncompressed.
+// Decompression is automatic on read (detected via gzip magic bytes), so
+// compressed and uncompressed data can coexist safely.
+//
+// Use defaultCompressThreshold (300 bytes) as a sensible starting point, or
+// pass 0 to disable compression (the default).
+func WithCompression(threshold int) Option {
+	return func(r *Repository) {
+		r.compressThreshold = threshold
 	}
 }
 
@@ -269,6 +284,11 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 			}
 		}
 		if data, err := proto.Marshal(aggregate); err == nil {
+			if r.compressThreshold > 0 {
+				if compressed, cErr := maybeCompress(data, r.compressThreshold); cErr == nil {
+					data = compressed
+				}
+			}
 			_ = as.SaveAggregate(ctx, aggregateID, data, version)
 		}
 	}
@@ -278,6 +298,8 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 
 // Save persists the given events into the underlying Store.
 // It serializes each event and saves them under the aggregate ID.
+// When compression is enabled, record data at or above the threshold is
+// gzip-compressed before writing.
 func (r *Repository) Save(ctx context.Context, events ...Event) error {
 	if len(events) == 0 {
 		return nil
@@ -289,6 +311,14 @@ func (r *Repository) Save(ctx context.Context, events ...Event) error {
 		record, err := r.serializer.MarshalEvent(event)
 		if err != nil {
 			return err
+		}
+
+		if r.compressThreshold > 0 {
+			compressed, err := maybeCompress(record.Data, r.compressThreshold)
+			if err != nil {
+				return fmt.Errorf("compress event: %w", err)
+			}
+			record.Data = compressed
 		}
 
 		h.Records = append(h.Records, record)
@@ -333,6 +363,13 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 	var version int64
 	for _, record := range history.GetRecords() {
 		version = record.GetVersion()
+
+		decompressed, err := maybeDecompress(record.Data)
+		if err != nil {
+			return nil, 0, fmt.Errorf("decompress event: %w", err)
+		}
+		record.Data = decompressed
+
 		event, err := r.serializer.UnmarshalEvent(record)
 		if err != nil {
 			return nil, 0, err

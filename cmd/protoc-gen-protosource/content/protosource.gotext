@@ -3,15 +3,29 @@
 
 package {{ package . }}
 
+{{/* Compute file-level flags before imports */}}
+{{ $hasOpaque := false }}
+{{ range $message := .AllMessages }}
+    {{ if hasOpaqueAnnotations $message }}{{ $hasOpaque = true }}{{ end }}
+{{ end }}
+
 import (
     "fmt"
     "sync"
 
     "buf.build/go/protovalidate"
     "github.com/funinthecloud/protosource"
-    {{ if gt (snapshotEveryN .) 0 -}}
+{{ if $hasOpaque }}
+    "context"
+
+    "github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+    "github.com/aws/aws-sdk-go-v2/service/dynamodb"
+    "github.com/funinthecloud/protosource/opaquedata"
+    opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
     "google.golang.org/protobuf/proto"
-    {{ end -}}
+{{ else if gt (snapshotEveryN .) 0 -}}
+    "google.golang.org/protobuf/proto"
+{{ end }}
 )
 
 var (
@@ -240,4 +254,165 @@ func (m *{{ $message.Name }}) EventName() string {
 {{ if isProjection . -}}
 // {{ $message.Name}}  is a projection
 {{- end}}
+
+{{/* ── OpaqueData: AutoPKSK + Hydrater + Client ── */}}
+{{ if hasOpaqueAnnotations $message }}
+{{ $prefix := opaqueKeyPrefix $message $ }}
+{{ $mappings := opaqueKeyMappings $message }}
+{{ $msgName := $message.Name }}
+
+// ── AutoPKSK methods for {{ $msgName }} ──
+
+{{ range $kt := opaqueAllKeySlots }}{{ $slotName := opaqueKeySlotName $kt }}{{ $fields := index $mappings $kt -}}
+{{ if $fields -}}
+func (m *{{ $msgName }}) Dynamo{{ $slotName }}() string {
+    if m == nil {
+        return ""
+    }
+    var fields string
+{{ range $fm := $fields }}    fields += fmt.Sprintf("#{{ opaqueFieldNameLower $fm.Field }}#%v", m.Get{{ name $fm.Field }}())
+{{ end -}}
+    return fmt.Sprintf("{{ $prefix }}%s", fields)
+}
+{{ else -}}
+func (m *{{ $msgName }}) Dynamo{{ $slotName }}() string { return "NA" }
+{{ end -}}
+{{ end }}
+
+// ── Hydrater for {{ $msgName }} ──
+
+func (m *{{ $msgName }}) Hydrate(body []byte) error {
+    return proto.Unmarshal(body, m)
+}
+
+// ── Typed GSI SK value structs for {{ $msgName }} ──
+
+{{ range $gsi := opaqueUsedGSIs $message }}{{ if $gsi.HasSK -}}
+type {{ $msgName }}GSI{{ $gsi.Num }}SK struct {
+{{ range $fm := $gsi.SKFields }}    {{ name $fm.Field }} {{ gotype $fm.Field }}
+{{ end -}}
+}
+
+func (v {{ $msgName }}GSI{{ $gsi.Num }}SK) String() string {
+    var fields string
+{{ range $fm := $gsi.SKFields }}    fields += fmt.Sprintf("#{{ opaqueFieldNameLower $fm.Field }}#%v", v.{{ name $fm.Field }})
+{{ end -}}
+    return fmt.Sprintf("{{ $prefix }}%s", fields)
+}
+{{ end }}{{ end }}
+
+// ── Client for {{ $msgName }} ──
+
+type {{ $msgName }}Client struct {
+    db        opaquedata.DynamoDBer
+    tableName string
+}
+
+func New{{ $msgName }}Client(db opaquedata.DynamoDBer, tableName string) *{{ $msgName }}Client {
+    return &{{ $msgName }}Client{db: db, tableName: tableName}
+}
+
+func (c *{{ $msgName }}Client) Add{{ $msgName }}(ctx context.Context, d *{{ $msgName }}, opts ...opaquedata.Option) (*dynamodb.PutItemOutput, error) {
+    od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+    if err != nil {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Add: %w", err)
+    }
+    item := opaquedata.GetItem(od)
+    return c.db.PutItem(ctx, &dynamodb.PutItemInput{
+        TableName: &c.tableName,
+        Item:      item,
+    })
+}
+
+func (c *{{ $msgName }}Client) Get{{ $msgName }}(ctx context.Context, {{ range $i, $fm := opaquePKFields $message }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) (*{{ $msgName }}, error) {
+    key := &{{ $msgName }}{
+{{ range $fm := opaquePKFields $message }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}    }
+    od := opaquedata.NewOpaqueKeyFromProto(key)
+    resp, err := c.db.GetItem(ctx, &dynamodb.GetItemInput{
+        TableName: &c.tableName,
+        Key:       opaquedata.GetKey(od),
+    })
+    if err != nil {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Get: %w", err)
+    }
+    if resp.Item == nil {
+        return nil, opaquedata.ErrNotFound
+    }
+    var result opaquedatav1.OpaqueData
+    if err := attributevalue.UnmarshalMap(resp.Item, &result); err != nil {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Get: unmarshal: %w", err)
+    }
+    target := &{{ $msgName }}{}
+    if err := opaquedata.ReHydrate(&result, target); err != nil {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Get: rehydrate: %w", err)
+    }
+    return target, nil
+}
+
+func (c *{{ $msgName }}Client) Update{{ $msgName }}(ctx context.Context, d *{{ $msgName }}, opts ...opaquedata.Option) (*dynamodb.PutItemOutput, error) {
+    return c.Add{{ $msgName }}(ctx, d, opts...)
+}
+
+func (c *{{ $msgName }}Client) Delete{{ $msgName }}(ctx context.Context, {{ range $i, $fm := opaquePKFields $message }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) (*dynamodb.DeleteItemOutput, error) {
+    key := &{{ $msgName }}{
+{{ range $fm := opaquePKFields $message }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}    }
+    od := opaquedata.NewOpaqueKeyFromProto(key)
+    return c.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+        TableName: &c.tableName,
+        Key:       opaquedata.GetKey(od),
+    })
+}
+
+{{ range $gsi := opaqueUsedGSIs $message }}
+// Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries GSI{{ $gsi.Num }} by partition key.
+func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $msgName }}, error) {
+    pk := &{{ $msgName }}{
+{{ range $fm := $gsi.PKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}    }
+    pkValue := pk.Dynamo{{ opaqueKeySlotName $gsi.PKType }}()
+    results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", nil, opaquedata.WithGSIIndex({{ $gsi.Num }}))
+    if err != nil {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Select: %w", err)
+    }
+    return rehydrate{{ $msgName }}(results)
+}
+
+{{ if $gsi.HasSK -}}
+// Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries GSI{{ $gsi.Num }} with a sort key condition.
+func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}, op opaquedata.SortOperator, vals ...{{ $msgName }}GSI{{ $gsi.Num }}SK) ([]*{{ $msgName }}, error) {
+    pk := &{{ $msgName }}{
+{{ range $fm := $gsi.PKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}    }
+    pkValue := pk.Dynamo{{ opaqueKeySlotName $gsi.PKType }}()
+    sort := &opaquedata.SortCondition{
+        Operator: op,
+        Value:    vals[0].String(),
+    }
+    if op == opaquedata.Between && len(vals) > 1 {
+        sort.Value2 = vals[1].String()
+    }
+    results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", sort, opaquedata.WithGSIIndex({{ $gsi.Num }}))
+    if err != nil {
+        return nil, fmt.Errorf("{{ $msgName }}Client.Select: %w", err)
+    }
+    return rehydrate{{ $msgName }}(results)
+}
+{{ end -}}
+{{ end }}
+
+func rehydrate{{ $msgName }}(results []*opaquedatav1.OpaqueData) ([]*{{ $msgName }}, error) {
+    out := make([]*{{ $msgName }}, 0, len(results))
+    for _, od := range results {
+        m := &{{ $msgName }}{}
+        if err := opaquedata.ReHydrate(od, m); err != nil {
+            return nil, fmt.Errorf("{{ $msgName }}: rehydrate: %w", err)
+        }
+        out = append(out, m)
+    }
+    return out, nil
+}
+
+{{ end -}}
 {{- end }}

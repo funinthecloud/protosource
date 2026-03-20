@@ -60,10 +60,10 @@ func GetItem(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 		item["version"] = &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)}
 	}
 	for _, g := range gsiPairs(od) {
-		if g.pkVal != "" {
+		if g.pkVal != "" && g.pkVal != "NA" {
 			item[g.pkAttr] = &types.AttributeValueMemberS{Value: g.pkVal}
 		}
-		if g.skVal != "" {
+		if g.skVal != "" && g.skVal != "NA" {
 			item[g.skAttr] = &types.AttributeValueMemberS{Value: g.skVal}
 		}
 	}
