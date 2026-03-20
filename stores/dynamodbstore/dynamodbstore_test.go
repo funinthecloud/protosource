@@ -181,16 +181,20 @@ func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput
 
 	table := m.ensureTable(*input.TableName)
 	// Derive a storage key from whichever PK attribute is present.
-	var pk string
+	// For opaquedata tables (pk+sk), use composite key to avoid collisions.
+	var key string
 	if v, ok := input.Item["a"]; ok {
-		pk = v.(*types.AttributeValueMemberS).Value
+		key = v.(*types.AttributeValueMemberS).Value
 	} else if v, ok := input.Item["pk"]; ok {
-		pk = v.(*types.AttributeValueMemberS).Value
+		key = v.(*types.AttributeValueMemberS).Value
+		if sk, ok := input.Item["sk"]; ok {
+			key += "|" + sk.(*types.AttributeValueMemberS).Value
+		}
 	}
-	if pk == "" {
+	if key == "" {
 		return nil, fmt.Errorf("mockDynamoer.PutItem: no 'a' or 'pk' attribute in item — malformed write")
 	}
-	table[pk] = input.Item
+	table[key] = input.Item
 	return &dynamodb.PutItemOutput{}, nil
 }
 
@@ -202,14 +206,17 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	// Support both "a" (events/aggregates tables) and "pk" (opaquedata tables).
-	var pk string
+	// Support both "a" (events/aggregates tables) and "pk"+"sk" (opaquedata tables).
+	var key string
 	if v, ok := input.Key["a"]; ok {
-		pk = v.(*types.AttributeValueMemberS).Value
+		key = v.(*types.AttributeValueMemberS).Value
 	} else if v, ok := input.Key["pk"]; ok {
-		pk = v.(*types.AttributeValueMemberS).Value
+		key = v.(*types.AttributeValueMemberS).Value
+		if sk, ok := input.Key["sk"]; ok {
+			key += "|" + sk.(*types.AttributeValueMemberS).Value
+		}
 	}
-	item, ok := table[pk]
+	item, ok := table[key]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
 	}
@@ -224,13 +231,16 @@ func (m *mockDynamoer) DeleteItem(ctx context.Context, input *dynamodb.DeleteIte
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	var pk string
+	var key string
 	if v, ok := input.Key["a"]; ok {
-		pk = v.(*types.AttributeValueMemberS).Value
+		key = v.(*types.AttributeValueMemberS).Value
 	} else if v, ok := input.Key["pk"]; ok {
-		pk = v.(*types.AttributeValueMemberS).Value
+		key = v.(*types.AttributeValueMemberS).Value
+		if sk, ok := input.Key["sk"]; ok {
+			key += "|" + sk.(*types.AttributeValueMemberS).Value
+		}
 	}
-	delete(table, pk)
+	delete(table, key)
 	return &dynamodb.DeleteItemOutput{}, nil
 }
 

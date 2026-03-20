@@ -93,3 +93,23 @@ func TestGetValue_ExcludesKeys(t *testing.T) {
 	assert.Equal(t, []byte("data"), val["body"].(*types.AttributeValueMemberB).Value)
 	assert.Equal(t, "123", val["ttl"].(*types.AttributeValueMemberN).Value)
 }
+
+func TestPrefixPKs(t *testing.T) {
+	od := &opaquedatav1.OpaqueData{
+		Pk:      "USER#1",
+		Sk:      "PROFILE#1",
+		Gsi1Pk:  "ORG#A",
+		Gsi1Sk:  "ROLE#admin",
+		Gsi3Pk:  "REGION#us",
+		Gsi20Pk: "STATUS#active",
+	}
+	PrefixPKs(od, "tenant1")
+
+	assert.Equal(t, "tenant1#USER#1", od.Pk)
+	assert.Equal(t, "PROFILE#1", od.Sk, "SK should not be prefixed")
+	assert.Equal(t, "tenant1#ORG#A", od.Gsi1Pk)
+	assert.Equal(t, "ROLE#admin", od.Gsi1Sk, "GSI SK should not be prefixed")
+	assert.Equal(t, "tenant1#REGION#us", od.Gsi3Pk)
+	assert.Equal(t, "tenant1#STATUS#active", od.Gsi20Pk)
+	assert.Equal(t, "", od.Gsi2Pk, "empty GSI PK should remain empty")
+}

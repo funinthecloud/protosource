@@ -59,6 +59,10 @@ func QueryPKSK(ctx context.Context, client Querier, table, pkAttr, pkValue strin
 		fn(qo)
 	}
 
+	if qo.gsiIndex < 0 || qo.gsiIndex > 20 {
+		return nil, fmt.Errorf("opaquedata: GSI index %d out of range [1,20]", qo.gsiIndex)
+	}
+
 	exprNames := map[string]string{
 		"#pk":  pkAttr,
 		"#ttl": "ttl",

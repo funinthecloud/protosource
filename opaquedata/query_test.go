@@ -250,6 +250,17 @@ func TestGSIIndexName(t *testing.T) {
 	assert.Equal(t, "gsi20pk-gsi20sk-index", GSIIndexName(20))
 }
 
+func TestQueryPKSK_InvalidGSIIndex(t *testing.T) {
+	mock := &mockQuerier{}
+	_, err := QueryPKSK(context.Background(), mock, "table", "pk", "pk1", "sk", nil, WithGSIIndex(21))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GSI index 21 out of range")
+
+	_, err = QueryPKSK(context.Background(), mock, "table", "pk", "pk1", "sk", nil, WithGSIIndex(-1))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "GSI index -1 out of range")
+}
+
 // ---------------------------------------------------------------------------
 // itemToOpaqueData
 // ---------------------------------------------------------------------------

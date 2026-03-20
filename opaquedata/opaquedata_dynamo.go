@@ -102,3 +102,69 @@ func GetValue(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 	delete(item, "sk")
 	return item
 }
+
+// PrefixPKs prepends prefix+"#" to the primary PK and all non-empty GSI PKs.
+// This is used by multi-tenant stores to isolate key spaces.
+func PrefixPKs(od *opaquedatav1.OpaqueData, prefix string) {
+	od.Pk = prefix + "#" + od.Pk
+	if od.Gsi1Pk != "" {
+		od.Gsi1Pk = prefix + "#" + od.Gsi1Pk
+	}
+	if od.Gsi2Pk != "" {
+		od.Gsi2Pk = prefix + "#" + od.Gsi2Pk
+	}
+	if od.Gsi3Pk != "" {
+		od.Gsi3Pk = prefix + "#" + od.Gsi3Pk
+	}
+	if od.Gsi4Pk != "" {
+		od.Gsi4Pk = prefix + "#" + od.Gsi4Pk
+	}
+	if od.Gsi5Pk != "" {
+		od.Gsi5Pk = prefix + "#" + od.Gsi5Pk
+	}
+	if od.Gsi6Pk != "" {
+		od.Gsi6Pk = prefix + "#" + od.Gsi6Pk
+	}
+	if od.Gsi7Pk != "" {
+		od.Gsi7Pk = prefix + "#" + od.Gsi7Pk
+	}
+	if od.Gsi8Pk != "" {
+		od.Gsi8Pk = prefix + "#" + od.Gsi8Pk
+	}
+	if od.Gsi9Pk != "" {
+		od.Gsi9Pk = prefix + "#" + od.Gsi9Pk
+	}
+	if od.Gsi10Pk != "" {
+		od.Gsi10Pk = prefix + "#" + od.Gsi10Pk
+	}
+	if od.Gsi11Pk != "" {
+		od.Gsi11Pk = prefix + "#" + od.Gsi11Pk
+	}
+	if od.Gsi12Pk != "" {
+		od.Gsi12Pk = prefix + "#" + od.Gsi12Pk
+	}
+	if od.Gsi13Pk != "" {
+		od.Gsi13Pk = prefix + "#" + od.Gsi13Pk
+	}
+	if od.Gsi14Pk != "" {
+		od.Gsi14Pk = prefix + "#" + od.Gsi14Pk
+	}
+	if od.Gsi15Pk != "" {
+		od.Gsi15Pk = prefix + "#" + od.Gsi15Pk
+	}
+	if od.Gsi16Pk != "" {
+		od.Gsi16Pk = prefix + "#" + od.Gsi16Pk
+	}
+	if od.Gsi17Pk != "" {
+		od.Gsi17Pk = prefix + "#" + od.Gsi17Pk
+	}
+	if od.Gsi18Pk != "" {
+		od.Gsi18Pk = prefix + "#" + od.Gsi18Pk
+	}
+	if od.Gsi19Pk != "" {
+		od.Gsi19Pk = prefix + "#" + od.Gsi19Pk
+	}
+	if od.Gsi20Pk != "" {
+		od.Gsi20Pk = prefix + "#" + od.Gsi20Pk
+	}
+}

@@ -306,6 +306,9 @@ func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregate proto.Messa
 			if err != nil {
 				return fmt.Errorf("dynamodbstore.SaveAggregate: opaquedata: %w", err)
 			}
+			if s.tenantPrefix != "" {
+				opaquedata.PrefixPKs(od, s.tenantPrefix)
+			}
 			_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
 				TableName: &s.opaqueTable,
 				Item:      opaquedata.GetItem(od),
