@@ -216,7 +216,7 @@ func (r *Repository) History(ctx context.Context, aggregateID string) (*historyv
 		return nil, err
 	}
 	for _, record := range history.GetRecords() {
-		decompressed, err := maybeDecompress(record.Data)
+		decompressed, err := MaybeDecompress(record.Data)
 		if err != nil {
 			return nil, fmt.Errorf("decompress event: %w", err)
 		}
@@ -338,7 +338,7 @@ func (r *Repository) Save(ctx context.Context, events ...Event) error {
 		}
 
 		if r.compressThreshold > 0 {
-			compressed, err := maybeCompress(record.Data, r.compressThreshold)
+			compressed, err := MaybeCompress(record.Data, r.compressThreshold)
 			if err != nil {
 				return fmt.Errorf("compress event: %w", err)
 			}
@@ -388,7 +388,7 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 	for _, record := range history.GetRecords() {
 		version = record.GetVersion()
 
-		decompressed, err := maybeDecompress(record.Data)
+		decompressed, err := MaybeDecompress(record.Data)
 		if err != nil {
 			return nil, 0, fmt.Errorf("decompress event: %w", err)
 		}

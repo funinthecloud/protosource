@@ -3,6 +3,7 @@ package opaquedata
 import (
 	"fmt"
 
+	"github.com/funinthecloud/protosource"
 	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	"google.golang.org/protobuf/proto"
 )
@@ -66,7 +67,7 @@ func NewOpaqueDataFromProto(msg AutoPKSK, opts ...Option) (*opaquedatav1.OpaqueD
 		return nil, fmt.Errorf("opaquedata: marshal: %w", err)
 	}
 
-	body, err = maybeCompress(body, o.compressThreshold)
+	body, err = protosource.MaybeCompress(body, o.compressThreshold)
 	if err != nil {
 		return nil, fmt.Errorf("opaquedata: compress: %w", err)
 	}
@@ -129,7 +130,7 @@ func NewOpaqueKeyFromProto(msg AutoPKSK) *opaquedatav1.OpaqueData {
 }
 
 func ReHydrate(od *opaquedatav1.OpaqueData, target Hydrater) error {
-	body, err := maybeDecompress(od.GetBody())
+	body, err := protosource.MaybeDecompress(od.GetBody())
 	if err != nil {
 		return fmt.Errorf("opaquedata: decompress: %w", err)
 	}

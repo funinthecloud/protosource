@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/funinthecloud/protosource"
 	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,26 +24,26 @@ type testItem struct {
 	gsi20pk        string
 }
 
-func (t *testItem) DynamoPK() string    { return t.pk }
-func (t *testItem) DynamoSK() string    { return t.sk }
-func (t *testItem) DynamoGSI1PK() string { return t.gsi1pk }
-func (t *testItem) DynamoGSI1SK() string { return t.gsi1sk }
-func (t *testItem) DynamoGSI2PK() string { return "" }
-func (t *testItem) DynamoGSI2SK() string { return "" }
-func (t *testItem) DynamoGSI3PK() string { return "" }
-func (t *testItem) DynamoGSI3SK() string { return "" }
-func (t *testItem) DynamoGSI4PK() string { return "" }
-func (t *testItem) DynamoGSI4SK() string { return "" }
-func (t *testItem) DynamoGSI5PK() string { return "" }
-func (t *testItem) DynamoGSI5SK() string { return "" }
-func (t *testItem) DynamoGSI6PK() string { return "" }
-func (t *testItem) DynamoGSI6SK() string { return "" }
-func (t *testItem) DynamoGSI7PK() string { return "" }
-func (t *testItem) DynamoGSI7SK() string { return "" }
-func (t *testItem) DynamoGSI8PK() string { return "" }
-func (t *testItem) DynamoGSI8SK() string { return "" }
-func (t *testItem) DynamoGSI9PK() string { return "" }
-func (t *testItem) DynamoGSI9SK() string { return "" }
+func (t *testItem) DynamoPK() string      { return t.pk }
+func (t *testItem) DynamoSK() string      { return t.sk }
+func (t *testItem) DynamoGSI1PK() string  { return t.gsi1pk }
+func (t *testItem) DynamoGSI1SK() string  { return t.gsi1sk }
+func (t *testItem) DynamoGSI2PK() string  { return "" }
+func (t *testItem) DynamoGSI2SK() string  { return "" }
+func (t *testItem) DynamoGSI3PK() string  { return "" }
+func (t *testItem) DynamoGSI3SK() string  { return "" }
+func (t *testItem) DynamoGSI4PK() string  { return "" }
+func (t *testItem) DynamoGSI4SK() string  { return "" }
+func (t *testItem) DynamoGSI5PK() string  { return "" }
+func (t *testItem) DynamoGSI5SK() string  { return "" }
+func (t *testItem) DynamoGSI6PK() string  { return "" }
+func (t *testItem) DynamoGSI6SK() string  { return "" }
+func (t *testItem) DynamoGSI7PK() string  { return "" }
+func (t *testItem) DynamoGSI7SK() string  { return "" }
+func (t *testItem) DynamoGSI8PK() string  { return "" }
+func (t *testItem) DynamoGSI8SK() string  { return "" }
+func (t *testItem) DynamoGSI9PK() string  { return "" }
+func (t *testItem) DynamoGSI9SK() string  { return "" }
 func (t *testItem) DynamoGSI10PK() string { return t.gsi10pk }
 func (t *testItem) DynamoGSI10SK() string { return "" }
 func (t *testItem) DynamoGSI11PK() string { return "" }
@@ -84,7 +85,7 @@ func TestRoundTrip_SmallBody(t *testing.T) {
 	assert.Equal(t, "PROFILE#1", od.GetSk())
 	assert.NotEmpty(t, od.GetBody())
 	// Small body should not be gzipped (below default 300 threshold).
-	assert.False(t, isGzipped(od.GetBody()))
+	assert.False(t, protosource.IsGzipped(od.GetBody()))
 
 	target := &testItem{OpaqueData: &opaquedatav1.OpaqueData{}}
 	require.NoError(t, ReHydrate(od, target))
@@ -99,7 +100,7 @@ func TestRoundTrip_LargeBodyCompressed(t *testing.T) {
 
 	od, err := NewOpaqueDataFromProto(msg)
 	require.NoError(t, err)
-	assert.True(t, isGzipped(od.GetBody()), "large body should be gzipped")
+	assert.True(t, protosource.IsGzipped(od.GetBody()), "large body should be gzipped")
 
 	target := &testItem{OpaqueData: &opaquedatav1.OpaqueData{}}
 	require.NoError(t, ReHydrate(od, target))
@@ -114,7 +115,7 @@ func TestRoundTrip_WithCompressThresholdOverride(t *testing.T) {
 	// Threshold 1 = always compress (0 disables)
 	od, err := NewOpaqueDataFromProto(msg, WithCompressThreshold(1))
 	require.NoError(t, err)
-	assert.True(t, isGzipped(od.GetBody()))
+	assert.True(t, protosource.IsGzipped(od.GetBody()))
 
 	target := &testItem{OpaqueData: &opaquedatav1.OpaqueData{}}
 	require.NoError(t, ReHydrate(od, target))

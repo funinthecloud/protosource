@@ -1,6 +1,10 @@
 package opaquedata
 
-import "time"
+import (
+	"time"
+
+	"github.com/funinthecloud/protosource"
+)
 
 type OpaqueDataOptions struct {
 	ttl               time.Duration
@@ -21,7 +25,7 @@ func WithCompressThreshold(threshold int) Option {
 }
 
 func buildOptions(opts []Option) OpaqueDataOptions {
-	o := OpaqueDataOptions{compressThreshold: defaultCompressThreshold}
+	o := OpaqueDataOptions{compressThreshold: protosource.DefaultCompressThreshold}
 	for _, fn := range opts {
 		fn(&o)
 	}
