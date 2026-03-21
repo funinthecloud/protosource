@@ -38,10 +38,16 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 			}
 		}
 
+		headers := make(map[string]string)
+		for k := range r.Header {
+			headers[k] = r.Header.Get(k)
+		}
+
 		req := protosource.Request{
 			Body:            string(body),
 			PathParameters:  pathParams,
 			QueryParameters: queryParams,
+			Headers:         headers,
 			Actor:           extractor(r),
 		}
 
@@ -53,6 +59,45 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.WriteString(w, resp.Body)
 	}
+}
+
+// WrapRouter returns an http.Handler that dispatches to the router based on
+// the request's HTTP method and URL path.
+func WrapRouter(router *protosource.Router, extractor ActorExtractor) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, `{"error":"failed to read request body"}`, http.StatusBadRequest)
+			return
+		}
+
+		queryParams := make(map[string]string)
+		for k, v := range r.URL.Query() {
+			if len(v) > 0 {
+				queryParams[k] = v[0]
+			}
+		}
+
+		headers := make(map[string]string)
+		for k := range r.Header {
+			headers[k] = r.Header.Get(k)
+		}
+
+		req := protosource.Request{
+			Body:            string(body),
+			QueryParameters: queryParams,
+			Headers:         headers,
+			Actor:           extractor(r),
+		}
+
+		resp := router.Dispatch(r.Context(), r.Method, r.URL.Path, req)
+
+		for k, v := range resp.Headers {
+			w.Header().Set(k, v)
+		}
+		w.WriteHeader(resp.StatusCode)
+		_, _ = io.WriteString(w, resp.Body)
+	})
 }
 
 // BearerTokenExtractor returns an ActorExtractor that reads the

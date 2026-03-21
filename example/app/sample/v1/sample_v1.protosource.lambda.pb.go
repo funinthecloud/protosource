@@ -6,9 +6,11 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/funinthecloud/protosource"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // Handlers provides request handler functions for the Sample aggregate.
@@ -19,6 +21,17 @@ type Handlers struct {
 // NewHandlers creates a new Handlers instance with the given repository.
 func NewHandlers(repo protosource.Repo) *Handlers {
 	return &Handlers{repo: repo}
+}
+
+// RegisterRoutes registers all handler routes on the given router.
+func (h *Handlers) RegisterRoutes(router *protosource.Router) {
+
+	router.Handle("POST", "example/app/sample/v1/create", h.HandleCreate)
+
+	router.Handle("POST", "example/app/sample/v1/update", h.HandleUpdate)
+
+	router.Handle("GET", "example/app/sample/v1/{id}", h.HandleGet)
+	router.Handle("GET", "example/app/sample/v1/{id}/history", h.HandleHistory)
 }
 
 // HandleCreate processes a Create command.
@@ -32,7 +45,7 @@ func (h *Handlers) HandleCreate(ctx context.Context, request protosource.Request
 	}
 
 	cmd := &Create{}
-	if err := protojson.Unmarshal([]byte(request.Body), cmd); err != nil {
+	if err := unmarshalCommand(request, cmd); err != nil {
 		return protosource.Response{
 			StatusCode: http.StatusBadRequest,
 			Body:       `{"error":"invalid request body"}`,
@@ -66,7 +79,7 @@ func (h *Handlers) HandleUpdate(ctx context.Context, request protosource.Request
 	}
 
 	cmd := &Update{}
-	if err := protojson.Unmarshal([]byte(request.Body), cmd); err != nil {
+	if err := unmarshalCommand(request, cmd); err != nil {
 		return protosource.Response{
 			StatusCode: http.StatusBadRequest,
 			Body:       `{"error":"invalid request body"}`,
@@ -116,7 +129,7 @@ func (h *Handlers) HandleGet(ctx context.Context, request protosource.Request) p
 		}
 	}
 
-	body, err := protojson.Marshal(aggregate)
+	body, contentType, err := marshalResponse(request, aggregate)
 	if err != nil {
 		return protosource.Response{
 			StatusCode: http.StatusInternalServerError,
@@ -128,7 +141,7 @@ func (h *Handlers) HandleGet(ctx context.Context, request protosource.Request) p
 	return protosource.Response{
 		StatusCode: http.StatusOK,
 		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": contentType},
 	}
 }
 
@@ -159,7 +172,7 @@ func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Reques
 		}
 	}
 
-	body, err := protojson.Marshal(history)
+	body, contentType, err := marshalResponse(request, history)
 	if err != nil {
 		return protosource.Response{
 			StatusCode: http.StatusInternalServerError,
@@ -171,8 +184,47 @@ func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Reques
 	return protosource.Response{
 		StatusCode: http.StatusOK,
 		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": contentType},
 	}
+}
+
+// acceptsProtobuf returns true if the Accept header includes application/protobuf.
+func acceptsProtobuf(request protosource.Request) bool {
+	accept := request.Headers["Accept"]
+	if accept == "" {
+		accept = request.Headers["accept"]
+	}
+	return strings.Contains(accept, "application/protobuf")
+}
+
+// isProtobufContent returns true if the Content-Type header indicates protobuf.
+func isProtobufContent(request protosource.Request) bool {
+	ct := request.Headers["Content-Type"]
+	if ct == "" {
+		ct = request.Headers["content-type"]
+	}
+	return strings.Contains(ct, "application/protobuf")
+}
+
+// unmarshalCommand decodes the request body into a proto message, using
+// Content-Type to select protobuf binary or JSON deserialization.
+func unmarshalCommand(request protosource.Request, msg proto.Message) error {
+	if isProtobufContent(request) {
+		return proto.Unmarshal([]byte(request.Body), msg)
+	}
+	return protojson.Unmarshal([]byte(request.Body), msg)
+}
+
+// marshalResponse encodes a proto message for the response, using the Accept
+// header to select protobuf binary or JSON serialization. Returns the
+// serialized bytes and the appropriate Content-Type.
+func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, string, error) {
+	if acceptsProtobuf(request) {
+		b, err := proto.Marshal(msg)
+		return b, "application/protobuf", err
+	}
+	b, err := protojson.Marshal(msg)
+	return b, "application/json", err
 }
 
 // extractID extracts the aggregate ID from path parameters or query string.

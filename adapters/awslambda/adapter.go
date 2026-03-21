@@ -36,6 +36,7 @@ func (a *Adapter) Handle(ctx context.Context, request events.APIGatewayProxyRequ
 		Body:            request.Body,
 		PathParameters:  request.PathParameters,
 		QueryParameters: request.QueryStringParameters,
+		Headers:         request.Headers,
 		Actor:           a.extractor(request),
 	}
 
@@ -52,4 +53,26 @@ func (a *Adapter) Handle(ctx context.Context, request events.APIGatewayProxyRequ
 // suitable for passing to lambda.Start().
 func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	return New(handler, extractor).Handle
+}
+
+// WrapRouter returns a Lambda handler that dispatches to the router based on
+// the request's HTTP method and path. Suitable for passing to lambda.Start().
+func WrapRouter(router *protosource.Router, extractor ActorExtractor) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+		req := protosource.Request{
+			Body:            request.Body,
+			PathParameters:  request.PathParameters,
+			QueryParameters: request.QueryStringParameters,
+			Headers:         request.Headers,
+			Actor:           extractor(request),
+		}
+
+		resp := router.Dispatch(ctx, request.HTTPMethod, request.Path, req)
+
+		return events.APIGatewayProxyResponse{
+			StatusCode: resp.StatusCode,
+			Body:       resp.Body,
+			Headers:    resp.Headers,
+		}, nil
+	}
 }

@@ -67,6 +67,8 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueKeySlotName":      opaqueKeySlotName,
 		"opaqueKeySlotGSINum":    opaqueKeySlotGSINum,
 		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
+		"routePrefix":            p.routePrefix,
+		"lower":                  strings.ToLower,
 	}
 }
 
@@ -385,6 +387,17 @@ func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Temp
 	// Fallback: use OutputPath from pgsgo context
 	out := p.ctx.OutputPath(f).String()
 	return strings.TrimSuffix(out, ".pb.go") + suffix
+}
+
+// routePrefix returns the module-stripped import path for a proto file,
+// used to derive HTTP route prefixes (e.g., "example/app/sample/v1").
+func (p *ProtosourceModule) routePrefix(f pgs.File) string {
+	importPath := p.ctx.ImportPath(f).String()
+	if mod := p.params.Str("module"); mod != "" {
+		rel := strings.TrimPrefix(importPath, mod)
+		return strings.TrimPrefix(rel, "/")
+	}
+	return importPath
 }
 
 func (p *ProtosourceModule) dump(input any) string {
