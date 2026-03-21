@@ -87,8 +87,12 @@ func WithTenantPrefix(prefix string) Option {
 
 // WithOpaqueStore enables opaquedata single-table storage for aggregates that
 // implement AutoPKSK. When set, SaveAggregate uses the provided OpaqueStore to
-// persist the aggregate with full GSI indexing. Tenant prefixing and
-// DynamoDB-specific concerns are handled by the OpaqueStore implementation.
+// persist the aggregate with full GSI indexing.
+//
+// The OpaqueStore adapter owns all storage-level concerns including tenant
+// isolation. If using WithTenantPrefix on this DynamoDBStore, configure the
+// same prefix on the OpaqueStore adapter (e.g. dynamo.WithTenantPrefix) so
+// that event and aggregate key spaces are consistently isolated.
 func WithOpaqueStore(store opaquedata.OpaqueStore) Option {
 	return func(s *DynamoDBStore) { s.opaqueStore = store }
 }

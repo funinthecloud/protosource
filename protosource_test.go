@@ -892,3 +892,44 @@ func TestHistory_NonexistentAggregate(t *testing.T) {
 		t.Fatalf("expected empty history, got %d records", len(history.GetRecords()))
 	}
 }
+
+// --- New nil-check tests ---
+
+func TestNew_NilPrototype(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for nil prototype")
+		}
+		if msg, ok := r.(string); !ok || msg != "protosource.New: prototype must not be nil" {
+			t.Fatalf("unexpected panic message: %v", r)
+		}
+	}()
+	protosource.New(nil, memorystore.New(0), protobinaryserializer.NewSerializer())
+}
+
+func TestNew_NilStore(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for nil store")
+		}
+		if msg, ok := r.(string); !ok || msg != "protosource.New: store must not be nil" {
+			t.Fatalf("unexpected panic message: %v", r)
+		}
+	}()
+	protosource.New(&testv1.Test{}, nil, protobinaryserializer.NewSerializer())
+}
+
+func TestNew_NilSerializer(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for nil serializer")
+		}
+		if msg, ok := r.(string); !ok || msg != "protosource.New: serializer must not be nil" {
+			t.Fatalf("unexpected panic message: %v", r)
+		}
+	}()
+	protosource.New(&testv1.Test{}, memorystore.New(0), nil)
+}

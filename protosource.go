@@ -139,7 +139,20 @@ type Repository struct {
 }
 
 // New creates a new Repository with the given prototype, store, and serializer.
+// All three parameters are required; passing nil for any of them panics
+// immediately with a descriptive message rather than deferring to an opaque
+// nil-pointer dereference at call time.
 func New(prototype Aggregate, store Store, serializer Serializer, opts ...Option) *Repository {
+	if prototype == nil {
+		panic("protosource.New: prototype must not be nil")
+	}
+	if store == nil {
+		panic("protosource.New: store must not be nil")
+	}
+	if serializer == nil {
+		panic("protosource.New: serializer must not be nil")
+	}
+
 	t := reflect.TypeOf(prototype)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()

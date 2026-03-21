@@ -476,10 +476,13 @@ func TestStore_Put_WithTenantPrefix(t *testing.T) {
 	err := store.Put(context.Background(), od)
 	require.NoError(t, err)
 	require.Len(t, mock.putCalls, 1)
-	// PK and GSI PKs should be prefixed
+	// Stored item should have prefixed keys
 	item := mock.putCalls[0].Item
 	assert.Equal(t, "tenant1#USER#1", item["pk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, "tenant1#ORG#A", item["gsi1pk"].(*types.AttributeValueMemberS).Value)
+	// Original OpaqueData must not be mutated
+	assert.Equal(t, "USER#1", od.Pk, "Put must not mutate the caller's OpaqueData")
+	assert.Equal(t, "ORG#A", od.Gsi1Pk, "Put must not mutate the caller's OpaqueData")
 }
 
 func TestStore_Get(t *testing.T) {

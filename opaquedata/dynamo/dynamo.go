@@ -11,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/funinthecloud/protosource/opaquedata"
 	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // DynamoDBer is the minimal DynamoDB interface needed by the dynamo adapter.
@@ -53,12 +54,14 @@ func New(client DynamoDBer, tableName string, opts ...Option) *Store {
 }
 
 func (s *Store) Put(ctx context.Context, od *opaquedatav1.OpaqueData) error {
+	target := od
 	if s.tenantPrefix != "" {
-		PrefixPKs(od, s.tenantPrefix)
+		target = proto.Clone(od).(*opaquedatav1.OpaqueData)
+		PrefixPKs(target, s.tenantPrefix)
 	}
 	_, err := s.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &s.tableName,
-		Item:      GetItem(od),
+		Item:      GetItem(target),
 	})
 	if err != nil {
 		return fmt.Errorf("dynamo.Store.Put: %w", err)
