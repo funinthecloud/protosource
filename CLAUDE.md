@@ -21,6 +21,9 @@ go vet ./...                             # static analysis
 protosource.go          — runtime: Repository, Store, Serializer, core interfaces
 stores/                 — Store implementations (memorystore, dynamodbstore, mysqlstore, boltdbstore)
 serializers/            — Serializer implementations (protobinaryserializer, protojsonserializer)
+internal/compress/      — shared gzip compression helpers (used by protosource and opaquedata)
+opaquedata/             — single-table DynamoDB storage for arbitrary protos with GSI indexing
+opaquedata/v1/          — generated Go code for opaquedata proto (do not edit by hand)
 cmd/
   protoc-gen-protosource/ — buf plugin (generates .protosource.pb.go files)
   sample/                 — example CLI showing Create/Update/Load cycle
@@ -28,6 +31,7 @@ proto/                  — protobuf definitions (buf module root)
   funinthecloud/protosource/options/v1/ — custom options proto (aggregate, command, event, snapshot, projection)
   funinthecloud/protosource/record/v1/ — record proto (version + data)
   funinthecloud/protosource/history/v1/ — history proto (list of records)
+  funinthecloud/protosource/opaquedata/v1/ — opaquedata proto (single-table DynamoDB storage)
   example/app/sample/v1/            — sample domain with snapshots (fictitious org)
   example/app/samplenosnapshot/v1/  — sample domain without snapshots (fictitious org)
   example/app/test/v1/              — test domain (fictitious org)
@@ -57,7 +61,7 @@ tools/                  — go:generate tool installs (buf, wire, protoc-gen-go)
 5. **CommandEvaluator** — optional custom business logic comparing command against aggregate state (duplicate detection, idempotency, conditional no-ops). Return `ErrSkip` for silent no-op, or any other error to abort.
 6. **EventEmitter** — emit events (generated from `produces_events`)
 7. **Persist** — save events to store
-8. **Materialize** _(optional, runtime)_ — if the store implements `AggregateStore`, apply new events to the in-memory aggregate and persist its serialized state (best-effort; event persistence in step 7 is the source of truth)
+8. **Materialize** _(optional, runtime)_ — if the store implements `AggregateStore`, pass the fully materialized aggregate to `SaveAggregate(ctx, proto.Message)` for write-only persistence (best-effort; event persistence in step 7 is the source of truth). This is opt-in per store — only dynamodbstore implements it (for GSI-indexed single-table storage via opaquedata). The repository never reads materialized aggregates back; it always rebuilds from events. The persisted state is for external consumers (dashboards, APIs, projections) that query the store directly.
 
 Steps 1-3 and 6 are generated from proto annotations. For complex authorization beyond state checks, implement `Authorize` by hand on the command type. For custom business logic that inspects the aggregate before event emission, implement `Evaluate` on the command type. See `docs/pipeline.md` for full details.
 
@@ -140,7 +144,7 @@ git checkout -b <branch-name> origin/main
 - [x] ~~Finish growing test coverage of memorystore~~ (100% coverage)
 - [x] ~~Create a boltdb store with good test coverage~~ (84.2% coverage)
 - [x] ~~Analyze dynamodbstore to ensure it still works with current framework changes~~ (rewritten to implement all framework interfaces in PR #11)
-- [ ] Add capabilities to all stores to store the aggregate post-apply each time an apply runs
+- [x] ~~Add capabilities to all stores to store the aggregate post-apply~~ (AggregateStore is now opt-in per store; only dynamodbstore implements it for GSI-indexed opaquedata storage)
 - [ ] Look deeper into multi-package projections and auto-generation possibilities
 - [x] ~~Add plugin validation for `sets_state` references (verify enum value exists in file)~~
 - [ ] Update sample and samplenosnapshot protos to use two-event pattern and `sets_state` if applicable

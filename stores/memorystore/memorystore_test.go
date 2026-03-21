@@ -1,4 +1,4 @@
-package memorystore
+package memorystore_test
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	"github.com/funinthecloud/protosource/stores/memorystore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -18,21 +19,21 @@ func record(version int64, data string) *recordv1.Record {
 // --- New / Options ---
 
 func TestNew_DefaultSnapshotInterval(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	if got := m.SnapshotInterval(); got != 0 {
 		t.Errorf("expected default snapshot interval 0, got %d", got)
 	}
 }
 
 func TestNew_WithSnapshotInterval(t *testing.T) {
-	m := New(WithSnapshotInterval(50))
+	m := memorystore.New(memorystore.WithSnapshotInterval(50))
 	if got := m.SnapshotInterval(); got != 50 {
 		t.Errorf("expected snapshot interval 50, got %d", got)
 	}
 }
 
 func TestSetSnapshotInterval(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	m.SetSnapshotInterval(25)
 	if got := m.SnapshotInterval(); got != 25 {
 		t.Errorf("expected snapshot interval 25, got %d", got)
@@ -42,7 +43,7 @@ func TestSetSnapshotInterval(t *testing.T) {
 // --- Save ---
 
 func TestSave_SingleRecord(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	err := m.Save(context.Background(), "agg-1", record(1, "hello"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -50,7 +51,7 @@ func TestSave_SingleRecord(t *testing.T) {
 }
 
 func TestSave_MultipleRecordsAtOnce(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	err := m.Save(context.Background(), "agg-1",
 		record(1, "a"),
 		record(2, "b"),
@@ -67,7 +68,7 @@ func TestSave_MultipleRecordsAtOnce(t *testing.T) {
 }
 
 func TestSave_AppendsToPreviousRecords(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 
 	_ = m.Save(ctx, "agg-1", record(1, "first"))
@@ -87,7 +88,7 @@ func TestSave_AppendsToPreviousRecords(t *testing.T) {
 }
 
 func TestSave_NoRecords(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	err := m.Save(context.Background(), "agg-1")
 	if err != nil {
 		t.Fatalf("save with no records should succeed, got: %v", err)
@@ -101,7 +102,7 @@ func TestSave_NoRecords(t *testing.T) {
 }
 
 func TestSave_CancelledContext(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -112,7 +113,7 @@ func TestSave_CancelledContext(t *testing.T) {
 }
 
 func TestSave_DeadlineExceededContext(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
 	defer cancel()
 
@@ -125,7 +126,7 @@ func TestSave_DeadlineExceededContext(t *testing.T) {
 // --- Load ---
 
 func TestLoad_NonExistentAggregate(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	h, err := m.Load(context.Background(), "does-not-exist")
 	if err != nil {
 		t.Fatalf("load of non-existent aggregate should not error, got: %v", err)
@@ -136,7 +137,7 @@ func TestLoad_NonExistentAggregate(t *testing.T) {
 }
 
 func TestLoad_AfterSave(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 
 	_ = m.Save(ctx, "agg-1",
@@ -162,7 +163,7 @@ func TestLoad_AfterSave(t *testing.T) {
 }
 
 func TestLoad_CancelledContext(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -175,7 +176,7 @@ func TestLoad_CancelledContext(t *testing.T) {
 // --- Aggregate isolation ---
 
 func TestSaveLoad_IndependentAggregates(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 
 	_ = m.Save(ctx, "agg-1", record(1, "alpha"))
@@ -196,7 +197,7 @@ func TestSaveLoad_IndependentAggregates(t *testing.T) {
 // --- Record data integrity ---
 
 func TestLoad_PreservesRecordFields(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 
 	original := &recordv1.Record{
@@ -219,7 +220,7 @@ func TestLoad_PreservesRecordFields(t *testing.T) {
 // --- Concurrency ---
 
 func TestConcurrent_SaveAndLoad(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 	const numAggregates = 10
 	const eventsPerAggregate = 50
@@ -254,7 +255,7 @@ func TestConcurrent_SaveAndLoad(t *testing.T) {
 }
 
 func TestConcurrent_SaveAndLoadSameAggregate(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 	const numGoroutines = 20
 
@@ -291,7 +292,7 @@ func TestConcurrent_SaveAndLoadSameAggregate(t *testing.T) {
 // --- Proto equality (sanity check that proto records survive round-trip) ---
 
 func TestLoad_RecordProtoEquality(t *testing.T) {
-	m := New()
+	m := memorystore.New()
 	ctx := context.Background()
 
 	saved := &recordv1.Record{
@@ -308,148 +309,3 @@ func TestLoad_RecordProtoEquality(t *testing.T) {
 	}
 }
 
-// --- AggregateStore ---
-
-func TestSaveAggregate_Basic(t *testing.T) {
-	m := New()
-	ctx := context.Background()
-
-	data := []byte("serialized-aggregate")
-	err := m.SaveAggregate(ctx, "agg-1", data, 5)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	got, version, err := m.LoadAggregate(ctx, "agg-1")
-	if err != nil {
-		t.Fatalf("load failed: %v", err)
-	}
-	if version != 5 {
-		t.Errorf("expected version 5, got %d", version)
-	}
-	if string(got) != "serialized-aggregate" {
-		t.Errorf("expected data 'serialized-aggregate', got %q", string(got))
-	}
-}
-
-func TestLoadAggregate_NonExistent(t *testing.T) {
-	m := New()
-	data, version, err := m.LoadAggregate(context.Background(), "does-not-exist")
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if data != nil {
-		t.Errorf("expected nil data, got %v", data)
-	}
-	if version != 0 {
-		t.Errorf("expected version 0, got %d", version)
-	}
-}
-
-func TestSaveAggregate_OverwritesPrevious(t *testing.T) {
-	m := New()
-	ctx := context.Background()
-
-	_ = m.SaveAggregate(ctx, "agg-1", []byte("v1-state"), 1)
-	_ = m.SaveAggregate(ctx, "agg-1", []byte("v3-state"), 3)
-
-	data, version, _ := m.LoadAggregate(ctx, "agg-1")
-	if version != 3 {
-		t.Errorf("expected version 3, got %d", version)
-	}
-	if string(data) != "v3-state" {
-		t.Errorf("expected 'v3-state', got %q", string(data))
-	}
-}
-
-func TestSaveAggregate_IndependentAggregates(t *testing.T) {
-	m := New()
-	ctx := context.Background()
-
-	_ = m.SaveAggregate(ctx, "agg-1", []byte("first"), 1)
-	_ = m.SaveAggregate(ctx, "agg-2", []byte("second"), 2)
-
-	d1, v1, _ := m.LoadAggregate(ctx, "agg-1")
-	d2, v2, _ := m.LoadAggregate(ctx, "agg-2")
-
-	if string(d1) != "first" || v1 != 1 {
-		t.Errorf("agg-1: got data=%q version=%d", string(d1), v1)
-	}
-	if string(d2) != "second" || v2 != 2 {
-		t.Errorf("agg-2: got data=%q version=%d", string(d2), v2)
-	}
-}
-
-func TestSaveAggregate_CancelledContext(t *testing.T) {
-	m := New()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := m.SaveAggregate(ctx, "agg-1", []byte("data"), 1)
-	if err == nil {
-		t.Fatal("expected error for cancelled context, got nil")
-	}
-}
-
-func TestLoadAggregate_CancelledContext(t *testing.T) {
-	m := New()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	_, _, err := m.LoadAggregate(ctx, "agg-1")
-	if err == nil {
-		t.Fatal("expected error for cancelled context, got nil")
-	}
-}
-
-func TestSaveAggregate_DoesNotAffectEventHistory(t *testing.T) {
-	m := New()
-	ctx := context.Background()
-
-	// Save some events
-	_ = m.Save(ctx, "agg-1", record(1, "event-data"))
-
-	// Save aggregate state
-	_ = m.SaveAggregate(ctx, "agg-1", []byte("aggregate-state"), 1)
-
-	// Event history should be unaffected
-	h, _ := m.Load(ctx, "agg-1")
-	if got := len(h.GetRecords()); got != 1 {
-		t.Errorf("expected 1 event record, got %d", got)
-	}
-	if string(h.GetRecords()[0].GetData()) != "event-data" {
-		t.Errorf("event data should be unaffected")
-	}
-}
-
-func TestConcurrent_SaveAndLoadAggregate(t *testing.T) {
-	m := New()
-	ctx := context.Background()
-	const numGoroutines = 20
-
-	var wg sync.WaitGroup
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(2)
-		go func(v int) {
-			defer wg.Done()
-			_ = m.SaveAggregate(ctx, "shared", []byte(fmt.Sprintf("state-%d", v)), int64(v))
-		}(i)
-		go func() {
-			defer wg.Done()
-			_, _, _ = m.LoadAggregate(ctx, "shared")
-		}()
-	}
-	wg.Wait()
-
-	// Just verify no panic and we can still load
-	data, version, err := m.LoadAggregate(ctx, "shared")
-	if err != nil {
-		t.Fatalf("load after concurrent ops failed: %v", err)
-	}
-	if data == nil {
-		t.Fatal("expected non-nil data after concurrent saves")
-	}
-	if version < 0 || version >= int64(numGoroutines) {
-		t.Errorf("version %d outside expected range", version)
-	}
-}

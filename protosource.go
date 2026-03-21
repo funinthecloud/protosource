@@ -37,15 +37,20 @@ type Store interface {
 // read-optimized view of the current aggregate without needing to replay events.
 //
 // Repository checks for this interface via type assertion after persisting events.
-// If the store implements it, the aggregate is serialized and saved automatically.
+// If the store implements it, the fully materialized aggregate is passed directly,
+// letting the store decide how to serialize, compress, and index it. Stores backed
+// by NoSQL databases (DynamoDB, Cosmos, Firestore) can type-assert the aggregate
+// to AutoPKSK for GSI-indexed single-table storage via opaquedata.
 type AggregateStore interface {
-	// SaveAggregate persists the serialized aggregate state and its current version.
-	SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error
-
-	// LoadAggregate retrieves the most recently saved aggregate state.
-	// Returns the serialized data, version, and any error.
-	// If no aggregate has been saved, returns nil data with version 0 and no error.
-	LoadAggregate(ctx context.Context, aggregateID string) (data []byte, version int64, err error)
+	// SaveAggregate persists the materialized aggregate state.
+	// The store owns serialization and key computation.
+	//
+	// This is a write-only interface — the repository does not read materialized
+	// aggregates back (it always rebuilds from events via Load). The persisted
+	// state is intended for external consumers (dashboards, APIs, projections)
+	// that query the store directly. A LoadAggregate read path may be added in
+	// the future.
+	SaveAggregate(ctx context.Context, aggregate proto.Message) error
 }
 
 // SnapshotTailStore is an optional interface that stores can implement to
@@ -126,9 +131,10 @@ type Event interface {
 // Repository provides the primary abstraction for saving and loading events.
 // It uses a store to persist data and a serializer to convert between events and records.
 type Repository struct {
-	prototype  reflect.Type // The type of aggregate prototype used to create new instances
-	store      Store        // Underlying storage for events
-	serializer Serializer   // Converts between events and records
+	prototype         reflect.Type // The type of aggregate prototype used to create new instances
+	store             Store        // Underlying storage for events
+	serializer        Serializer   // Converts between events and records
+	compressThreshold int          // 0 = disabled; >0 = compress data at or above this byte size
 }
 
 // New creates a new Repository with the given prototype and options.
@@ -166,6 +172,23 @@ func WithStore(store Store) Option {
 func WithSerializer(serializer Serializer) Option {
 	return func(r *Repository) {
 		r.serializer = serializer
+	}
+}
+
+// WithCompression enables gzip compression for event record data stored by the
+// repository. Record data at or above the threshold (in bytes) is compressed
+// before writing to the store. Data below the threshold is stored uncompressed.
+// Decompression is automatic on read (detected via gzip magic bytes), so
+// compressed and uncompressed data can coexist safely.
+//
+// Note: this only affects event records (Save/Load). Materialized aggregate
+// state is passed directly to AggregateStore, which owns its own serialization.
+//
+// Use 300 as a sensible starting threshold. Pass 0 or any negative value to
+// disable compression (the default).
+func WithCompression(threshold int) Option {
+	return func(r *Repository) {
+		r.compressThreshold = threshold
 	}
 }
 
@@ -268,9 +291,7 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 				return version, nil // events saved; aggregate store is best-effort
 			}
 		}
-		if data, err := proto.Marshal(aggregate); err == nil {
-			_ = as.SaveAggregate(ctx, aggregateID, data, version)
-		}
+		_ = as.SaveAggregate(ctx, aggregate)
 	}
 
 	return version, nil
@@ -278,6 +299,8 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 
 // Save persists the given events into the underlying Store.
 // It serializes each event and saves them under the aggregate ID.
+// When compression is enabled, record data at or above the threshold is
+// gzip-compressed before writing.
 func (r *Repository) Save(ctx context.Context, events ...Event) error {
 	if len(events) == 0 {
 		return nil
@@ -289,6 +312,14 @@ func (r *Repository) Save(ctx context.Context, events ...Event) error {
 		record, err := r.serializer.MarshalEvent(event)
 		if err != nil {
 			return err
+		}
+
+		if r.compressThreshold > 0 {
+			compressed, err := maybeCompress(record.Data, r.compressThreshold)
+			if err != nil {
+				return fmt.Errorf("compress event: %w", err)
+			}
+			record.Data = compressed
 		}
 
 		h.Records = append(h.Records, record)
@@ -333,6 +364,13 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 	var version int64
 	for _, record := range history.GetRecords() {
 		version = record.GetVersion()
+
+		decompressed, err := maybeDecompress(record.Data)
+		if err != nil {
+			return nil, 0, fmt.Errorf("decompress event: %w", err)
+		}
+		record.Data = decompressed
+
 		event, err := r.serializer.UnmarshalEvent(record)
 		if err != nil {
 			return nil, 0, err

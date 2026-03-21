@@ -11,6 +11,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -179,9 +180,21 @@ func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	pk := input.Item["a"].(*types.AttributeValueMemberS).Value
-	// For the aggregates table there is no sort key, so use pk alone.
-	table[pk] = input.Item
+	// Derive a storage key from whichever PK attribute is present.
+	// For opaquedata tables (pk+sk), use composite key to avoid collisions.
+	var key string
+	if v, ok := input.Item["a"]; ok {
+		key = v.(*types.AttributeValueMemberS).Value
+	} else if v, ok := input.Item["pk"]; ok {
+		key = v.(*types.AttributeValueMemberS).Value
+		if sk, ok := input.Item["sk"]; ok {
+			key += "|" + sk.(*types.AttributeValueMemberS).Value
+		}
+	}
+	if key == "" {
+		return nil, fmt.Errorf("mockDynamoer.PutItem: no 'a' or 'pk' attribute in item — malformed write")
+	}
+	table[key] = input.Item
 	return &dynamodb.PutItemOutput{}, nil
 }
 
@@ -193,8 +206,20 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 	defer m.mu.Unlock()
 
 	table := m.ensureTable(*input.TableName)
-	pk := input.Key["a"].(*types.AttributeValueMemberS).Value
-	item, ok := table[pk]
+	// Support both "a" (events/aggregates tables) and "pk"+"sk" (opaquedata tables).
+	var key string
+	if v, ok := input.Key["a"]; ok {
+		key = v.(*types.AttributeValueMemberS).Value
+	} else if v, ok := input.Key["pk"]; ok {
+		key = v.(*types.AttributeValueMemberS).Value
+		if sk, ok := input.Key["sk"]; ok {
+			key += "|" + sk.(*types.AttributeValueMemberS).Value
+		}
+	}
+	if key == "" {
+		return nil, fmt.Errorf("mockDynamoer.GetItem: no 'a' or 'pk' attribute in key — malformed read")
+	}
+	item, ok := table[key]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
 	}
@@ -327,58 +352,20 @@ func TestRecordsReturnInVersionOrder(t *testing.T) {
 // AggregateStore basics
 // ---------------------------------------------------------------------------
 
-func TestSaveAndLoadAggregate_RoundTrip(t *testing.T) {
+func TestSaveAggregate_Basic(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
-	err := store.SaveAggregate(ctx, "agg-1", []byte("state-data"), 5)
+	err := store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
 	require.NoError(t, err)
-
-	data, version, err := store.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(5), version)
-	assert.Equal(t, []byte("state-data"), data)
-}
-
-func TestLoadAggregate_NonExistent(t *testing.T) {
-	store, _ := newTestStore(t)
-	ctx := context.Background()
-
-	data, version, err := store.LoadAggregate(ctx, "nope")
-	require.NoError(t, err)
-	assert.Nil(t, data)
-	assert.Equal(t, int64(0), version)
 }
 
 func TestSaveAggregate_Overwrites(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
-	require.NoError(t, store.SaveAggregate(ctx, "agg-1", []byte("v1"), 1))
-	require.NoError(t, store.SaveAggregate(ctx, "agg-1", []byte("v2"), 2))
-
-	data, version, err := store.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), version)
-	assert.Equal(t, []byte("v2"), data)
-}
-
-func TestAggregates_Independent(t *testing.T) {
-	store, _ := newTestStore(t)
-	ctx := context.Background()
-
-	require.NoError(t, store.SaveAggregate(ctx, "agg-1", []byte("one"), 1))
-	require.NoError(t, store.SaveAggregate(ctx, "agg-2", []byte("two"), 2))
-
-	d1, v1, err := store.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), v1)
-	assert.Equal(t, []byte("one"), d1)
-
-	d2, v2, err := store.LoadAggregate(ctx, "agg-2")
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), v2)
-	assert.Equal(t, []byte("two"), d2)
+	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "v1"}))
+	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 2, Body: "v2"}))
 }
 
 // ---------------------------------------------------------------------------
@@ -458,10 +445,7 @@ func TestCancelledContext(t *testing.T) {
 	_, err = store.LoadTail(ctx, "agg-1", 5)
 	assert.Error(t, err)
 
-	err = store.SaveAggregate(ctx, "agg-1", []byte("x"), 1)
-	assert.Error(t, err)
-
-	_, _, err = store.LoadAggregate(ctx, "agg-1")
+	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1})
 	assert.Error(t, err)
 }
 
@@ -483,34 +467,17 @@ func TestRecordDataSurvivesRoundTrip(t *testing.T) {
 	assert.Equal(t, data, h.Records[0].Data)
 }
 
-func TestAggregateDataSurvivesRoundTrip(t *testing.T) {
-	store, _ := newTestStore(t)
-	ctx := context.Background()
-
-	data := []byte{0xDE, 0xAD, 0xBE, 0xEF}
-	require.NoError(t, store.SaveAggregate(ctx, "agg-1", data, 99))
-
-	got, version, err := store.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(99), version)
-	assert.Equal(t, data, got)
-}
-
 func TestEventsAndAggregateAreIndependent(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
 	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("event"))))
-	require.NoError(t, store.SaveAggregate(ctx, "agg-1", []byte("aggregate"), 1))
+	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate"}))
 
 	h, err := store.Load(ctx, "agg-1")
 	require.NoError(t, err)
 	require.Len(t, h.Records, 1)
 	assert.Equal(t, []byte("event"), h.Records[0].Data)
-
-	data, _, err := store.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, []byte("aggregate"), data)
 }
 
 // ---------------------------------------------------------------------------
@@ -558,18 +525,8 @@ func TestTenantPrefix_AggregateStore(t *testing.T) {
 
 	ctx := context.Background()
 
-	require.NoError(t, store1.SaveAggregate(ctx, "agg-1", []byte("t1-data"), 1))
-	require.NoError(t, store2.SaveAggregate(ctx, "agg-1", []byte("t2-data"), 2))
-
-	d1, v1, err := store1.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(1), v1)
-	assert.Equal(t, []byte("t1-data"), d1)
-
-	d2, v2, err := store2.LoadAggregate(ctx, "agg-1")
-	require.NoError(t, err)
-	assert.Equal(t, int64(2), v2)
-	assert.Equal(t, []byte("t2-data"), d2)
+	require.NoError(t, store1.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "t1-data"}))
+	require.NoError(t, store2.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 2, Body: "t2-data"}))
 }
 
 func TestLoad_PaginatesAcrossPages(t *testing.T) {

@@ -75,6 +75,176 @@ func (CommandLifecycle) EnumDescriptor() ([]byte, []int) {
 	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{0}
 }
 
+// OpaqueKeyType identifies which DynamoDB key slot a field maps to.
+type OpaqueKeyType int32
+
+const (
+	OpaqueKeyType_OPAQUE_KEY_TYPE_UNSPECIFIED OpaqueKeyType = 0
+	OpaqueKeyType_OPAQUE_KEY_TYPE_PK          OpaqueKeyType = 1
+	OpaqueKeyType_OPAQUE_KEY_TYPE_SK          OpaqueKeyType = 2
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI1PK      OpaqueKeyType = 3
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI1SK      OpaqueKeyType = 4
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI2PK      OpaqueKeyType = 5
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI2SK      OpaqueKeyType = 6
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI3PK      OpaqueKeyType = 7
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI3SK      OpaqueKeyType = 8
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI4PK      OpaqueKeyType = 9
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI4SK      OpaqueKeyType = 10
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI5PK      OpaqueKeyType = 11
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI5SK      OpaqueKeyType = 12
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI6PK      OpaqueKeyType = 13
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI6SK      OpaqueKeyType = 14
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI7PK      OpaqueKeyType = 15
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI7SK      OpaqueKeyType = 16
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI8PK      OpaqueKeyType = 17
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI8SK      OpaqueKeyType = 18
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI9PK      OpaqueKeyType = 19
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI9SK      OpaqueKeyType = 20
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI10PK     OpaqueKeyType = 21
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI10SK     OpaqueKeyType = 22
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI11PK     OpaqueKeyType = 23
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI11SK     OpaqueKeyType = 24
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI12PK     OpaqueKeyType = 25
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI12SK     OpaqueKeyType = 26
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI13PK     OpaqueKeyType = 27
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI13SK     OpaqueKeyType = 28
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI14PK     OpaqueKeyType = 29
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI14SK     OpaqueKeyType = 30
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI15PK     OpaqueKeyType = 31
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI15SK     OpaqueKeyType = 32
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI16PK     OpaqueKeyType = 33
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI16SK     OpaqueKeyType = 34
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI17PK     OpaqueKeyType = 35
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI17SK     OpaqueKeyType = 36
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI18PK     OpaqueKeyType = 37
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI18SK     OpaqueKeyType = 38
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI19PK     OpaqueKeyType = 39
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI19SK     OpaqueKeyType = 40
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI20PK     OpaqueKeyType = 41
+	OpaqueKeyType_OPAQUE_KEY_TYPE_GSI20SK     OpaqueKeyType = 42
+)
+
+// Enum value maps for OpaqueKeyType.
+var (
+	OpaqueKeyType_name = map[int32]string{
+		0:  "OPAQUE_KEY_TYPE_UNSPECIFIED",
+		1:  "OPAQUE_KEY_TYPE_PK",
+		2:  "OPAQUE_KEY_TYPE_SK",
+		3:  "OPAQUE_KEY_TYPE_GSI1PK",
+		4:  "OPAQUE_KEY_TYPE_GSI1SK",
+		5:  "OPAQUE_KEY_TYPE_GSI2PK",
+		6:  "OPAQUE_KEY_TYPE_GSI2SK",
+		7:  "OPAQUE_KEY_TYPE_GSI3PK",
+		8:  "OPAQUE_KEY_TYPE_GSI3SK",
+		9:  "OPAQUE_KEY_TYPE_GSI4PK",
+		10: "OPAQUE_KEY_TYPE_GSI4SK",
+		11: "OPAQUE_KEY_TYPE_GSI5PK",
+		12: "OPAQUE_KEY_TYPE_GSI5SK",
+		13: "OPAQUE_KEY_TYPE_GSI6PK",
+		14: "OPAQUE_KEY_TYPE_GSI6SK",
+		15: "OPAQUE_KEY_TYPE_GSI7PK",
+		16: "OPAQUE_KEY_TYPE_GSI7SK",
+		17: "OPAQUE_KEY_TYPE_GSI8PK",
+		18: "OPAQUE_KEY_TYPE_GSI8SK",
+		19: "OPAQUE_KEY_TYPE_GSI9PK",
+		20: "OPAQUE_KEY_TYPE_GSI9SK",
+		21: "OPAQUE_KEY_TYPE_GSI10PK",
+		22: "OPAQUE_KEY_TYPE_GSI10SK",
+		23: "OPAQUE_KEY_TYPE_GSI11PK",
+		24: "OPAQUE_KEY_TYPE_GSI11SK",
+		25: "OPAQUE_KEY_TYPE_GSI12PK",
+		26: "OPAQUE_KEY_TYPE_GSI12SK",
+		27: "OPAQUE_KEY_TYPE_GSI13PK",
+		28: "OPAQUE_KEY_TYPE_GSI13SK",
+		29: "OPAQUE_KEY_TYPE_GSI14PK",
+		30: "OPAQUE_KEY_TYPE_GSI14SK",
+		31: "OPAQUE_KEY_TYPE_GSI15PK",
+		32: "OPAQUE_KEY_TYPE_GSI15SK",
+		33: "OPAQUE_KEY_TYPE_GSI16PK",
+		34: "OPAQUE_KEY_TYPE_GSI16SK",
+		35: "OPAQUE_KEY_TYPE_GSI17PK",
+		36: "OPAQUE_KEY_TYPE_GSI17SK",
+		37: "OPAQUE_KEY_TYPE_GSI18PK",
+		38: "OPAQUE_KEY_TYPE_GSI18SK",
+		39: "OPAQUE_KEY_TYPE_GSI19PK",
+		40: "OPAQUE_KEY_TYPE_GSI19SK",
+		41: "OPAQUE_KEY_TYPE_GSI20PK",
+		42: "OPAQUE_KEY_TYPE_GSI20SK",
+	}
+	OpaqueKeyType_value = map[string]int32{
+		"OPAQUE_KEY_TYPE_UNSPECIFIED": 0,
+		"OPAQUE_KEY_TYPE_PK":          1,
+		"OPAQUE_KEY_TYPE_SK":          2,
+		"OPAQUE_KEY_TYPE_GSI1PK":      3,
+		"OPAQUE_KEY_TYPE_GSI1SK":      4,
+		"OPAQUE_KEY_TYPE_GSI2PK":      5,
+		"OPAQUE_KEY_TYPE_GSI2SK":      6,
+		"OPAQUE_KEY_TYPE_GSI3PK":      7,
+		"OPAQUE_KEY_TYPE_GSI3SK":      8,
+		"OPAQUE_KEY_TYPE_GSI4PK":      9,
+		"OPAQUE_KEY_TYPE_GSI4SK":      10,
+		"OPAQUE_KEY_TYPE_GSI5PK":      11,
+		"OPAQUE_KEY_TYPE_GSI5SK":      12,
+		"OPAQUE_KEY_TYPE_GSI6PK":      13,
+		"OPAQUE_KEY_TYPE_GSI6SK":      14,
+		"OPAQUE_KEY_TYPE_GSI7PK":      15,
+		"OPAQUE_KEY_TYPE_GSI7SK":      16,
+		"OPAQUE_KEY_TYPE_GSI8PK":      17,
+		"OPAQUE_KEY_TYPE_GSI8SK":      18,
+		"OPAQUE_KEY_TYPE_GSI9PK":      19,
+		"OPAQUE_KEY_TYPE_GSI9SK":      20,
+		"OPAQUE_KEY_TYPE_GSI10PK":     21,
+		"OPAQUE_KEY_TYPE_GSI10SK":     22,
+		"OPAQUE_KEY_TYPE_GSI11PK":     23,
+		"OPAQUE_KEY_TYPE_GSI11SK":     24,
+		"OPAQUE_KEY_TYPE_GSI12PK":     25,
+		"OPAQUE_KEY_TYPE_GSI12SK":     26,
+		"OPAQUE_KEY_TYPE_GSI13PK":     27,
+		"OPAQUE_KEY_TYPE_GSI13SK":     28,
+		"OPAQUE_KEY_TYPE_GSI14PK":     29,
+		"OPAQUE_KEY_TYPE_GSI14SK":     30,
+		"OPAQUE_KEY_TYPE_GSI15PK":     31,
+		"OPAQUE_KEY_TYPE_GSI15SK":     32,
+		"OPAQUE_KEY_TYPE_GSI16PK":     33,
+		"OPAQUE_KEY_TYPE_GSI16SK":     34,
+		"OPAQUE_KEY_TYPE_GSI17PK":     35,
+		"OPAQUE_KEY_TYPE_GSI17SK":     36,
+		"OPAQUE_KEY_TYPE_GSI18PK":     37,
+		"OPAQUE_KEY_TYPE_GSI18SK":     38,
+		"OPAQUE_KEY_TYPE_GSI19PK":     39,
+		"OPAQUE_KEY_TYPE_GSI19SK":     40,
+		"OPAQUE_KEY_TYPE_GSI20PK":     41,
+		"OPAQUE_KEY_TYPE_GSI20SK":     42,
+	}
+)
+
+func (x OpaqueKeyType) Enum() *OpaqueKeyType {
+	p := new(OpaqueKeyType)
+	*p = x
+	return p
+}
+
+func (x OpaqueKeyType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (OpaqueKeyType) Descriptor() protoreflect.EnumDescriptor {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[1].Descriptor()
+}
+
+func (OpaqueKeyType) Type() protoreflect.EnumType {
+	return &file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[1]
+}
+
+func (x OpaqueKeyType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use OpaqueKeyType.Descriptor instead.
+func (OpaqueKeyType) EnumDescriptor() ([]byte, []int) {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{1}
+}
+
 type FileOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
@@ -529,6 +699,102 @@ func (x *SnapshotOptions) GetDisabled() bool {
 	return false
 }
 
+type OpaqueFieldOptions struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Attributes    []*OpaqueKeyMapping    `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpaqueFieldOptions) Reset() {
+	*x = OpaqueFieldOptions{}
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpaqueFieldOptions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpaqueFieldOptions) ProtoMessage() {}
+
+func (x *OpaqueFieldOptions) ProtoReflect() protoreflect.Message {
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpaqueFieldOptions.ProtoReflect.Descriptor instead.
+func (*OpaqueFieldOptions) Descriptor() ([]byte, []int) {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *OpaqueFieldOptions) GetAttributes() []*OpaqueKeyMapping {
+	if x != nil {
+		return x.Attributes
+	}
+	return nil
+}
+
+type OpaqueKeyMapping struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          OpaqueKeyType          `protobuf:"varint,1,opt,name=type,proto3,enum=funinthecloud.protosource.options.v1.OpaqueKeyType" json:"type,omitempty"`
+	Order         int32                  `protobuf:"varint,2,opt,name=order,proto3" json:"order,omitempty"` // 1-based ordering within a composite key; 0 = sole field
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OpaqueKeyMapping) Reset() {
+	*x = OpaqueKeyMapping{}
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OpaqueKeyMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OpaqueKeyMapping) ProtoMessage() {}
+
+func (x *OpaqueKeyMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OpaqueKeyMapping.ProtoReflect.Descriptor instead.
+func (*OpaqueKeyMapping) Descriptor() ([]byte, []int) {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *OpaqueKeyMapping) GetType() OpaqueKeyType {
+	if x != nil {
+		return x.Type
+	}
+	return OpaqueKeyType_OPAQUE_KEY_TYPE_UNSPECIFIED
+}
+
+func (x *OpaqueKeyMapping) GetOrder() int32 {
+	if x != nil {
+		return x.Order
+	}
+	return 0
+}
+
 var file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes = []protoimpl.ExtensionInfo{
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
@@ -546,6 +812,14 @@ var file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes = []prot
 		Tag:           "bytes,60105,opt,name=protosource_message_type",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
+	{
+		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
+		ExtensionType: (*OpaqueFieldOptions)(nil),
+		Field:         60104,
+		Name:          "funinthecloud.protosource.options.v1.protosource_opaque_field",
+		Tag:           "bytes,60104,opt,name=protosource_opaque_field",
+		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
+	},
 }
 
 // Extension fields to descriptorpb.FileOptions.
@@ -558,6 +832,12 @@ var (
 var (
 	// optional funinthecloud.protosource.options.v1.MessageOptions protosource_message_type = 60105;
 	E_ProtosourceMessageType = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[1]
+)
+
+// Extension fields to descriptorpb.FieldOptions.
+var (
+	// optional funinthecloud.protosource.options.v1.OpaqueFieldOptions protosource_opaque_field = 60104;
+	E_ProtosourceOpaqueField = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[2]
 )
 
 var File_funinthecloud_protosource_options_v1_options_v1_proto protoreflect.FileDescriptor
@@ -590,13 +870,66 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x11source_aggregates\x18\x01 \x03(\tR\x10sourceAggregates\"S\n" +
 	"\x0fSnapshotOptions\x12$\n" +
 	"\x0eevery_n_events\x18\x01 \x01(\rR\feveryNEvents\x12\x1a\n" +
-	"\bdisabled\x18\x02 \x01(\bR\bdisabled*u\n" +
+	"\bdisabled\x18\x02 \x01(\bR\bdisabled\"l\n" +
+	"\x12OpaqueFieldOptions\x12V\n" +
+	"\n" +
+	"attributes\x18\x01 \x03(\v26.funinthecloud.protosource.options.v1.OpaqueKeyMappingR\n" +
+	"attributes\"q\n" +
+	"\x10OpaqueKeyMapping\x12G\n" +
+	"\x04type\x18\x01 \x01(\x0e23.funinthecloud.protosource.options.v1.OpaqueKeyTypeR\x04type\x12\x14\n" +
+	"\x05order\x18\x02 \x01(\x05R\x05order*u\n" +
 	"\x10CommandLifecycle\x12!\n" +
 	"\x1dCOMMAND_LIFECYCLE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aCOMMAND_LIFECYCLE_CREATION\x10\x01\x12\x1e\n" +
-	"\x1aCOMMAND_LIFECYCLE_MUTATION\x10\x02:|\n" +
+	"\x1aCOMMAND_LIFECYCLE_MUTATION\x10\x02*\xd6\t\n" +
+	"\rOpaqueKeyType\x12\x1f\n" +
+	"\x1bOPAQUE_KEY_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12OPAQUE_KEY_TYPE_PK\x10\x01\x12\x16\n" +
+	"\x12OPAQUE_KEY_TYPE_SK\x10\x02\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI1PK\x10\x03\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI1SK\x10\x04\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI2PK\x10\x05\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI2SK\x10\x06\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI3PK\x10\a\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI3SK\x10\b\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI4PK\x10\t\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI4SK\x10\n" +
+	"\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI5PK\x10\v\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI5SK\x10\f\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI6PK\x10\r\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI6SK\x10\x0e\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI7PK\x10\x0f\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI7SK\x10\x10\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI8PK\x10\x11\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI8SK\x10\x12\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI9PK\x10\x13\x12\x1a\n" +
+	"\x16OPAQUE_KEY_TYPE_GSI9SK\x10\x14\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI10PK\x10\x15\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI10SK\x10\x16\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI11PK\x10\x17\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI11SK\x10\x18\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI12PK\x10\x19\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI12SK\x10\x1a\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI13PK\x10\x1b\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI13SK\x10\x1c\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI14PK\x10\x1d\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI14SK\x10\x1e\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI15PK\x10\x1f\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI15SK\x10 \x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI16PK\x10!\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI16SK\x10\"\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI17PK\x10#\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI17SK\x10$\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI18PK\x10%\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI18SK\x10&\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI19PK\x10'\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI19SK\x10(\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI20PK\x10)\x12\x1b\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI20SK\x10*:|\n" +
 	"\x10protosource_file\x12\x1c.google.protobuf.FileOptions\x18\xca\xd5\x03 \x01(\v21.funinthecloud.protosource.options.v1.FileOptionsR\x0fprotosourceFile:\x91\x01\n" +
-	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\xc9\xd5\x03 \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageTypeB\xa8\x02\n" +
+	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\xc9\xd5\x03 \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageType:\x93\x01\n" +
+	"\x18protosource_opaque_field\x12\x1d.google.protobuf.FieldOptions\x18\xc8\xd5\x03 \x01(\v28.funinthecloud.protosource.options.v1.OpaqueFieldOptionsR\x16protosourceOpaqueFieldB\xa8\x02\n" +
 	"(com.funinthecloud.protosource.options.v1B\x0eOptionsV1ProtoP\x01Z9github.com/funinthecloud/protosource/options/v1;optionsv1\xa2\x02\x03FPO\xaa\x02$Funinthecloud.Protosource.Options.V1\xca\x02$Funinthecloud\\Protosource\\Options\\V1\xe2\x020Funinthecloud\\Protosource\\Options\\V1\\GPBMetadata\xea\x02'Funinthecloud::Protosource::Options::V1b\x06proto3"
 
 var (
@@ -611,36 +944,44 @@ func file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP() []
 	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescData
 }
 
-var file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_funinthecloud_protosource_options_v1_options_v1_proto_goTypes = []any{
 	(CommandLifecycle)(0),               // 0: funinthecloud.protosource.options.v1.CommandLifecycle
-	(*FileOptions)(nil),                 // 1: funinthecloud.protosource.options.v1.FileOptions
-	(*MessageOptions)(nil),              // 2: funinthecloud.protosource.options.v1.MessageOptions
-	(*CommandOptions)(nil),              // 3: funinthecloud.protosource.options.v1.CommandOptions
-	(*EventOptions)(nil),                // 4: funinthecloud.protosource.options.v1.EventOptions
-	(*AggregateOptions)(nil),            // 5: funinthecloud.protosource.options.v1.AggregateOptions
-	(*ProjectionOptions)(nil),           // 6: funinthecloud.protosource.options.v1.ProjectionOptions
-	(*SnapshotOptions)(nil),             // 7: funinthecloud.protosource.options.v1.SnapshotOptions
-	(*descriptorpb.FileOptions)(nil),    // 8: google.protobuf.FileOptions
-	(*descriptorpb.MessageOptions)(nil), // 9: google.protobuf.MessageOptions
+	(OpaqueKeyType)(0),                  // 1: funinthecloud.protosource.options.v1.OpaqueKeyType
+	(*FileOptions)(nil),                 // 2: funinthecloud.protosource.options.v1.FileOptions
+	(*MessageOptions)(nil),              // 3: funinthecloud.protosource.options.v1.MessageOptions
+	(*CommandOptions)(nil),              // 4: funinthecloud.protosource.options.v1.CommandOptions
+	(*EventOptions)(nil),                // 5: funinthecloud.protosource.options.v1.EventOptions
+	(*AggregateOptions)(nil),            // 6: funinthecloud.protosource.options.v1.AggregateOptions
+	(*ProjectionOptions)(nil),           // 7: funinthecloud.protosource.options.v1.ProjectionOptions
+	(*SnapshotOptions)(nil),             // 8: funinthecloud.protosource.options.v1.SnapshotOptions
+	(*OpaqueFieldOptions)(nil),          // 9: funinthecloud.protosource.options.v1.OpaqueFieldOptions
+	(*OpaqueKeyMapping)(nil),            // 10: funinthecloud.protosource.options.v1.OpaqueKeyMapping
+	(*descriptorpb.FileOptions)(nil),    // 11: google.protobuf.FileOptions
+	(*descriptorpb.MessageOptions)(nil), // 12: google.protobuf.MessageOptions
+	(*descriptorpb.FieldOptions)(nil),   // 13: google.protobuf.FieldOptions
 }
 var file_funinthecloud_protosource_options_v1_options_v1_proto_depIdxs = []int32{
-	3,  // 0: funinthecloud.protosource.options.v1.MessageOptions.command:type_name -> funinthecloud.protosource.options.v1.CommandOptions
-	4,  // 1: funinthecloud.protosource.options.v1.MessageOptions.event:type_name -> funinthecloud.protosource.options.v1.EventOptions
-	5,  // 2: funinthecloud.protosource.options.v1.MessageOptions.aggregate:type_name -> funinthecloud.protosource.options.v1.AggregateOptions
-	6,  // 3: funinthecloud.protosource.options.v1.MessageOptions.projection:type_name -> funinthecloud.protosource.options.v1.ProjectionOptions
-	7,  // 4: funinthecloud.protosource.options.v1.MessageOptions.snapshot:type_name -> funinthecloud.protosource.options.v1.SnapshotOptions
+	4,  // 0: funinthecloud.protosource.options.v1.MessageOptions.command:type_name -> funinthecloud.protosource.options.v1.CommandOptions
+	5,  // 1: funinthecloud.protosource.options.v1.MessageOptions.event:type_name -> funinthecloud.protosource.options.v1.EventOptions
+	6,  // 2: funinthecloud.protosource.options.v1.MessageOptions.aggregate:type_name -> funinthecloud.protosource.options.v1.AggregateOptions
+	7,  // 3: funinthecloud.protosource.options.v1.MessageOptions.projection:type_name -> funinthecloud.protosource.options.v1.ProjectionOptions
+	8,  // 4: funinthecloud.protosource.options.v1.MessageOptions.snapshot:type_name -> funinthecloud.protosource.options.v1.SnapshotOptions
 	0,  // 5: funinthecloud.protosource.options.v1.CommandOptions.lifecycle:type_name -> funinthecloud.protosource.options.v1.CommandLifecycle
-	8,  // 6: funinthecloud.protosource.options.v1.protosource_file:extendee -> google.protobuf.FileOptions
-	9,  // 7: funinthecloud.protosource.options.v1.protosource_message_type:extendee -> google.protobuf.MessageOptions
-	1,  // 8: funinthecloud.protosource.options.v1.protosource_file:type_name -> funinthecloud.protosource.options.v1.FileOptions
-	2,  // 9: funinthecloud.protosource.options.v1.protosource_message_type:type_name -> funinthecloud.protosource.options.v1.MessageOptions
-	10, // [10:10] is the sub-list for method output_type
-	10, // [10:10] is the sub-list for method input_type
-	8,  // [8:10] is the sub-list for extension type_name
-	6,  // [6:8] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	10, // 6: funinthecloud.protosource.options.v1.OpaqueFieldOptions.attributes:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyMapping
+	1,  // 7: funinthecloud.protosource.options.v1.OpaqueKeyMapping.type:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyType
+	11, // 8: funinthecloud.protosource.options.v1.protosource_file:extendee -> google.protobuf.FileOptions
+	12, // 9: funinthecloud.protosource.options.v1.protosource_message_type:extendee -> google.protobuf.MessageOptions
+	13, // 10: funinthecloud.protosource.options.v1.protosource_opaque_field:extendee -> google.protobuf.FieldOptions
+	2,  // 11: funinthecloud.protosource.options.v1.protosource_file:type_name -> funinthecloud.protosource.options.v1.FileOptions
+	3,  // 12: funinthecloud.protosource.options.v1.protosource_message_type:type_name -> funinthecloud.protosource.options.v1.MessageOptions
+	9,  // 13: funinthecloud.protosource.options.v1.protosource_opaque_field:type_name -> funinthecloud.protosource.options.v1.OpaqueFieldOptions
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	11, // [11:14] is the sub-list for extension type_name
+	8,  // [8:11] is the sub-list for extension extendee
+	0,  // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_funinthecloud_protosource_options_v1_options_v1_proto_init() }
@@ -660,9 +1001,9 @@ func file_funinthecloud_protosource_options_v1_options_v1_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc), len(file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc)),
-			NumEnums:      1,
-			NumMessages:   7,
-			NumExtensions: 2,
+			NumEnums:      2,
+			NumMessages:   9,
+			NumExtensions: 3,
 			NumServices:   0,
 		},
 		GoTypes:           file_funinthecloud_protosource_options_v1_options_v1_proto_goTypes,

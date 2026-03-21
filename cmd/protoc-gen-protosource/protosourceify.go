@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -55,6 +56,17 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"snapshotEveryN":         p.snapshotEveryN,
 		"eventMessage":           p.eventMessage,
 		"eventSetsState":         p.eventSetsState,
+		"hasOpaqueAnnotations":   p.hasOpaqueAnnotations,
+		"opaqueKeyMappings":      p.opaqueKeyMappings,
+		"opaqueKeyPrefix":        p.opaqueKeyPrefix,
+		"opaqueAllKeySlots":      opaqueAllKeySlots,
+		"opaqueUsedGSIs":         p.opaqueUsedGSIs,
+		"opaqueGSISKFields":      p.opaqueGSISKFields,
+		"opaquePKFields":         p.opaquePKFields,
+		"opaqueFieldNameLower":   opaqueFieldNameLower,
+		"opaqueKeySlotName":      opaqueKeySlotName,
+		"opaqueKeySlotGSINum":    opaqueKeySlotGSINum,
+		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
 	}
 }
 
@@ -422,8 +434,216 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		}
 	}
 
+	for _, m := range f.Messages() {
+		if p.hasOpaqueAnnotations(m) {
+			if err := p.validateOpaqueAnnotations(m); err != nil {
+				p.Fail(err.Error())
+				return
+			}
+		}
+	}
+
 	for _, v := range p.tpls {
 		outPath := p.outputPath(f)
 		p.AddGeneratorTemplateFile(outPath, v, f)
 	}
+}
+
+// ── OpaqueData field annotation support ──────────────────────────────────
+
+// opaqueFieldMapping associates a proto field with its order in a composite key.
+type opaqueFieldMapping struct {
+	Field pgs.Field
+	Order int32
+}
+
+// fieldOpaqueOptions reads the OpaqueFieldOptions extension from a field.
+func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
+	var opts optionsv1.OpaqueFieldOptions
+	ok, err := f.Extension(optionsv1.E_ProtosourceOpaqueField, &opts)
+	if err != nil || !ok {
+		return nil
+	}
+	return &opts
+}
+
+// hasOpaqueAnnotations returns true if any field in the message has opaque annotations.
+func (p *ProtosourceModule) hasOpaqueAnnotations(m pgs.Message) bool {
+	for _, f := range m.Fields() {
+		if opts := fieldOpaqueOptions(f); opts != nil && len(opts.GetAttributes()) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// opaqueKeyMappings collects all annotated fields for a message, grouped by key type
+// and sorted by order within each group.
+func (p *ProtosourceModule) opaqueKeyMappings(m pgs.Message) map[optionsv1.OpaqueKeyType][]opaqueFieldMapping {
+	result := make(map[optionsv1.OpaqueKeyType][]opaqueFieldMapping)
+	for _, f := range m.Fields() {
+		opts := fieldOpaqueOptions(f)
+		if opts == nil {
+			continue
+		}
+		for _, attr := range opts.GetAttributes() {
+			kt := attr.GetType()
+			if kt == optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_UNSPECIFIED {
+				continue
+			}
+			result[kt] = append(result[kt], opaqueFieldMapping{
+				Field: f,
+				Order: attr.GetOrder(),
+			})
+		}
+	}
+	// Sort each group by order
+	for kt := range result {
+		sort.Slice(result[kt], func(i, j int) bool {
+			return result[kt][i].Order < result[kt][j].Order
+		})
+	}
+	return result
+}
+
+// opaqueKeyPrefix computes the key prefix from the proto package + message name.
+// Format: "package_underscored#messagename"
+func (p *ProtosourceModule) opaqueKeyPrefix(m pgs.Message, f pgs.File) string {
+	pkg := f.Package().ProtoName().String()
+	pkg = strings.ReplaceAll(pkg, ".", "_")
+	name := strings.ToLower(m.Name().String())
+	return pkg + "#" + name
+}
+
+// validateOpaqueAnnotations validates the opaque field annotations on a message.
+func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
+	mappings := p.opaqueKeyMappings(m)
+	if len(mappings) == 0 {
+		return nil
+	}
+
+	// Must have at least PK
+	if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; !ok {
+		return fmt.Errorf("message %s: opaque annotations present but no PK field defined", m.Name())
+	}
+
+	// Validate ordering within each key type
+	for kt, fields := range mappings {
+		if len(fields) == 1 {
+			// Single field: order 0 or 1 are both acceptable, but reject negative
+			if fields[0].Order < 0 {
+				return fmt.Errorf("message %s: key type %v field %s has negative order %d",
+					m.Name(), kt, fields[0].Field.Name(), fields[0].Order)
+			}
+			continue
+		}
+		// Composite key: require unique positive orders
+		seen := make(map[int32]bool)
+		for _, fm := range fields {
+			if fm.Order <= 0 {
+				return fmt.Errorf("message %s: composite key %v has %d fields — all must have positive order values, but field %s has order %d",
+					m.Name(), kt, len(fields), fm.Field.Name(), fm.Order)
+			}
+			if seen[fm.Order] {
+				return fmt.Errorf("message %s: duplicate order %d for key type %v", m.Name(), fm.Order, kt)
+			}
+			seen[fm.Order] = true
+		}
+	}
+
+	// Validate GSI completeness: if a GSI SK is annotated, require a corresponding GSI PK
+	for i := 1; i <= 20; i++ {
+		skType := optionsv1.OpaqueKeyType(4 + (i-1)*2)
+		pkType := optionsv1.OpaqueKeyType(3 + (i-1)*2)
+		if len(mappings[skType]) > 0 && len(mappings[pkType]) == 0 {
+			return fmt.Errorf("message %s: GSI%d has SK fields but no PK fields — annotate a PK for this index", m.Name(), i)
+		}
+	}
+
+	return nil
+}
+
+// opaqueAllKeySlots returns all 42 key slot types (PK, SK, GSI1PK..GSI20SK).
+func opaqueAllKeySlots() []optionsv1.OpaqueKeyType {
+	slots := make([]optionsv1.OpaqueKeyType, 0, 42)
+	for i := optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK; i <= optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_GSI20SK; i++ {
+		slots = append(slots, i)
+	}
+	return slots
+}
+
+// opaqueKeySlotName returns the DynamoDB method name suffix for a key type.
+// e.g. OPAQUE_KEY_TYPE_PK → "PK", OPAQUE_KEY_TYPE_GSI1PK → "GSI1PK"
+func opaqueKeySlotName(kt optionsv1.OpaqueKeyType) string {
+	s := kt.String()
+	return strings.TrimPrefix(s, "OPAQUE_KEY_TYPE_")
+}
+
+// opaqueKeySlotGSINum returns the GSI number for a key type (0 for PK/SK).
+func opaqueKeySlotGSINum(kt optionsv1.OpaqueKeyType) int {
+	n := int(kt)
+	if n <= 2 {
+		return 0
+	}
+	return (n-3)/2 + 1
+}
+
+// opaqueKeySlotIsSK returns true if the key type is a sort key (SK or GSInSK).
+func opaqueKeySlotIsSK(kt optionsv1.OpaqueKeyType) bool {
+	return int(kt)%2 == 0
+}
+
+// opaqueFieldNameLower returns the lowercase version of a field name (for key formatting).
+func opaqueFieldNameLower(f pgs.Field) string {
+	return strings.ToLower(f.Name().String())
+}
+
+// opaqueUsedGSI represents a GSI index with its PK and SK field info.
+type opaqueUsedGSI struct {
+	Num     int
+	HasPK   bool
+	HasSK   bool
+	PKType  optionsv1.OpaqueKeyType
+	SKType  optionsv1.OpaqueKeyType
+	PKFields []opaqueFieldMapping
+	SKFields []opaqueFieldMapping
+}
+
+// opaqueUsedGSIs returns info about all GSIs that have at least a PK defined.
+func (p *ProtosourceModule) opaqueUsedGSIs(m pgs.Message) []opaqueUsedGSI {
+	mappings := p.opaqueKeyMappings(m)
+	var result []opaqueUsedGSI
+
+	for i := 1; i <= 20; i++ {
+		pkType := optionsv1.OpaqueKeyType(3 + (i-1)*2)
+		skType := optionsv1.OpaqueKeyType(4 + (i-1)*2)
+		pkFields := mappings[pkType]
+		skFields := mappings[skType]
+		if len(pkFields) == 0 {
+			continue
+		}
+		result = append(result, opaqueUsedGSI{
+			Num:      i,
+			HasPK:    len(pkFields) > 0,
+			HasSK:    len(skFields) > 0,
+			PKType:   pkType,
+			SKType:   skType,
+			PKFields: pkFields,
+			SKFields: skFields,
+		})
+	}
+	return result
+}
+
+// opaqueGSISKFields returns the fields for a specific GSI SK. Used for typed SK structs.
+func (p *ProtosourceModule) opaqueGSISKFields(m pgs.Message, gsiNum int) []opaqueFieldMapping {
+	mappings := p.opaqueKeyMappings(m)
+	skType := optionsv1.OpaqueKeyType(4 + (gsiNum-1)*2)
+	return mappings[skType]
+}
+
+// opaquePKFields returns the fields mapped to the table PK.
+func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
+	mappings := p.opaqueKeyMappings(m)
+	return mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]
 }

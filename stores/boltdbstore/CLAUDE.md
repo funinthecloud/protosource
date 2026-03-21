@@ -2,7 +2,7 @@
 
 > Part of the [protosource](../../CLAUDE.md) event sourcing framework.
 
-Build a BoltDB-backed implementation of the `protosource.Store` and `protosource.AggregateStore` interfaces. Use [bbolt](https://pkg.go.dev/go.etcd.io/bbolt) (`go.etcd.io/bbolt`), the maintained fork of the original BoltDB.
+A BoltDB-backed implementation of the `protosource.Store` and `protosource.SnapshotTailStore` interfaces. Uses [bbolt](https://pkg.go.dev/go.etcd.io/bbolt) (`go.etcd.io/bbolt`), the maintained fork of the original BoltDB. Does **not** implement `AggregateStore` — materialized aggregate storage is only useful for stores with indexing capabilities (e.g., DynamoDB with GSIs).
 
 ## Interfaces to Implement
 
@@ -15,10 +15,9 @@ type Store interface {
     Load(ctx context.Context, aggregateId string) (*historyv1.History, error)
 }
 
-// AggregateStore — optional but implement it
-type AggregateStore interface {
-    SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error
-    LoadAggregate(ctx context.Context, aggregateID string) (data []byte, version int64, err error)
+// SnapshotTailStore — implemented
+type SnapshotTailStore interface {
+    LoadTail(ctx context.Context, aggregateID string, n int) (*historyv1.History, error)
 }
 ```
 
@@ -59,11 +58,6 @@ Use two top-level buckets:
   - Values: `record.Data` bytes (the serialized event)
   - Also store version in the key so Load can reconstruct `recordv1.Record{Version: v, Data: data}`
 
-- **`aggregates`** — materialized aggregate state
-  - Keys: aggregate ID string
-  - Values: proto-marshalled aggregate bytes (the `data` param from `SaveAggregate`)
-  - Store version alongside the data. Simplest approach: prefix the value with 8 bytes of big-endian version, followed by the data bytes. Or use a sub-bucket with `data` and `version` keys.
-
 ### Save Implementation
 
 - Use a single `db.Update` (read-write transaction) per Save call
@@ -79,12 +73,6 @@ Use two top-level buckets:
 - Cursor over all keys in order, building `[]*recordv1.Record`
 - Parse version from the 8-byte key, read data from value
 - Check `ctx.Err()` before starting the transaction
-
-### SaveAggregate / LoadAggregate
-
-- Use the `aggregates` bucket
-- `SaveAggregate`: `db.Update` → put key=aggregateID, value=version(8 bytes)+data
-- `LoadAggregate`: `db.View` → get key=aggregateID, split version and data; return nil,0,nil if not found
 
 ### Functional Options
 
@@ -113,22 +101,18 @@ Tests should be thorough. Use `t.TempDir()` for the DB file path so cleanup is a
 - Load non-existent aggregate returns empty history
 - Records come back in version order
 
-**AggregateStore basics:**
-- SaveAggregate / LoadAggregate round-trip
-- LoadAggregate for non-existent returns nil data, version 0, no error
-- SaveAggregate overwrites previous state
-- Independent aggregates don't interfere
+**SnapshotTailStore:**
+- LoadTail returns last N records in ascending order
+- LoadTail with fewer records than N returns all records
+- LoadTail for non-existent aggregate returns empty history
 
 **Context handling:**
 - Save with cancelled context returns error
 - Load with cancelled context returns error
-- SaveAggregate with cancelled context returns error
-- LoadAggregate with cancelled context returns error
+- LoadTail with cancelled context returns error
 
 **Data integrity:**
 - Record version and data survive round-trip
-- Aggregate data and version survive round-trip
-- Event history and aggregate state are independent (saving aggregate doesn't affect events)
 
 **Concurrency:**
 - Concurrent saves to different aggregates
@@ -171,4 +155,4 @@ Ensure `go vet` is clean and there are no data races (`go test -race`).
 
 - [ ] Investigate shard rebalancing: when aggregates are deleted or event expiration thins out shards unevenly, consider a mechanism to consolidate or redistribute aggregates across shards to reclaim space and reduce file count
 - [ ] Investigate distributing shards: explore placing shard files across multiple disks, network mounts, or machines to spread I/O load and storage capacity beyond a single filesystem
-- [ ] Investigate Raft-based distributed cluster: use a Raft consensus library (e.g., hashicorp/raft) to replicate writes across nodes, partition shard ownership across the cluster, and expose a domain-specific API (Save, Load, LoadTail, SaveAggregate, LoadAggregate) rather than a generic KV interface — purpose-built distributed event store
+- [ ] Investigate Raft-based distributed cluster: use a Raft consensus library (e.g., hashicorp/raft) to replicate writes across nodes, partition shard ownership across the cluster, and expose a domain-specific API (Save, Load, LoadTail) rather than a generic KV interface — purpose-built distributed event store

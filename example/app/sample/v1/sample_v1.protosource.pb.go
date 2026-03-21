@@ -3,11 +3,17 @@
 package samplev1
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"buf.build/go/protovalidate"
 	"github.com/funinthecloud/protosource"
+
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
+	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -108,6 +114,206 @@ func (aggregate *Sample) On(event protosource.Event) error {
 	}
 
 	return nil
+}
+
+// ── AutoPKSK methods for Sample ──
+
+func (m *Sample) DynamoPK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#id#%v", m.GetId())
+	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+}
+func (m *Sample) DynamoSK() string { return "NA" }
+func (m *Sample) DynamoGSI1PK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#create_by#%v", m.GetCreateBy())
+	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+}
+func (m *Sample) DynamoGSI1SK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
+	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+}
+func (m *Sample) DynamoGSI2PK() string  { return "NA" }
+func (m *Sample) DynamoGSI2SK() string  { return "NA" }
+func (m *Sample) DynamoGSI3PK() string  { return "NA" }
+func (m *Sample) DynamoGSI3SK() string  { return "NA" }
+func (m *Sample) DynamoGSI4PK() string  { return "NA" }
+func (m *Sample) DynamoGSI4SK() string  { return "NA" }
+func (m *Sample) DynamoGSI5PK() string  { return "NA" }
+func (m *Sample) DynamoGSI5SK() string  { return "NA" }
+func (m *Sample) DynamoGSI6PK() string  { return "NA" }
+func (m *Sample) DynamoGSI6SK() string  { return "NA" }
+func (m *Sample) DynamoGSI7PK() string  { return "NA" }
+func (m *Sample) DynamoGSI7SK() string  { return "NA" }
+func (m *Sample) DynamoGSI8PK() string  { return "NA" }
+func (m *Sample) DynamoGSI8SK() string  { return "NA" }
+func (m *Sample) DynamoGSI9PK() string  { return "NA" }
+func (m *Sample) DynamoGSI9SK() string  { return "NA" }
+func (m *Sample) DynamoGSI10PK() string { return "NA" }
+func (m *Sample) DynamoGSI10SK() string { return "NA" }
+func (m *Sample) DynamoGSI11PK() string { return "NA" }
+func (m *Sample) DynamoGSI11SK() string { return "NA" }
+func (m *Sample) DynamoGSI12PK() string { return "NA" }
+func (m *Sample) DynamoGSI12SK() string { return "NA" }
+func (m *Sample) DynamoGSI13PK() string { return "NA" }
+func (m *Sample) DynamoGSI13SK() string { return "NA" }
+func (m *Sample) DynamoGSI14PK() string { return "NA" }
+func (m *Sample) DynamoGSI14SK() string { return "NA" }
+func (m *Sample) DynamoGSI15PK() string { return "NA" }
+func (m *Sample) DynamoGSI15SK() string { return "NA" }
+func (m *Sample) DynamoGSI16PK() string { return "NA" }
+func (m *Sample) DynamoGSI16SK() string { return "NA" }
+func (m *Sample) DynamoGSI17PK() string { return "NA" }
+func (m *Sample) DynamoGSI17SK() string { return "NA" }
+func (m *Sample) DynamoGSI18PK() string { return "NA" }
+func (m *Sample) DynamoGSI18SK() string { return "NA" }
+func (m *Sample) DynamoGSI19PK() string { return "NA" }
+func (m *Sample) DynamoGSI19SK() string { return "NA" }
+func (m *Sample) DynamoGSI20PK() string { return "NA" }
+func (m *Sample) DynamoGSI20SK() string { return "NA" }
+
+// ── Hydrater for Sample ──
+
+func (m *Sample) Hydrate(body []byte) error {
+	return proto.Unmarshal(body, m)
+}
+
+// ── Typed GSI SK value structs for Sample ──
+
+type SampleGSI1SK struct {
+	CreateAt int64
+}
+
+func (v SampleGSI1SK) String() string {
+	var fields string
+	fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
+	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+}
+
+// ── Client for Sample ──
+
+type SampleClient struct {
+	db        opaquedata.DynamoDBer
+	tableName string
+}
+
+func NewSampleClient(db opaquedata.DynamoDBer, tableName string) *SampleClient {
+	return &SampleClient{db: db, tableName: tableName}
+}
+
+func (c *SampleClient) AddSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) (*dynamodb.PutItemOutput, error) {
+	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("SampleClient.AddSample: %w", err)
+	}
+	item := opaquedata.GetItem(od)
+	return c.db.PutItem(ctx, &dynamodb.PutItemInput{
+		TableName: &c.tableName,
+		Item:      item,
+	})
+}
+
+func (c *SampleClient) GetSample(ctx context.Context, id string) (*Sample, error) {
+	key := &Sample{
+		Id: id,
+	}
+	od := opaquedata.NewOpaqueKeyFromProto(key)
+	resp, err := c.db.GetItem(ctx, &dynamodb.GetItemInput{
+		TableName: &c.tableName,
+		Key:       opaquedata.GetKey(od),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("SampleClient.GetSample: %w", err)
+	}
+	if resp.Item == nil {
+		return nil, opaquedata.ErrNotFound
+	}
+	var result opaquedatav1.OpaqueData
+	if err := attributevalue.UnmarshalMap(resp.Item, &result); err != nil {
+		return nil, fmt.Errorf("SampleClient.GetSample: unmarshal: %w", err)
+	}
+	target := &Sample{}
+	if err := opaquedata.ReHydrate(&result, target); err != nil {
+		return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
+	}
+	return target, nil
+}
+
+func (c *SampleClient) UpdateSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) (*dynamodb.PutItemOutput, error) {
+	return c.AddSample(ctx, d, opts...)
+}
+
+func (c *SampleClient) DeleteSample(ctx context.Context, id string) (*dynamodb.DeleteItemOutput, error) {
+	key := &Sample{
+		Id: id,
+	}
+	od := opaquedata.NewOpaqueKeyFromProto(key)
+	return c.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
+		TableName: &c.tableName,
+		Key:       opaquedata.GetKey(od),
+	})
+}
+
+// SelectSampleByCreateBy queries GSI1 by partition key.
+func (c *SampleClient) SelectSampleByCreateBy(ctx context.Context, create_by string) ([]*Sample, error) {
+	pk := &Sample{
+		CreateBy: create_by,
+	}
+	pkValue := pk.DynamoGSI1PK()
+	results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
+	if err != nil {
+		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateBy: %w", err)
+	}
+	return rehydrateSample(results)
+}
+
+// SelectSampleByCreateByWithCreateAt queries GSI1 with a sort key condition.
+func (c *SampleClient) SelectSampleByCreateByWithCreateAt(ctx context.Context, create_by string, op opaquedata.SortOperator, vals ...SampleGSI1SK) ([]*Sample, error) {
+	if op == opaquedata.Between {
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
+		}
+	} else if len(vals) != 1 {
+		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
+	}
+	pk := &Sample{
+		CreateBy: create_by,
+	}
+	pkValue := pk.DynamoGSI1PK()
+	sort := &opaquedata.SortCondition{
+		Operator: op,
+		Value:    vals[0].String(),
+	}
+	if op == opaquedata.Between {
+		sort.Value2 = vals[1].String()
+	}
+	results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
+	if err != nil {
+		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: %w", err)
+	}
+	return rehydrateSample(results)
+}
+
+func rehydrateSample(results []*opaquedatav1.OpaqueData) ([]*Sample, error) {
+	out := make([]*Sample, 0, len(results))
+	for _, od := range results {
+		m := &Sample{}
+		if err := opaquedata.ReHydrate(od, m); err != nil {
+			return nil, fmt.Errorf("Sample: rehydrate: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 func (m *Create) CommandName() string {

@@ -9,19 +9,12 @@ import (
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 )
 
-// aggregateEntry holds the serialized aggregate state and its version.
-type aggregateEntry struct {
-	data    []byte
-	version int64
-}
-
 // MemoryStore is an in-memory implementation for managing and storing histories.
 // It uses a map to associate aggregate IDs with their corresponding histories,
 // and a mutex to ensure thread-safe operations.
 type MemoryStore struct {
 	mu               sync.RWMutex                    // Read-Write mutex for protecting the maps.
 	events           map[string]*historyv1.History   // Stores histories indexed by aggregate IDs.
-	aggregates       map[string]*aggregateEntry      // Stores materialized aggregate state.
 	snapshotInterval int32                           // Configurable snapshot interval value.
 }
 
@@ -30,7 +23,6 @@ func New(opts ...Option) *MemoryStore {
 
 	m := &MemoryStore{
 		events:           make(map[string]*historyv1.History),
-		aggregates:       make(map[string]*aggregateEntry),
 		snapshotInterval: 0, // Default snapshot interval.
 	}
 
@@ -101,38 +93,6 @@ func (m *MemoryStore) Load(ctx context.Context, aggregateId string) (*historyv1.
 		return history, nil
 	}
 	return &historyv1.History{}, nil
-}
-
-// SaveAggregate persists the serialized aggregate state for a given aggregate ID.
-func (m *MemoryStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
-	if err := validateContext(ctx); err != nil {
-		return fmt.Errorf("save aggregate failed: %w", err)
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.aggregates[aggregateID] = &aggregateEntry{
-		data:    data,
-		version: version,
-	}
-	return nil
-}
-
-// LoadAggregate retrieves the most recently saved aggregate state.
-// Returns nil data with version 0 if no aggregate has been saved.
-func (m *MemoryStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
-	if err := validateContext(ctx); err != nil {
-		return nil, 0, fmt.Errorf("load aggregate failed: %w", err)
-	}
-
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	if entry, exists := m.aggregates[aggregateID]; exists {
-		return entry.data, entry.version, nil
-	}
-	return nil, 0, nil
 }
 
 // validateContext checks if a context has been canceled or exceeded its deadline.

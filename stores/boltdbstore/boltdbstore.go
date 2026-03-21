@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -18,7 +17,6 @@ var (
 	indexBucket  = []byte("index")
 	metaBucket   = []byte("meta")
 	eventsBucket = []byte("events")
-	aggsBucket   = []byte("aggregates")
 
 	metaNextShard   = []byte("next_shard")
 	metaMaxPerShard = []byte("max_per_shard")
@@ -246,85 +244,6 @@ func (s *BoltDBStore) LoadTail(ctx context.Context, aggregateID string, n int) (
 		return nil
 	})
 	return h, err
-}
-
-// SaveAggregate persists the serialized aggregate state and its current version.
-func (s *BoltDBStore) SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error {
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("save aggregate failed: context error: %w", err)
-	}
-
-	shardNum, found, err := s.lookupShard(aggregateID)
-	if err != nil {
-		return fmt.Errorf("lookup shard: %w", err)
-	}
-	if !found {
-		return fmt.Errorf("save aggregate: no shard assigned for %s", aggregateID)
-	}
-
-	db, err := s.openShard(shardNum)
-	if err != nil {
-		return fmt.Errorf("open shard: %w", err)
-	}
-
-	if len(data) > math.MaxInt-8 {
-		return fmt.Errorf("save aggregate: data too large (%d bytes)", len(data))
-	}
-
-	return db.Update(func(tx *bbolt.Tx) error {
-		ab, err := tx.CreateBucketIfNotExists(aggsBucket)
-		if err != nil {
-			return err
-		}
-		// Value: 8-byte big-endian version + data
-		val := make([]byte, 8+len(data))
-		binary.BigEndian.PutUint64(val[:8], uint64(version))
-		copy(val[8:], data)
-		return ab.Put([]byte(aggregateID), val)
-	})
-}
-
-// LoadAggregate retrieves the most recently saved aggregate state.
-// Returns nil data with version 0 if no aggregate has been saved.
-func (s *BoltDBStore) LoadAggregate(ctx context.Context, aggregateID string) ([]byte, int64, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, 0, fmt.Errorf("load aggregate failed: context error: %w", err)
-	}
-
-	shardNum, found, err := s.lookupShard(aggregateID)
-	if err != nil {
-		return nil, 0, fmt.Errorf("lookup shard: %w", err)
-	}
-	if !found {
-		return nil, 0, nil
-	}
-
-	db, err := s.openShard(shardNum)
-	if err != nil {
-		return nil, 0, fmt.Errorf("open shard: %w", err)
-	}
-
-	var data []byte
-	var version int64
-	err = db.View(func(tx *bbolt.Tx) error {
-		ab := tx.Bucket(aggsBucket)
-		if ab == nil {
-			return nil
-		}
-		val := ab.Get([]byte(aggregateID))
-		if val == nil {
-			return nil
-		}
-		if len(val) < 8 {
-			return fmt.Errorf("corrupt aggregate value for %s", aggregateID)
-		}
-		version = int64(binary.BigEndian.Uint64(val[:8]))
-		data = make([]byte, len(val)-8)
-		copy(data, val[8:])
-		return nil
-	})
-
-	return data, version, err
 }
 
 // Close closes the index DB and all open shard DBs.
