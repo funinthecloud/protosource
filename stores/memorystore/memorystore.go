@@ -7,14 +7,7 @@ import (
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
-	"google.golang.org/protobuf/proto"
 )
-
-// aggregateEntry holds the serialized aggregate state and its version.
-type aggregateEntry struct {
-	data    []byte
-	version int64
-}
 
 // MemoryStore is an in-memory implementation for managing and storing histories.
 // It uses a map to associate aggregate IDs with their corresponding histories,
@@ -22,7 +15,6 @@ type aggregateEntry struct {
 type MemoryStore struct {
 	mu               sync.RWMutex                    // Read-Write mutex for protecting the maps.
 	events           map[string]*historyv1.History   // Stores histories indexed by aggregate IDs.
-	aggregates       map[string]*aggregateEntry      // Stores materialized aggregate state.
 	snapshotInterval int32                           // Configurable snapshot interval value.
 }
 
@@ -31,7 +23,6 @@ func New(opts ...Option) *MemoryStore {
 
 	m := &MemoryStore{
 		events:           make(map[string]*historyv1.History),
-		aggregates:       make(map[string]*aggregateEntry),
 		snapshotInterval: 0, // Default snapshot interval.
 	}
 
@@ -102,40 +93,6 @@ func (m *MemoryStore) Load(ctx context.Context, aggregateId string) (*historyv1.
 		return history, nil
 	}
 	return &historyv1.History{}, nil
-}
-
-// SaveAggregate persists the materialized aggregate state. The aggregate is
-// serialized via proto.Marshal and stored keyed by aggregate ID.
-func (m *MemoryStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
-	if err := validateContext(ctx); err != nil {
-		return fmt.Errorf("save aggregate failed: %w", err)
-	}
-
-	type idGetter interface{ GetId() string }
-	ag, ok := aggregate.(idGetter)
-	if !ok {
-		return fmt.Errorf("save aggregate failed: aggregate does not implement GetId()")
-	}
-
-	data, err := proto.Marshal(aggregate)
-	if err != nil {
-		return fmt.Errorf("save aggregate failed: marshal: %w", err)
-	}
-
-	type versionGetter interface{ GetVersion() int64 }
-	var version int64
-	if vg, ok := aggregate.(versionGetter); ok {
-		version = vg.GetVersion()
-	}
-
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	m.aggregates[ag.GetId()] = &aggregateEntry{
-		data:    data,
-		version: version,
-	}
-	return nil
 }
 
 // validateContext checks if a context has been canceled or exceeded its deadline.

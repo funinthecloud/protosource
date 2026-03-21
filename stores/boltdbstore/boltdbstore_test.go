@@ -9,7 +9,6 @@ import (
 	"sync"
 	"testing"
 
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/funinthecloud/protosource/stores/boltdbstore"
 	"github.com/stretchr/testify/assert"
@@ -181,48 +180,6 @@ func TestLoad_PreservesRecordFields(t *testing.T) {
 	assert.Equal(t, "payload", string(got.GetData()))
 }
 
-// --- AggregateStore ---
-
-func TestSaveAggregate_Basic(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	// Must save events first to assign a shard.
-	require.NoError(t, s.Save(ctx, "agg-1", record(1, "event")))
-
-	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "hello"}))
-}
-
-func TestSaveAggregate_OverwritesPrevious(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	require.NoError(t, s.Save(ctx, "agg-1", record(1, "e")))
-	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "v1"}))
-	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 3, Body: "v3"}))
-}
-
-func TestSaveAggregate_CancelledContext(t *testing.T) {
-	s := newTestStore(t)
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1})
-	assert.Error(t, err)
-}
-
-func TestSaveAggregate_DoesNotAffectEventHistory(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-
-	require.NoError(t, s.Save(ctx, "agg-1", record(1, "event-data")))
-	require.NoError(t, s.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate-state"}))
-
-	h, _ := s.Load(ctx, "agg-1")
-	require.Len(t, h.GetRecords(), 1)
-	assert.Equal(t, "event-data", string(h.GetRecords()[0].GetData()))
-}
-
 // --- Sharding ---
 
 func TestSharding_MultipleShards(t *testing.T) {
@@ -356,30 +313,6 @@ func TestConcurrent_MixedReadsWrites(t *testing.T) {
 	h, err := s.Load(ctx, "shared")
 	require.NoError(t, err)
 	assert.Equal(t, numGoroutines+1, len(h.GetRecords()))
-}
-
-func TestConcurrent_SaveAggregate(t *testing.T) {
-	s := newTestStore(t)
-	ctx := context.Background()
-	const numGoroutines = 20
-
-	require.NoError(t, s.Save(ctx, "shared", record(1, "seed")))
-
-	var wg sync.WaitGroup
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func(v int) {
-			defer wg.Done()
-			_ = s.SaveAggregate(ctx, &testv1.Test{
-				Id:      "shared",
-				Version: int64(v),
-				Body:    fmt.Sprintf("state-%d", v),
-			})
-		}(i)
-	}
-	wg.Wait()
-
-	// Just verify no panic occurred
 }
 
 // --- Edge cases ---
@@ -537,7 +470,6 @@ func TestLifecycle_CloseAndReopen(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, s1.Save(ctx, "agg-1", record(1, "persisted")))
-	require.NoError(t, s1.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "agg-state"}))
 	require.NoError(t, s1.Close())
 
 	s2, err := boltdbstore.New(dir, "test")

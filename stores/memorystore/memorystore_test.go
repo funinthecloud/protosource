@@ -6,7 +6,6 @@ import (
 	"sync"
 	"testing"
 
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 	"google.golang.org/protobuf/proto"
@@ -310,78 +309,3 @@ func TestLoad_RecordProtoEquality(t *testing.T) {
 	}
 }
 
-// --- AggregateStore ---
-
-func TestSaveAggregate_Basic(t *testing.T) {
-	m := memorystore.New()
-	ctx := context.Background()
-
-	agg := &testv1.Test{Id: "agg-1", Version: 5, Body: "hello"}
-	err := m.SaveAggregate(ctx, agg)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-}
-
-func TestSaveAggregate_OverwritesPrevious(t *testing.T) {
-	m := memorystore.New()
-	ctx := context.Background()
-
-	_ = m.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "v1"})
-	_ = m.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 3, Body: "v3"})
-
-	// No error means it succeeded — the store overwrote the previous entry
-}
-
-func TestSaveAggregate_CancelledContext(t *testing.T) {
-	m := memorystore.New()
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	err := m.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1})
-	if err == nil {
-		t.Fatal("expected error for cancelled context, got nil")
-	}
-}
-
-func TestSaveAggregate_DoesNotAffectEventHistory(t *testing.T) {
-	m := memorystore.New()
-	ctx := context.Background()
-
-	// Save some events
-	_ = m.Save(ctx, "agg-1", record(1, "event-data"))
-
-	// Save aggregate state
-	_ = m.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate-state"})
-
-	// Event history should be unaffected
-	h, _ := m.Load(ctx, "agg-1")
-	if got := len(h.GetRecords()); got != 1 {
-		t.Errorf("expected 1 event record, got %d", got)
-	}
-	if string(h.GetRecords()[0].GetData()) != "event-data" {
-		t.Errorf("event data should be unaffected")
-	}
-}
-
-func TestConcurrent_SaveAggregate(t *testing.T) {
-	m := memorystore.New()
-	ctx := context.Background()
-	const numGoroutines = 20
-
-	var wg sync.WaitGroup
-	for i := 0; i < numGoroutines; i++ {
-		wg.Add(1)
-		go func(v int) {
-			defer wg.Done()
-			_ = m.SaveAggregate(ctx, &testv1.Test{
-				Id:      "shared",
-				Version: int64(v),
-				Body:    fmt.Sprintf("state-%d", v),
-			})
-		}(i)
-	}
-	wg.Wait()
-
-	// Just verify no panic occurred
-}

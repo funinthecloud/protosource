@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/binary"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,14 +11,12 @@ import (
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"go.etcd.io/bbolt"
-	"google.golang.org/protobuf/proto"
 )
 
 var (
 	indexBucket  = []byte("index")
 	metaBucket   = []byte("meta")
 	eventsBucket = []byte("events")
-	aggsBucket   = []byte("aggregates")
 
 	metaNextShard   = []byte("next_shard")
 	metaMaxPerShard = []byte("max_per_shard")
@@ -247,61 +244,6 @@ func (s *BoltDBStore) LoadTail(ctx context.Context, aggregateID string, n int) (
 		return nil
 	})
 	return h, err
-}
-
-// SaveAggregate persists the materialized aggregate state. The aggregate is
-// serialized via proto.Marshal and stored keyed by aggregate ID.
-func (s *BoltDBStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
-	if err := ctx.Err(); err != nil {
-		return fmt.Errorf("save aggregate failed: context error: %w", err)
-	}
-
-	type idGetter interface{ GetId() string }
-	ag, ok := aggregate.(idGetter)
-	if !ok {
-		return fmt.Errorf("save aggregate: aggregate does not implement GetId()")
-	}
-	aggregateID := ag.GetId()
-
-	type versionGetter interface{ GetVersion() int64 }
-	var version int64
-	if vg, ok := aggregate.(versionGetter); ok {
-		version = vg.GetVersion()
-	}
-
-	data, err := proto.Marshal(aggregate)
-	if err != nil {
-		return fmt.Errorf("save aggregate: marshal: %w", err)
-	}
-
-	shardNum, found, err := s.lookupShard(aggregateID)
-	if err != nil {
-		return fmt.Errorf("lookup shard: %w", err)
-	}
-	if !found {
-		return fmt.Errorf("save aggregate: no shard assigned for %s", aggregateID)
-	}
-
-	db, err := s.openShard(shardNum)
-	if err != nil {
-		return fmt.Errorf("open shard: %w", err)
-	}
-
-	if len(data) > math.MaxInt-8 {
-		return fmt.Errorf("save aggregate: data too large (%d bytes)", len(data))
-	}
-
-	return db.Update(func(tx *bbolt.Tx) error {
-		ab, err := tx.CreateBucketIfNotExists(aggsBucket)
-		if err != nil {
-			return err
-		}
-		// Value: 8-byte big-endian version + data
-		val := make([]byte, 8+len(data))
-		binary.BigEndian.PutUint64(val[:8], uint64(version))
-		copy(val[8:], data)
-		return ab.Put([]byte(aggregateID), val)
-	})
 }
 
 // Close closes the index DB and all open shard DBs.

@@ -14,7 +14,6 @@ import (
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
-	"google.golang.org/protobuf/proto"
 )
 
 // newTestRepo creates a Repository wired to the test domain with memorystore and protobinary serializer.
@@ -601,10 +600,6 @@ func (s *snapshotTailStore) Save(ctx context.Context, aggregateID string, record
 
 func (s *snapshotTailStore) Load(ctx context.Context, aggregateID string) (*historyv1.History, error) {
 	return s.inner.Load(ctx, aggregateID)
-}
-
-func (s *snapshotTailStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
-	return s.inner.SaveAggregate(ctx, aggregate)
 }
 
 func (s *snapshotTailStore) LoadTail(ctx context.Context, aggregateID string, n int) (*historyv1.History, error) {
