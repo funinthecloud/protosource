@@ -22,7 +22,9 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, `{"error":"failed to read request body"}`, http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error":"failed to read request body"}`)
 			return
 		}
 
@@ -67,7 +69,9 @@ func WrapRouter(router *protosource.Router, extractor ActorExtractor) http.Handl
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
-			http.Error(w, `{"error":"failed to read request body"}`, http.StatusBadRequest)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(w, `{"error":"failed to read request body"}`)
 			return
 		}
 

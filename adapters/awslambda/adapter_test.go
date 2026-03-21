@@ -80,6 +80,29 @@ func TestAdapter_Handle_Base64Body(t *testing.T) {
 	}
 }
 
+func TestAdapter_Handle_Base64DecodeFailure(t *testing.T) {
+	handler := func(ctx context.Context, req protosource.Request) protosource.Response {
+		t.Fatal("handler should not be called on decode failure")
+		return protosource.Response{}
+	}
+
+	extractor := func(request events.APIGatewayProxyRequest) string { return "actor" }
+	adapter := New(handler, extractor)
+
+	request := events.APIGatewayProxyRequest{
+		Body:            "not-valid-base64!!!",
+		IsBase64Encoded: true,
+	}
+
+	resp, err := adapter.Handle(context.Background(), request)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", resp.StatusCode)
+	}
+}
+
 func TestAdapter_Handle_BinaryResponse(t *testing.T) {
 	handler := func(ctx context.Context, req protosource.Request) protosource.Response {
 		return protosource.Response{
