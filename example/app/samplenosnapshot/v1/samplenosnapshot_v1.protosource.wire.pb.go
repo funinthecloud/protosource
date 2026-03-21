@@ -11,6 +11,10 @@ import (
 	"github.com/google/wire"
 )
 
+func provideStore() *memorystore.MemoryStore {
+	return memorystore.New(0)
+}
+
 func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
 	return NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
 }
@@ -20,6 +24,7 @@ func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryse
 // appropriate package's ProviderSet (e.g., dynamodbstore.ProviderSet) and
 // provideRepository.
 var ProviderSet = wire.NewSet(
+	provideStore,
 	memorystore.ProviderSet,
 	protobinaryserializer.ProviderSet,
 	provideRepository,

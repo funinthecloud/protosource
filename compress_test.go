@@ -10,8 +10,8 @@ import (
 	"github.com/funinthecloud/protosource/stores/memorystore"
 )
 
-func newCompressedRepo(threshold int, storeOpts ...memorystore.Option) *protosource.Repository {
-	store := memorystore.New(storeOpts...)
+func newCompressedRepo(threshold int, snapshotInterval int32) *protosource.Repository {
+	store := memorystore.New(snapshotInterval)
 	return protosource.New(
 		&testv1.Test{},
 		protosource.WithStore(store),
@@ -21,7 +21,7 @@ func newCompressedRepo(threshold int, storeOpts ...memorystore.Option) *protosou
 }
 
 func TestCompression_EventRoundTrip(t *testing.T) {
-	repo := newCompressedRepo(10)
+	repo := newCompressedRepo(10, 0)
 	ctx := context.Background()
 
 	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello world"})
@@ -52,7 +52,7 @@ func TestCompression_EventRoundTrip(t *testing.T) {
 }
 
 func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
-	store := memorystore.New()
+	store := memorystore.New(0)
 	ctx := context.Background()
 
 	// Write without compression
@@ -83,7 +83,7 @@ func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
 }
 
 func TestCompression_WithSnapshots(t *testing.T) {
-	repo := newCompressedRepo(10, memorystore.WithSnapshotInterval(3))
+	repo := newCompressedRepo(10, 3)
 	ctx := context.Background()
 
 	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "snapshot test body"})
@@ -108,7 +108,7 @@ func TestCompression_WithSnapshots(t *testing.T) {
 }
 
 func TestCompression_ZeroThresholdDisables(t *testing.T) {
-	store := memorystore.New()
+	store := memorystore.New(0)
 	ctx := context.Background()
 
 	// WithCompression(0) should disable compression — data stored uncompressed
@@ -133,7 +133,7 @@ func TestCompression_ZeroThresholdDisables(t *testing.T) {
 }
 
 func TestCompression_MultipleAggregatesIndependent(t *testing.T) {
-	repo := newCompressedRepo(10)
+	repo := newCompressedRepo(10, 0)
 	ctx := context.Background()
 
 	_, _ = repo.Apply(ctx, &testv1.Create{Id: "agg-1", Actor: "actor", Body: "first aggregate"})

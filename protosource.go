@@ -149,7 +149,7 @@ func New(prototype Aggregate, opts ...Option) *Repository {
 
 	r := &Repository{
 		prototype: t,
-		store:     memorystore.New(),
+		store:     memorystore.New(0),
 		//serializer: protobinaryserializer.NewSerializer(),
 	}
 

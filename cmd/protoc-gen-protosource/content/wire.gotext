@@ -5,12 +5,29 @@
 
 package {{ package . }}
 
+{{ $hasSnapshot := false }}
+{{ $everyN := snapshotEveryN . }}
+
+{{ range $message := .AllMessages }}
+    {{ if isSnapshot $message }}
+        {{ $hasSnapshot = true }}
+    {{ end }}
+{{ end }}
+
 import (
     "github.com/funinthecloud/protosource"
     "github.com/funinthecloud/protosource/serializers/protobinaryserializer"
     "github.com/funinthecloud/protosource/stores/memorystore"
     "github.com/google/wire"
 )
+
+func provideStore() *memorystore.MemoryStore {
+{{ if and $hasSnapshot (gt $everyN 0) -}}
+    return memorystore.New(SnapshotEveryNEvents)
+{{ else -}}
+    return memorystore.New(0)
+{{ end -}}
+}
 
 func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
     return NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
@@ -21,6 +38,7 @@ func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryse
 // appropriate package's ProviderSet (e.g., dynamodbstore.ProviderSet) and
 // provideRepository.
 var ProviderSet = wire.NewSet(
+    provideStore,
     memorystore.ProviderSet,
     protobinaryserializer.ProviderSet,
     provideRepository,

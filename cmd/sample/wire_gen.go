@@ -25,7 +25,7 @@ func InitializeRepository() *protosource.Repository {
 // wire.go:
 
 func provideStore() *memorystore.MemoryStore {
-	return memorystore.New(memorystore.WithSnapshotInterval(samplev1.SnapshotEveryNEvents))
+	return memorystore.New(samplev1.SnapshotEveryNEvents)
 }
 
 func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
