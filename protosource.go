@@ -159,9 +159,10 @@ func New(prototype Aggregate, store Store, serializer Serializer, opts ...Option
 	}
 
 	r := &Repository{
-		prototype:  t,
-		store:      store,
-		serializer: serializer,
+		prototype:         t,
+		store:             store,
+		serializer:        serializer,
+		compressThreshold: DefaultCompressThreshold,
 	}
 
 	for _, opt := range opts {
