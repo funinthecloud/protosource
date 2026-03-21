@@ -240,11 +240,11 @@ func (c *SampleClient) GetSample(ctx context.Context, id string) (*Sample, error
 	}
 	var result opaquedatav1.OpaqueData
 	if err := attributevalue.UnmarshalMap(resp.Item, &result); err != nil {
-		return nil, fmt.Errorf("SampleClient.Get: unmarshal: %w", err)
+		return nil, fmt.Errorf("SampleClient.GetSample: unmarshal: %w", err)
 	}
 	target := &Sample{}
 	if err := opaquedata.ReHydrate(&result, target); err != nil {
-		return nil, fmt.Errorf("SampleClient.Get: rehydrate: %w", err)
+		return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
 	}
 	return target, nil
 }
@@ -272,7 +272,7 @@ func (c *SampleClient) SelectSampleByCreateBy(ctx context.Context, create_by str
 	pkValue := pk.DynamoGSI1PK()
 	results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
 	if err != nil {
-		return nil, fmt.Errorf("SampleClient.SelectSample: %w", err)
+		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateBy: %w", err)
 	}
 	return rehydrateSample(results)
 }
@@ -281,10 +281,10 @@ func (c *SampleClient) SelectSampleByCreateBy(ctx context.Context, create_by str
 func (c *SampleClient) SelectSampleByCreateByWithCreateAt(ctx context.Context, create_by string, op opaquedata.SortOperator, vals ...SampleGSI1SK) ([]*Sample, error) {
 	if op == opaquedata.Between {
 		if len(vals) != 2 {
-			return nil, fmt.Errorf("SampleClient.SelectSample: Between requires exactly 2 values, got %d", len(vals))
+			return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
 		}
 	} else if len(vals) != 1 {
-		return nil, fmt.Errorf("SampleClient.SelectSample: operator %d requires exactly 1 value, got %d", op, len(vals))
+		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
 	}
 	pk := &Sample{
 		CreateBy: create_by,
@@ -299,7 +299,7 @@ func (c *SampleClient) SelectSampleByCreateByWithCreateAt(ctx context.Context, c
 	}
 	results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
 	if err != nil {
-		return nil, fmt.Errorf("SampleClient.SelectSample: %w", err)
+		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: %w", err)
 	}
 	return rehydrateSample(results)
 }

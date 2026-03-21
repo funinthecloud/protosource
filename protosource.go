@@ -184,7 +184,8 @@ func WithSerializer(serializer Serializer) Option {
 // Note: this only affects event records (Save/Load). Materialized aggregate
 // state is passed directly to AggregateStore, which owns its own serialization.
 //
-// Use 300 as a sensible starting threshold, or pass 0 to disable (the default).
+// Use 300 as a sensible starting threshold. Pass 0 or any negative value to
+// disable compression (the default).
 func WithCompression(threshold int) Option {
 	return func(r *Repository) {
 		r.compressThreshold = threshold

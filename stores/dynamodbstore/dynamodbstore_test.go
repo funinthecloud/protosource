@@ -216,6 +216,9 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 			key += "|" + sk.(*types.AttributeValueMemberS).Value
 		}
 	}
+	if key == "" {
+		return nil, fmt.Errorf("mockDynamoer.GetItem: no 'a' or 'pk' attribute in key — malformed read")
+	}
 	item, ok := table[key]
 	if !ok {
 		return &dynamodb.GetItemOutput{}, nil
@@ -239,6 +242,9 @@ func (m *mockDynamoer) DeleteItem(ctx context.Context, input *dynamodb.DeleteIte
 		if sk, ok := input.Key["sk"]; ok {
 			key += "|" + sk.(*types.AttributeValueMemberS).Value
 		}
+	}
+	if key == "" {
+		return nil, fmt.Errorf("mockDynamoer.DeleteItem: no 'a' or 'pk' attribute in key — malformed delete")
 	}
 	delete(table, key)
 	return &dynamodb.DeleteItemOutput{}, nil

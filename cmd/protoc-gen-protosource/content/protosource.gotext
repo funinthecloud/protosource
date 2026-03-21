@@ -342,11 +342,11 @@ func (c *{{ $msgName }}Client) Get{{ $msgName }}(ctx context.Context, {{ range $
     }
     var result opaquedatav1.OpaqueData
     if err := attributevalue.UnmarshalMap(resp.Item, &result); err != nil {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Get: unmarshal: %w", err)
+        return nil, fmt.Errorf("{{ $msgName }}Client.Get{{ $msgName }}: unmarshal: %w", err)
     }
     target := &{{ $msgName }}{}
     if err := opaquedata.ReHydrate(&result, target); err != nil {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Get: rehydrate: %w", err)
+        return nil, fmt.Errorf("{{ $msgName }}Client.Get{{ $msgName }}: rehydrate: %w", err)
     }
     return target, nil
 }
@@ -375,7 +375,7 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
     pkValue := pk.Dynamo{{ opaqueKeySlotName $gsi.PKType }}()
     results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", nil, opaquedata.WithGSIIndex({{ $gsi.Num }}))
     if err != nil {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}: %w", err)
+        return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}: %w", err)
     }
     return rehydrate{{ $msgName }}(results)
 }
@@ -385,10 +385,10 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
 func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}, op opaquedata.SortOperator, vals ...{{ $msgName }}GSI{{ $gsi.Num }}SK) ([]*{{ $msgName }}, error) {
     if op == opaquedata.Between {
         if len(vals) != 2 {
-            return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}: Between requires exactly 2 values, got %d", len(vals))
+            return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}: Between requires exactly 2 values, got %d", len(vals))
         }
     } else if len(vals) != 1 {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}: operator %d requires exactly 1 value, got %d", op, len(vals))
+        return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}: operator %d requires exactly 1 value, got %d", op, len(vals))
     }
     pk := &{{ $msgName }}{
 {{ range $fm := $gsi.PKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
@@ -403,7 +403,7 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
     }
     results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", sort, opaquedata.WithGSIIndex({{ $gsi.Num }}))
     if err != nil {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}: %w", err)
+        return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}: %w", err)
     }
     return rehydrate{{ $msgName }}(results)
 }
