@@ -11,11 +11,10 @@ import (
 )
 
 func newCompressedRepo(threshold int, snapshotInterval int32) *protosource.Repository {
-	store := memorystore.New(snapshotInterval)
 	return protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		memorystore.New(snapshotInterval),
+		protobinaryserializer.NewSerializer(),
 		protosource.WithCompression(threshold),
 	)
 }
@@ -56,10 +55,11 @@ func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
 	ctx := context.Background()
 
 	// Write without compression
+	ser := protobinaryserializer.NewSerializer()
 	repoNoCompress := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		ser,
 	)
 	_, err := repoNoCompress.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "old data"})
 	if err != nil {
@@ -69,8 +69,8 @@ func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
 	// Read with compression enabled — should still work
 	repoWithCompress := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		ser,
 		protosource.WithCompression(10),
 	)
 	agg, err := repoWithCompress.Load(ctx, "id-1")
@@ -114,8 +114,8 @@ func TestCompression_ZeroThresholdDisables(t *testing.T) {
 	// WithCompression(0) should disable compression — data stored uncompressed
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 		protosource.WithCompression(0),
 	)
 	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "zero threshold"})

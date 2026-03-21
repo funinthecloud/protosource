@@ -30,7 +30,7 @@ func provideStore() *memorystore.MemoryStore {
 }
 
 func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
-    return NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
+    return NewRepository(store, serializer)
 }
 
 // ProviderSet wires a Repository with a memorystore and protobinaryserializer.

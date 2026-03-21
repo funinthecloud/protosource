@@ -18,11 +18,10 @@ import (
 
 // newTestRepo creates a Repository wired to the test domain with memorystore and protobinary serializer.
 func newTestRepo() *protosource.Repository {
-	store := memorystore.New(0)
 	return protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		memorystore.New(0),
+		protobinaryserializer.NewSerializer(),
 	)
 }
 
@@ -618,8 +617,8 @@ func TestLoad_NonSnapshotTailStore_UsesFullLoad(t *testing.T) {
 	store := &basicStore{inner: memorystore.New(0)}
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 	)
 	ctx := context.Background()
 
@@ -644,8 +643,8 @@ func TestLoad_NonSnapshoterAggregate_UsesFullLoad(t *testing.T) {
 	store := &snapshotTailStore{inner: memorystore.New(0)}
 	repo := protosource.New(
 		&samplenov1.Sample{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 	)
 	ctx := context.Background()
 
@@ -673,8 +672,8 @@ func TestLoad_SnapshotTailStore_UsesLoadTail(t *testing.T) {
 	store := &snapshotTailStore{inner: memorystore.New(0)}
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 	)
 	ctx := context.Background()
 
@@ -717,8 +716,8 @@ func TestSnapshot_CapturesPostEventState(t *testing.T) {
 	ser := protobinaryserializer.NewSerializer()
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(ser),
+		store,
+		ser,
 	)
 	ctx := context.Background()
 
@@ -773,8 +772,8 @@ func TestSnapshot_MultiEventBoundaryCrossing(t *testing.T) {
 	ser := protobinaryserializer.NewSerializer()
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(ser),
+		store,
+		ser,
 	)
 	ctx := context.Background()
 
@@ -829,8 +828,8 @@ func TestSnapshot_LoadReconstructsFromSnapshot(t *testing.T) {
 	ser := protobinaryserializer.NewSerializer()
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(ser),
+		store,
+		ser,
 	)
 	ctx := context.Background()
 

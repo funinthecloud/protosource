@@ -49,8 +49,8 @@ func (b *Builder) nextVersion() int64 {
 const SnapshotEveryNEvents int32 = 3
 
 // NewRepository creates a new protosource.Repository for the Test aggregate.
-func NewRepository(opts ...protosource.Option) *protosource.Repository {
-	return protosource.New(&Test{}, opts...)
+func NewRepository(store protosource.Store, serializer protosource.Serializer, opts ...protosource.Option) *protosource.Repository {
+	return protosource.New(&Test{}, store, serializer, opts...)
 }
 
 func (aggregate *Test) Snapshot(version int64) protosource.Event {

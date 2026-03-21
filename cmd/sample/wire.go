@@ -15,7 +15,7 @@ func provideStore() *memorystore.MemoryStore {
 }
 
 func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
-	return samplev1.NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
+	return samplev1.NewRepository(store, serializer)
 }
 
 func InitializeRepository() *protosource.Repository {
