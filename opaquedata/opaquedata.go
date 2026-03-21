@@ -1,6 +1,7 @@
 package opaquedata
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/funinthecloud/protosource"
@@ -10,48 +11,58 @@ import (
 
 type AutoPKSK interface {
 	proto.Message
-	DynamoPK() string
-	DynamoSK() string
-	DynamoGSI1PK() string
-	DynamoGSI1SK() string
-	DynamoGSI2PK() string
-	DynamoGSI2SK() string
-	DynamoGSI3PK() string
-	DynamoGSI3SK() string
-	DynamoGSI4PK() string
-	DynamoGSI4SK() string
-	DynamoGSI5PK() string
-	DynamoGSI5SK() string
-	DynamoGSI6PK() string
-	DynamoGSI6SK() string
-	DynamoGSI7PK() string
-	DynamoGSI7SK() string
-	DynamoGSI8PK() string
-	DynamoGSI8SK() string
-	DynamoGSI9PK() string
-	DynamoGSI9SK() string
-	DynamoGSI10PK() string
-	DynamoGSI10SK() string
-	DynamoGSI11PK() string
-	DynamoGSI11SK() string
-	DynamoGSI12PK() string
-	DynamoGSI12SK() string
-	DynamoGSI13PK() string
-	DynamoGSI13SK() string
-	DynamoGSI14PK() string
-	DynamoGSI14SK() string
-	DynamoGSI15PK() string
-	DynamoGSI15SK() string
-	DynamoGSI16PK() string
-	DynamoGSI16SK() string
-	DynamoGSI17PK() string
-	DynamoGSI17SK() string
-	DynamoGSI18PK() string
-	DynamoGSI18SK() string
-	DynamoGSI19PK() string
-	DynamoGSI19SK() string
-	DynamoGSI20PK() string
-	DynamoGSI20SK() string
+	PK() string
+	SK() string
+	GSI1PK() string
+	GSI1SK() string
+	GSI2PK() string
+	GSI2SK() string
+	GSI3PK() string
+	GSI3SK() string
+	GSI4PK() string
+	GSI4SK() string
+	GSI5PK() string
+	GSI5SK() string
+	GSI6PK() string
+	GSI6SK() string
+	GSI7PK() string
+	GSI7SK() string
+	GSI8PK() string
+	GSI8SK() string
+	GSI9PK() string
+	GSI9SK() string
+	GSI10PK() string
+	GSI10SK() string
+	GSI11PK() string
+	GSI11SK() string
+	GSI12PK() string
+	GSI12SK() string
+	GSI13PK() string
+	GSI13SK() string
+	GSI14PK() string
+	GSI14SK() string
+	GSI15PK() string
+	GSI15SK() string
+	GSI16PK() string
+	GSI16SK() string
+	GSI17PK() string
+	GSI17SK() string
+	GSI18PK() string
+	GSI18SK() string
+	GSI19PK() string
+	GSI19SK() string
+	GSI20PK() string
+	GSI20SK() string
+}
+
+// OpaqueStore is the interface that store adapters implement to persist and
+// retrieve OpaqueData projections. Each adapter maps OpaqueData fields to
+// its native storage format (DynamoDB items, Cosmos containers, etc.).
+type OpaqueStore interface {
+	Put(ctx context.Context, od *opaquedatav1.OpaqueData) error
+	Get(ctx context.Context, pk, sk string) (*opaquedatav1.OpaqueData, error)
+	Delete(ctx context.Context, pk, sk string) error
+	Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort *SortCondition, opts ...QueryOption) ([]*opaquedatav1.OpaqueData, error)
 }
 
 type Hydrater interface {
@@ -73,50 +84,50 @@ func NewOpaqueDataFromProto(msg AutoPKSK, opts ...Option) (*opaquedatav1.OpaqueD
 	}
 
 	od := &opaquedatav1.OpaqueData{
-		Pk:      msg.DynamoPK(),
-		Sk:      msg.DynamoSK(),
+		Pk:      msg.PK(),
+		Sk:      msg.SK(),
 		Body:    body,
 		Ttl:     GetTTL(o.ttl),
-		Gsi1Pk:  msg.DynamoGSI1PK(),
-		Gsi1Sk:  msg.DynamoGSI1SK(),
-		Gsi2Pk:  msg.DynamoGSI2PK(),
-		Gsi2Sk:  msg.DynamoGSI2SK(),
-		Gsi3Pk:  msg.DynamoGSI3PK(),
-		Gsi3Sk:  msg.DynamoGSI3SK(),
-		Gsi4Pk:  msg.DynamoGSI4PK(),
-		Gsi4Sk:  msg.DynamoGSI4SK(),
-		Gsi5Pk:  msg.DynamoGSI5PK(),
-		Gsi5Sk:  msg.DynamoGSI5SK(),
-		Gsi6Pk:  msg.DynamoGSI6PK(),
-		Gsi6Sk:  msg.DynamoGSI6SK(),
-		Gsi7Pk:  msg.DynamoGSI7PK(),
-		Gsi7Sk:  msg.DynamoGSI7SK(),
-		Gsi8Pk:  msg.DynamoGSI8PK(),
-		Gsi8Sk:  msg.DynamoGSI8SK(),
-		Gsi9Pk:  msg.DynamoGSI9PK(),
-		Gsi9Sk:  msg.DynamoGSI9SK(),
-		Gsi10Pk: msg.DynamoGSI10PK(),
-		Gsi10Sk: msg.DynamoGSI10SK(),
-		Gsi11Pk: msg.DynamoGSI11PK(),
-		Gsi11Sk: msg.DynamoGSI11SK(),
-		Gsi12Pk: msg.DynamoGSI12PK(),
-		Gsi12Sk: msg.DynamoGSI12SK(),
-		Gsi13Pk: msg.DynamoGSI13PK(),
-		Gsi13Sk: msg.DynamoGSI13SK(),
-		Gsi14Pk: msg.DynamoGSI14PK(),
-		Gsi14Sk: msg.DynamoGSI14SK(),
-		Gsi15Pk: msg.DynamoGSI15PK(),
-		Gsi15Sk: msg.DynamoGSI15SK(),
-		Gsi16Pk: msg.DynamoGSI16PK(),
-		Gsi16Sk: msg.DynamoGSI16SK(),
-		Gsi17Pk: msg.DynamoGSI17PK(),
-		Gsi17Sk: msg.DynamoGSI17SK(),
-		Gsi18Pk: msg.DynamoGSI18PK(),
-		Gsi18Sk: msg.DynamoGSI18SK(),
-		Gsi19Pk: msg.DynamoGSI19PK(),
-		Gsi19Sk: msg.DynamoGSI19SK(),
-		Gsi20Pk: msg.DynamoGSI20PK(),
-		Gsi20Sk: msg.DynamoGSI20SK(),
+		Gsi1Pk:  msg.GSI1PK(),
+		Gsi1Sk:  msg.GSI1SK(),
+		Gsi2Pk:  msg.GSI2PK(),
+		Gsi2Sk:  msg.GSI2SK(),
+		Gsi3Pk:  msg.GSI3PK(),
+		Gsi3Sk:  msg.GSI3SK(),
+		Gsi4Pk:  msg.GSI4PK(),
+		Gsi4Sk:  msg.GSI4SK(),
+		Gsi5Pk:  msg.GSI5PK(),
+		Gsi5Sk:  msg.GSI5SK(),
+		Gsi6Pk:  msg.GSI6PK(),
+		Gsi6Sk:  msg.GSI6SK(),
+		Gsi7Pk:  msg.GSI7PK(),
+		Gsi7Sk:  msg.GSI7SK(),
+		Gsi8Pk:  msg.GSI8PK(),
+		Gsi8Sk:  msg.GSI8SK(),
+		Gsi9Pk:  msg.GSI9PK(),
+		Gsi9Sk:  msg.GSI9SK(),
+		Gsi10Pk: msg.GSI10PK(),
+		Gsi10Sk: msg.GSI10SK(),
+		Gsi11Pk: msg.GSI11PK(),
+		Gsi11Sk: msg.GSI11SK(),
+		Gsi12Pk: msg.GSI12PK(),
+		Gsi12Sk: msg.GSI12SK(),
+		Gsi13Pk: msg.GSI13PK(),
+		Gsi13Sk: msg.GSI13SK(),
+		Gsi14Pk: msg.GSI14PK(),
+		Gsi14Sk: msg.GSI14SK(),
+		Gsi15Pk: msg.GSI15PK(),
+		Gsi15Sk: msg.GSI15SK(),
+		Gsi16Pk: msg.GSI16PK(),
+		Gsi16Sk: msg.GSI16SK(),
+		Gsi17Pk: msg.GSI17PK(),
+		Gsi17Sk: msg.GSI17SK(),
+		Gsi18Pk: msg.GSI18PK(),
+		Gsi18Sk: msg.GSI18SK(),
+		Gsi19Pk: msg.GSI19PK(),
+		Gsi19Sk: msg.GSI19SK(),
+		Gsi20Pk: msg.GSI20PK(),
+		Gsi20Sk: msg.GSI20SK(),
 	}
 
 	return od, nil
@@ -124,8 +135,8 @@ func NewOpaqueDataFromProto(msg AutoPKSK, opts ...Option) (*opaquedatav1.OpaqueD
 
 func NewOpaqueKeyFromProto(msg AutoPKSK) *opaquedatav1.OpaqueData {
 	return &opaquedatav1.OpaqueData{
-		Pk: msg.DynamoPK(),
-		Sk: msg.DynamoSK(),
+		Pk: msg.PK(),
+		Sk: msg.SK(),
 	}
 }
 

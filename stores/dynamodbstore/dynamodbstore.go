@@ -15,13 +15,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Dynamoer is the interface covering all DynamoDB operations needed by the
-// store and opaquedata. It is satisfied by *dynamodb.Client and also satisfies
-// opaquedata.DynamoDBer, so the same client can be used for both event storage
-// and opaquedata aggregate storage.
 // Dynamoer is the minimal DynamoDB interface required by DynamoDBStore.
-// Generated opaquedata clients need the broader opaquedata.DynamoDBer interface
-// (which adds DeleteItem/UpdateItem); pass the *dynamodb.Client directly to those.
+// It is satisfied by *dynamodb.Client.
 type Dynamoer interface {
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
@@ -50,7 +45,7 @@ type DynamoDBStore struct {
 	client          Dynamoer
 	eventsTable     string
 	aggregatesTable string
-	opaqueTable     string // when set, SaveAggregate uses opaquedata single-table for AutoPKSK aggregates
+	opaqueStore     opaquedata.OpaqueStore // when set, SaveAggregate uses opaquedata single-table for AutoPKSK aggregates
 	tenantPrefix    string
 	ttl             time.Duration // when non-zero, sets TTL attribute on event writes
 }
@@ -90,12 +85,12 @@ func WithTenantPrefix(prefix string) Option {
 	return func(s *DynamoDBStore) { s.tenantPrefix = prefix }
 }
 
-// WithOpaqueTable enables opaquedata single-table storage for aggregates that
-// implement AutoPKSK. When set, SaveAggregate uses opaquedata to store the
-// aggregate with full GSI indexing. Dynamoer satisfies opaquedata.DynamoDBer,
-// so the same client handles both event storage and opaquedata operations.
-func WithOpaqueTable(name string) Option {
-	return func(s *DynamoDBStore) { s.opaqueTable = name }
+// WithOpaqueStore enables opaquedata single-table storage for aggregates that
+// implement AutoPKSK. When set, SaveAggregate uses the provided OpaqueStore to
+// persist the aggregate with full GSI indexing. Tenant prefixing and
+// DynamoDB-specific concerns are handled by the OpaqueStore implementation.
+func WithOpaqueStore(store opaquedata.OpaqueStore) Option {
+	return func(s *DynamoDBStore) { s.opaqueStore = store }
 }
 
 // WithTTL sets a time-to-live duration for event records. When set, each saved
@@ -291,7 +286,7 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 	return history, nil
 }
 
-// SaveAggregate persists the materialized aggregate state. If an opaque table
+// SaveAggregate persists the materialized aggregate state. If an OpaqueStore
 // is configured and the aggregate implements opaquedata.AutoPKSK, the aggregate
 // is stored via opaquedata with full GSI indexing. Otherwise, it falls back to
 // proto.Marshal + PutItem to the aggregates table.
@@ -300,21 +295,14 @@ func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregate proto.Messa
 		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 	}
 
-	// Opaquedata path: aggregate implements AutoPKSK and opaque table is configured.
-	if s.opaqueTable != "" {
+	// Opaquedata path: aggregate implements AutoPKSK and OpaqueStore is configured.
+	if s.opaqueStore != nil {
 		if apk, ok := aggregate.(opaquedata.AutoPKSK); ok {
 			od, err := opaquedata.NewOpaqueDataFromProto(apk)
 			if err != nil {
 				return fmt.Errorf("dynamodbstore.SaveAggregate: opaquedata: %w", err)
 			}
-			if s.tenantPrefix != "" {
-				opaquedata.PrefixPKs(od, s.tenantPrefix)
-			}
-			_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
-				TableName: &s.opaqueTable,
-				Item:      opaquedata.GetItem(od),
-			})
-			if err != nil {
+			if err := s.opaqueStore.Put(ctx, od); err != nil {
 				return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 			}
 			return nil

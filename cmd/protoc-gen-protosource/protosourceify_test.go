@@ -207,5 +207,43 @@ func TestStateEnumName_UsesIndex(t *testing.T) {
 	}
 }
 
+func TestValidateMessageNamesAgainstOpaque(t *testing.T) {
+	t.Run("conflict", func(t *testing.T) {
+		f := loadTestProto(t, "conflicting_opaque_name.proto")
+		p := newModule()
+
+		err := p.validateMessageNamesAgainstOpaque(f)
+		if err == nil {
+			t.Fatal("expected error for conflicting message name GSI1PK, got nil")
+		}
+		if !strings.Contains(err.Error(), "GSI1PK") {
+			t.Errorf("error should mention GSI1PK, got: %v", err)
+		}
+	})
+
+	t.Run("no_conflict", func(t *testing.T) {
+		f := loadTestProto(t, "valid.proto")
+		p := newModule()
+
+		err := p.validateMessageNamesAgainstOpaque(f)
+		if err != nil {
+			t.Errorf("unexpected error for valid proto: %v", err)
+		}
+	})
+}
+
+func TestOpaqueReservedNames(t *testing.T) {
+	names := opaqueReservedNames()
+	// 42 key slots + Hydrate = 43
+	if len(names) != 43 {
+		t.Errorf("expected 43 reserved names, got %d", len(names))
+	}
+	for _, want := range []string{"PK", "SK", "GSI1PK", "GSI1SK", "GSI20PK", "GSI20SK", "Hydrate"} {
+		if !names[want] {
+			t.Errorf("expected %q in reserved names", want)
+		}
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType

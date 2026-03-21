@@ -19,8 +19,6 @@ import (
     "buf.build/go/protovalidate"
     "github.com/funinthecloud/protosource"
 {{ if $hasOpaque }}
-    "github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
-    "github.com/aws/aws-sdk-go-v2/service/dynamodb"
     "github.com/funinthecloud/protosource/opaquedata"
     opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
     "google.golang.org/protobuf/proto"
@@ -276,7 +274,7 @@ func (m *{{ $message.Name }}) EventName() string {
 
 {{ range $kt := opaqueAllKeySlots }}{{ $slotName := opaqueKeySlotName $kt }}{{ $fields := index $mappings $kt -}}
 {{ if $fields -}}
-func (m *{{ $msgName }}) Dynamo{{ $slotName }}() string {
+func (m *{{ $msgName }}) {{ $slotName }}() string {
     if m == nil {
         return ""
     }
@@ -286,7 +284,7 @@ func (m *{{ $msgName }}) Dynamo{{ $slotName }}() string {
     return fmt.Sprintf("{{ $prefix }}%s", fields)
 }
 {{ else -}}
-func (m *{{ $msgName }}) Dynamo{{ $slotName }}() string { return "NA" }
+func (m *{{ $msgName }}) {{ $slotName }}() string { return "NA" }
 {{ end -}}
 {{ end }}
 
@@ -315,65 +313,45 @@ func (v {{ $msgName }}GSI{{ $gsi.Num }}SK) String() string {
 // ── Client for {{ $msgName }} ──
 
 type {{ $msgName }}Client struct {
-    db        opaquedata.DynamoDBer
-    tableName string
+    store opaquedata.OpaqueStore
 }
 
-func New{{ $msgName }}Client(db opaquedata.DynamoDBer, tableName string) *{{ $msgName }}Client {
-    return &{{ $msgName }}Client{db: db, tableName: tableName}
+func New{{ $msgName }}Client(store opaquedata.OpaqueStore) *{{ $msgName }}Client {
+    return &{{ $msgName }}Client{store: store}
 }
 
-func (c *{{ $msgName }}Client) Add{{ $msgName }}(ctx context.Context, d *{{ $msgName }}, opts ...opaquedata.Option) (*dynamodb.PutItemOutput, error) {
+func (c *{{ $msgName }}Client) Add{{ $msgName }}(ctx context.Context, d *{{ $msgName }}, opts ...opaquedata.Option) error {
     od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
     if err != nil {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Add{{ $msgName }}: %w", err)
+        return fmt.Errorf("{{ $msgName }}Client.Add{{ $msgName }}: %w", err)
     }
-    item := opaquedata.GetItem(od)
-    return c.db.PutItem(ctx, &dynamodb.PutItemInput{
-        TableName: &c.tableName,
-        Item:      item,
-    })
+    return c.store.Put(ctx, od)
 }
 
 func (c *{{ $msgName }}Client) Get{{ $msgName }}(ctx context.Context, {{ range $i, $fm := opaquePKFields $message }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) (*{{ $msgName }}, error) {
     key := &{{ $msgName }}{
 {{ range $fm := opaquePKFields $message }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
 {{ end }}    }
-    od := opaquedata.NewOpaqueKeyFromProto(key)
-    resp, err := c.db.GetItem(ctx, &dynamodb.GetItemInput{
-        TableName: &c.tableName,
-        Key:       opaquedata.GetKey(od),
-    })
+    od, err := c.store.Get(ctx, key.PK(), key.SK())
     if err != nil {
         return nil, fmt.Errorf("{{ $msgName }}Client.Get{{ $msgName }}: %w", err)
     }
-    if resp.Item == nil {
-        return nil, opaquedata.ErrNotFound
-    }
-    var result opaquedatav1.OpaqueData
-    if err := attributevalue.UnmarshalMap(resp.Item, &result); err != nil {
-        return nil, fmt.Errorf("{{ $msgName }}Client.Get{{ $msgName }}: unmarshal: %w", err)
-    }
     target := &{{ $msgName }}{}
-    if err := opaquedata.ReHydrate(&result, target); err != nil {
+    if err := opaquedata.ReHydrate(od, target); err != nil {
         return nil, fmt.Errorf("{{ $msgName }}Client.Get{{ $msgName }}: rehydrate: %w", err)
     }
     return target, nil
 }
 
-func (c *{{ $msgName }}Client) Update{{ $msgName }}(ctx context.Context, d *{{ $msgName }}, opts ...opaquedata.Option) (*dynamodb.PutItemOutput, error) {
+func (c *{{ $msgName }}Client) Update{{ $msgName }}(ctx context.Context, d *{{ $msgName }}, opts ...opaquedata.Option) error {
     return c.Add{{ $msgName }}(ctx, d, opts...)
 }
 
-func (c *{{ $msgName }}Client) Delete{{ $msgName }}(ctx context.Context, {{ range $i, $fm := opaquePKFields $message }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) (*dynamodb.DeleteItemOutput, error) {
+func (c *{{ $msgName }}Client) Delete{{ $msgName }}(ctx context.Context, {{ range $i, $fm := opaquePKFields $message }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) error {
     key := &{{ $msgName }}{
 {{ range $fm := opaquePKFields $message }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
 {{ end }}    }
-    od := opaquedata.NewOpaqueKeyFromProto(key)
-    return c.db.DeleteItem(ctx, &dynamodb.DeleteItemInput{
-        TableName: &c.tableName,
-        Key:       opaquedata.GetKey(od),
-    })
+    return c.store.Delete(ctx, key.PK(), key.SK())
 }
 
 {{ range $gsi := opaqueUsedGSIs $message }}
@@ -382,8 +360,8 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
     pk := &{{ $msgName }}{
 {{ range $fm := $gsi.PKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
 {{ end }}    }
-    pkValue := pk.Dynamo{{ opaqueKeySlotName $gsi.PKType }}()
-    results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", nil, opaquedata.WithGSIIndex({{ $gsi.Num }}))
+    pkValue := pk.{{ opaqueKeySlotName $gsi.PKType }}()
+    results, err := c.store.Query(ctx, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", nil, opaquedata.WithGSIIndex({{ $gsi.Num }}))
     if err != nil {
         return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}: %w", err)
     }
@@ -403,7 +381,7 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
     pk := &{{ $msgName }}{
 {{ range $fm := $gsi.PKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }},
 {{ end }}    }
-    pkValue := pk.Dynamo{{ opaqueKeySlotName $gsi.PKType }}()
+    pkValue := pk.{{ opaqueKeySlotName $gsi.PKType }}()
     sort := &opaquedata.SortCondition{
         Operator: op,
         Value:    vals[0].String(),
@@ -411,7 +389,7 @@ func (c *{{ $msgName }}Client) Select{{ $msgName }}By{{ range $i, $fm := $gsi.PK
     if op == opaquedata.Between {
         sort.Value2 = vals[1].String()
     }
-    results, err := opaquedata.QueryPKSK(ctx, c.db, c.tableName, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", sort, opaquedata.WithGSIIndex({{ $gsi.Num }}))
+    results, err := c.store.Query(ctx, "gsi{{ $gsi.Num }}pk", pkValue, "gsi{{ $gsi.Num }}sk", sort, opaquedata.WithGSIIndex({{ $gsi.Num }}))
     if err != nil {
         return nil, fmt.Errorf("{{ $msgName }}Client.Select{{ $msgName }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}: %w", err)
     }
