@@ -854,3 +854,42 @@ func TestSnapshot_LoadReconstructsFromSnapshot(t *testing.T) {
 		t.Errorf("expected id 'id-1', got %q", test.GetId())
 	}
 }
+
+// --- History tests ---
+
+func TestHistory_ReturnsFullEventStream(t *testing.T) {
+	repo := newTestRepo()
+	ctx := context.Background()
+
+	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "updated"})
+
+	history, err := repo.History(ctx, "id-1")
+	if err != nil {
+		t.Fatalf("history failed: %v", err)
+	}
+
+	// Create emits Created(v1)+Unlocked(v2), Update emits Updated(v3)+Snapshot(v4)
+	if got := len(history.GetRecords()); got != 4 {
+		t.Fatalf("expected 4 records, got %d", got)
+	}
+}
+
+func TestHistory_EmptyId(t *testing.T) {
+	repo := newTestRepo()
+	_, err := repo.History(context.Background(), "")
+	if !errors.Is(err, protosource.ErrEmptyAggregateId) {
+		t.Fatalf("expected ErrEmptyAggregateId, got: %v", err)
+	}
+}
+
+func TestHistory_NonexistentAggregate(t *testing.T) {
+	repo := newTestRepo()
+	history, err := repo.History(context.Background(), "nonexistent")
+	if err != nil {
+		t.Fatalf("expected no error for nonexistent aggregate, got: %v", err)
+	}
+	if len(history.GetRecords()) != 0 {
+		t.Fatalf("expected empty history, got %d records", len(history.GetRecords()))
+	}
+}

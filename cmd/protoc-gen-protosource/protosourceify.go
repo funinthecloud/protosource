@@ -67,6 +67,8 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueKeySlotName":      opaqueKeySlotName,
 		"opaqueKeySlotGSINum":    opaqueKeySlotGSINum,
 		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
+		"routePrefix":            p.routePrefix,
+		"lower":                  strings.ToLower,
 	}
 }
 
@@ -361,12 +363,20 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 	return nil
 }
 
-// outputPath computes the output file path for a proto file.
-// It supports the "module" parameter (like protoc-gen-go) to strip a Go module
-// prefix from the go_package import path, producing a relative output path.
-func (p *ProtosourceModule) outputPath(f pgs.File) string {
+// outputPathForTemplate computes the output file path for a proto file and template.
+// The default template ("protosource.gotext") produces ".protosource.pb.go" (backward compatible).
+// Other templates produce ".protosource.<name>.pb.go" where <name> is the template name
+// without the ".gotext" extension.
+func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Template) string {
 	importPath := p.ctx.ImportPath(f).String()
-	base := strings.TrimSuffix(f.InputPath().Base(), ".proto") + ".protosource.pb.go"
+
+	suffix := ".protosource.pb.go"
+	if tplName := tpl.Name(); tplName != "protosource.gotext" {
+		name := strings.TrimSuffix(tplName, ".gotext")
+		suffix = ".protosource." + name + ".pb.go"
+	}
+
+	base := strings.TrimSuffix(f.InputPath().Base(), ".proto") + suffix
 
 	if mod := p.params.Str("module"); mod != "" {
 		rel := strings.TrimPrefix(importPath, mod)
@@ -376,7 +386,18 @@ func (p *ProtosourceModule) outputPath(f pgs.File) string {
 
 	// Fallback: use OutputPath from pgsgo context
 	out := p.ctx.OutputPath(f).String()
-	return strings.TrimSuffix(out, ".pb.go") + ".protosource.pb.go"
+	return strings.TrimSuffix(out, ".pb.go") + suffix
+}
+
+// routePrefix returns the module-stripped import path for a proto file,
+// used to derive HTTP route prefixes (e.g., "example/app/sample/v1").
+func (p *ProtosourceModule) routePrefix(f pgs.File) string {
+	importPath := p.ctx.ImportPath(f).String()
+	if mod := p.params.Str("module"); mod != "" {
+		rel := strings.TrimPrefix(importPath, mod)
+		return strings.TrimPrefix(rel, "/")
+	}
+	return importPath
 }
 
 func (p *ProtosourceModule) dump(input any) string {
@@ -444,7 +465,7 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 	}
 
 	for _, v := range p.tpls {
-		outPath := p.outputPath(f)
+		outPath := p.outputPathForTemplate(f, v)
 		p.AddGeneratorTemplateFile(outPath, v, f)
 	}
 }
