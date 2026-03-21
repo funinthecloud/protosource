@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
@@ -123,11 +124,11 @@ func QueryPKSK(ctx context.Context, client Querier, table, pkAttr, pkValue strin
 		}
 
 		for _, item := range resp.Items {
-			od, err := itemToOpaqueData(item)
-			if err != nil {
-				return nil, fmt.Errorf("opaquedata: convert item: %w", err)
+			var od opaquedatav1.OpaqueData
+			if err := attributevalue.UnmarshalMap(item, &od); err != nil {
+				return nil, fmt.Errorf("opaquedata: unmarshal item: %w", err)
 			}
-			results = append(results, od)
+			results = append(results, &od)
 		}
 
 		if resp.LastEvaluatedKey == nil {
@@ -136,99 +137,7 @@ func QueryPKSK(ctx context.Context, client Querier, table, pkAttr, pkValue strin
 		input.ExclusiveStartKey = resp.LastEvaluatedKey
 	}
 
-	if len(results) == 0 {
-		return nil, ErrNotFound
-	}
 	return results, nil
-}
-
-func itemToOpaqueData(item map[string]types.AttributeValue) (*opaquedatav1.OpaqueData, error) {
-	od := &opaquedatav1.OpaqueData{}
-
-	if v, ok := item["pk"]; ok {
-		if s, ok := v.(*types.AttributeValueMemberS); ok {
-			od.Pk = s.Value
-		}
-	}
-	if v, ok := item["sk"]; ok {
-		if s, ok := v.(*types.AttributeValueMemberS); ok {
-			od.Sk = s.Value
-		}
-	}
-	if v, ok := item["body"]; ok {
-		if b, ok := v.(*types.AttributeValueMemberB); ok {
-			od.Body = b.Value
-		}
-	}
-	if v, ok := item["ttl"]; ok {
-		if n, ok := v.(*types.AttributeValueMemberN); ok {
-			val, err := strconv.ParseInt(n.Value, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("parse ttl: %w", err)
-			}
-			od.Ttl = val
-		}
-	}
-	if v, ok := item["version"]; ok {
-		if n, ok := v.(*types.AttributeValueMemberN); ok {
-			val, err := strconv.ParseInt(n.Value, 10, 64)
-			if err != nil {
-				return nil, fmt.Errorf("parse version: %w", err)
-			}
-			od.Version = val
-		}
-	}
-
-	setGSIField := func(attr string, target *string) {
-		if v, ok := item[attr]; ok {
-			if s, ok := v.(*types.AttributeValueMemberS); ok {
-				*target = s.Value
-			}
-		}
-	}
-
-	setGSIField("gsi1pk", &od.Gsi1Pk)
-	setGSIField("gsi1sk", &od.Gsi1Sk)
-	setGSIField("gsi2pk", &od.Gsi2Pk)
-	setGSIField("gsi2sk", &od.Gsi2Sk)
-	setGSIField("gsi3pk", &od.Gsi3Pk)
-	setGSIField("gsi3sk", &od.Gsi3Sk)
-	setGSIField("gsi4pk", &od.Gsi4Pk)
-	setGSIField("gsi4sk", &od.Gsi4Sk)
-	setGSIField("gsi5pk", &od.Gsi5Pk)
-	setGSIField("gsi5sk", &od.Gsi5Sk)
-	setGSIField("gsi6pk", &od.Gsi6Pk)
-	setGSIField("gsi6sk", &od.Gsi6Sk)
-	setGSIField("gsi7pk", &od.Gsi7Pk)
-	setGSIField("gsi7sk", &od.Gsi7Sk)
-	setGSIField("gsi8pk", &od.Gsi8Pk)
-	setGSIField("gsi8sk", &od.Gsi8Sk)
-	setGSIField("gsi9pk", &od.Gsi9Pk)
-	setGSIField("gsi9sk", &od.Gsi9Sk)
-	setGSIField("gsi10pk", &od.Gsi10Pk)
-	setGSIField("gsi10sk", &od.Gsi10Sk)
-	setGSIField("gsi11pk", &od.Gsi11Pk)
-	setGSIField("gsi11sk", &od.Gsi11Sk)
-	setGSIField("gsi12pk", &od.Gsi12Pk)
-	setGSIField("gsi12sk", &od.Gsi12Sk)
-	setGSIField("gsi13pk", &od.Gsi13Pk)
-	setGSIField("gsi13sk", &od.Gsi13Sk)
-	setGSIField("gsi14pk", &od.Gsi14Pk)
-	setGSIField("gsi14sk", &od.Gsi14Sk)
-	setGSIField("gsi15pk", &od.Gsi15Pk)
-	setGSIField("gsi15sk", &od.Gsi15Sk)
-	setGSIField("gsi16pk", &od.Gsi16Pk)
-	setGSIField("gsi16sk", &od.Gsi16Sk)
-	setGSIField("gsi17pk", &od.Gsi17Pk)
-	setGSIField("gsi17sk", &od.Gsi17Sk)
-	setGSIField("gsi18pk", &od.Gsi18Pk)
-	setGSIField("gsi18sk", &od.Gsi18Sk)
-	setGSIField("gsi19pk", &od.Gsi19Pk)
-	setGSIField("gsi19sk", &od.Gsi19Sk)
-	setGSIField("gsi20pk", &od.Gsi20Pk)
-	setGSIField("gsi20sk", &od.Gsi20Sk)
-
-	return od, nil
 }
 
 // GSIIndexName returns the DynamoDB index name for the given GSI number (1-20).

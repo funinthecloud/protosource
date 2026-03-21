@@ -4,8 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -229,15 +231,16 @@ func TestQueryPKSK_TTLFilter(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Empty results → ErrNotFound
+// Empty results → nil, nil (not ErrNotFound)
 // ---------------------------------------------------------------------------
 
 func TestQueryPKSK_EmptyResults(t *testing.T) {
 	mock := &mockQuerier{
 		results: []*dynamodb.QueryOutput{{Items: nil}},
 	}
-	_, err := QueryPKSK(context.Background(), mock, "table", "pk", "pk1", "sk", nil)
-	assert.ErrorIs(t, err, ErrNotFound)
+	results, err := QueryPKSK(context.Background(), mock, "table", "pk", "pk1", "sk", nil)
+	assert.NoError(t, err)
+	assert.Nil(t, results)
 }
 
 // ---------------------------------------------------------------------------
@@ -262,10 +265,10 @@ func TestQueryPKSK_InvalidGSIIndex(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// itemToOpaqueData
+// UnmarshalMap round-trip (replaces former itemToOpaqueData test)
 // ---------------------------------------------------------------------------
 
-func TestItemToOpaqueData_FullItem(t *testing.T) {
+func TestUnmarshalMap_FullItem(t *testing.T) {
 	item := map[string]types.AttributeValue{
 		"pk":      &types.AttributeValueMemberS{Value: "PK"},
 		"sk":      &types.AttributeValueMemberS{Value: "SK"},
@@ -275,8 +278,8 @@ func TestItemToOpaqueData_FullItem(t *testing.T) {
 		"gsi1pk":  &types.AttributeValueMemberS{Value: "G1PK"},
 		"gsi20sk": &types.AttributeValueMemberS{Value: "G20SK"},
 	}
-	od, err := itemToOpaqueData(item)
-	require.NoError(t, err)
+	var od opaquedatav1.OpaqueData
+	require.NoError(t, attributevalue.UnmarshalMap(item, &od))
 	assert.Equal(t, "PK", od.GetPk())
 	assert.Equal(t, "SK", od.GetSk())
 	assert.Equal(t, []byte("body"), od.GetBody())
