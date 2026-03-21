@@ -17,12 +17,11 @@ import (
 )
 
 // newTestRepo creates a Repository wired to the test domain with memorystore and protobinary serializer.
-func newTestRepo(opts ...memorystore.Option) *protosource.Repository {
-	store := memorystore.New(opts...)
+func newTestRepo() *protosource.Repository {
 	return protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		memorystore.New(0),
+		protobinaryserializer.NewSerializer(),
 	)
 }
 
@@ -615,11 +614,11 @@ func (s *snapshotTailStore) LoadTail(ctx context.Context, aggregateID string, n 
 }
 
 func TestLoad_NonSnapshotTailStore_UsesFullLoad(t *testing.T) {
-	store := &basicStore{inner: memorystore.New()}
+	store := &basicStore{inner: memorystore.New(0)}
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 	)
 	ctx := context.Background()
 
@@ -641,11 +640,11 @@ func TestLoad_NonSnapshotTailStore_UsesFullLoad(t *testing.T) {
 func TestLoad_NonSnapshoterAggregate_UsesFullLoad(t *testing.T) {
 	// samplenosnapshot doesn't implement Snapshoter, so loadHistory should
 	// fall back to full Load even with a SnapshotTailStore.
-	store := &snapshotTailStore{inner: memorystore.New()}
+	store := &snapshotTailStore{inner: memorystore.New(0)}
 	repo := protosource.New(
 		&samplenov1.Sample{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 	)
 	ctx := context.Background()
 
@@ -670,11 +669,11 @@ func TestLoad_NonSnapshoterAggregate_UsesFullLoad(t *testing.T) {
 func TestLoad_SnapshotTailStore_UsesLoadTail(t *testing.T) {
 	// testv1.Test implements Snapshoter and snapshotTailStore implements
 	// SnapshotTailStore, so loadHistory should use LoadTail.
-	store := &snapshotTailStore{inner: memorystore.New()}
+	store := &snapshotTailStore{inner: memorystore.New(0)}
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 	)
 	ctx := context.Background()
 
@@ -713,12 +712,12 @@ func TestLoad_SnapshotTailStore_UsesLoadTail(t *testing.T) {
 func TestSnapshot_CapturesPostEventState(t *testing.T) {
 	// Interval=3 (from proto). Create emits Created(v1)+Unlocked(v2), Update emits Updated(v3).
 	// Snapshot should fire at v3 and capture the aggregate state WITH the Updated body.
-	store := memorystore.New()
+	store := memorystore.New(0)
 	ser := protobinaryserializer.NewSerializer()
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(ser),
+		store,
+		ser,
 	)
 	ctx := context.Background()
 
@@ -769,12 +768,12 @@ func TestSnapshot_MultiEventBoundaryCrossing(t *testing.T) {
 	// Then 4 updates: Updated(v3)→snap(v4), Updated(v5), Updated(v6)→snap(v7), Updated(v8).
 	// The first snapshot fires mid-stream at v3 (the boundary). Without per-event
 	// checking, a multi-event command crossing the boundary would miss it.
-	store := memorystore.New()
+	store := memorystore.New(0)
 	ser := protobinaryserializer.NewSerializer()
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(ser),
+		store,
+		ser,
 	)
 	ctx := context.Background()
 
@@ -825,12 +824,12 @@ func TestSnapshot_MultiEventBoundaryCrossing(t *testing.T) {
 func TestSnapshot_LoadReconstructsFromSnapshot(t *testing.T) {
 	// Verify that loading with LoadTail (snapshot-aware store) produces
 	// the same aggregate state as full replay.
-	store := &snapshotTailStore{inner: memorystore.New()}
+	store := &snapshotTailStore{inner: memorystore.New(0)}
 	ser := protobinaryserializer.NewSerializer()
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(ser),
+		store,
+		ser,
 	)
 	ctx := context.Background()
 
@@ -892,4 +891,45 @@ func TestHistory_NonexistentAggregate(t *testing.T) {
 	if len(history.GetRecords()) != 0 {
 		t.Fatalf("expected empty history, got %d records", len(history.GetRecords()))
 	}
+}
+
+// --- New nil-check tests ---
+
+func TestNew_NilPrototype(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for nil prototype")
+		}
+		if msg, ok := r.(string); !ok || msg != "protosource.New: prototype must not be nil" {
+			t.Fatalf("unexpected panic message: %v", r)
+		}
+	}()
+	protosource.New(nil, memorystore.New(0), protobinaryserializer.NewSerializer())
+}
+
+func TestNew_NilStore(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for nil store")
+		}
+		if msg, ok := r.(string); !ok || msg != "protosource.New: store must not be nil" {
+			t.Fatalf("unexpected panic message: %v", r)
+		}
+	}()
+	protosource.New(&testv1.Test{}, nil, protobinaryserializer.NewSerializer())
+}
+
+func TestNew_NilSerializer(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("expected panic for nil serializer")
+		}
+		if msg, ok := r.(string); !ok || msg != "protosource.New: serializer must not be nil" {
+			t.Fatalf("unexpected panic message: %v", r)
+		}
+	}()
+	protosource.New(&testv1.Test{}, memorystore.New(0), nil)
 }

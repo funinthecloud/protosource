@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package test.conflicting;
+
+option go_package = "github.com/funinthecloud/protosource/test/conflicting;conflictingpb";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+message Thing {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {};
+  string id        = 1 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
+    attributes: [ { type: OPAQUE_KEY_TYPE_PK, order: 1 } ]
+  }];
+  int64  version   = 2;
+  int64  create_at = 3;
+  string create_by = 4;
+  int64  modify_at = 5;
+  string modify_by = 6;
+}
+
+message Create {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: ["Created", "GSI1PK"]
+    lifecycle: COMMAND_LIFECYCLE_CREATION
+  };
+  string id    = 1;
+  string actor = 2;
+}
+
+message Created {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {};
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+}
+
+// This event name conflicts with the generated AutoPKSK method GSI1PK().
+message GSI1PK {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {};
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+}

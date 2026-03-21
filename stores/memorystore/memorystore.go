@@ -18,38 +18,18 @@ type MemoryStore struct {
 	snapshotInterval int32                           // Configurable snapshot interval value.
 }
 
-// New initializes and returns a new instance of MemoryStore with an empty events map.
-func New(opts ...Option) *MemoryStore {
-
-	m := &MemoryStore{
+// New initializes and returns a new instance of MemoryStore.
+// Pass the aggregate's snapshot interval (0 to disable snapshots).
+func New(snapshotInterval int32) *MemoryStore {
+	return &MemoryStore{
 		events:           make(map[string]*historyv1.History),
-		snapshotInterval: 0, // Default snapshot interval.
-	}
-
-	for _, opt := range opts {
-		opt(m)
-	}
-
-	return m
-}
-
-type Option func(store *MemoryStore)
-
-// WithSnapshotInterval sets the snapshot interval for the store.
-func WithSnapshotInterval(snapshotInterval int32) Option {
-	return func(r *MemoryStore) {
-		r.snapshotInterval = snapshotInterval
+		snapshotInterval: snapshotInterval,
 	}
 }
 
-// SnapshotInterval returns the snapshot interval (default 0).
+// SnapshotInterval returns the snapshot interval (0 means disabled).
 func (m *MemoryStore) SnapshotInterval() int32 {
 	return m.snapshotInterval
-}
-
-// SetSnapshotInterval allows setting a custom snapshot interval for the MemoryStore.
-func (m *MemoryStore) SetSnapshotInterval(interval int32) {
-	m.snapshotInterval = interval
 }
 
 // Save stores a list of records for a given aggregate ID.

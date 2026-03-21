@@ -9,7 +9,6 @@ import (
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
-	"github.com/funinthecloud/protosource/stores/memorystore"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -139,18 +138,30 @@ type Repository struct {
 	compressThreshold int          // 0 = disabled; >0 = compress data at or above this byte size
 }
 
-// New creates a new Repository with the given prototype and options.
-// By default, it uses protobinaryserializer and memorystore if no specific store or serializer is provided.
-func New(prototype Aggregate, opts ...Option) *Repository {
+// New creates a new Repository with the given prototype, store, and serializer.
+// All three parameters are required; passing nil for any of them panics
+// immediately with a descriptive message rather than deferring to an opaque
+// nil-pointer dereference at call time.
+func New(prototype Aggregate, store Store, serializer Serializer, opts ...Option) *Repository {
+	if prototype == nil {
+		panic("protosource.New: prototype must not be nil")
+	}
+	if store == nil {
+		panic("protosource.New: store must not be nil")
+	}
+	if serializer == nil {
+		panic("protosource.New: serializer must not be nil")
+	}
+
 	t := reflect.TypeOf(prototype)
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
 	}
 
 	r := &Repository{
-		prototype: t,
-		store:     memorystore.New(),
-		//serializer: protobinaryserializer.NewSerializer(),
+		prototype:  t,
+		store:      store,
+		serializer: serializer,
 	}
 
 	for _, opt := range opts {
@@ -162,20 +173,6 @@ func New(prototype Aggregate, opts ...Option) *Repository {
 
 // Option provides functional configuration options for the Repository
 type Option func(*Repository)
-
-// WithStore specifies the underlying store to use; by default, an in-memory store is used for testing
-func WithStore(store Store) Option {
-	return func(r *Repository) {
-		r.store = store
-	}
-}
-
-// WithSerializer sets the serializer to be used for converting between events and records
-func WithSerializer(serializer Serializer) Option {
-	return func(r *Repository) {
-		r.serializer = serializer
-	}
-}
 
 // WithCompression enables gzip compression for event record data stored by the
 // repository. Record data at or above the threshold (in bytes) is compressed

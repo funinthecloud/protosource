@@ -145,6 +145,7 @@ git checkout -b <branch-name> origin/main
 - [x] ~~Create a boltdb store with good test coverage~~ (84.2% coverage)
 - [x] ~~Analyze dynamodbstore to ensure it still works with current framework changes~~ (rewritten to implement all framework interfaces in PR #11)
 - [x] ~~Add capabilities to all stores to store the aggregate post-apply~~ (AggregateStore is now opt-in per store; only dynamodbstore implements it for GSI-indexed opaquedata storage)
+- [x] ~~Generate constants/accessors for proto annotations (e.g., snapshot frequency) so callers can use them when constructing repositories and stores without duplicating values~~ (SnapshotEveryNEvents constant, NewRepository constructor, wire ProviderSet)
 - [ ] Look deeper into multi-package projections and auto-generation possibilities
 - [x] ~~Add plugin validation for `sets_state` references (verify enum value exists in file)~~
 - [x] ~~Update sample and samplenosnapshot protos to use two-event pattern and `sets_state` if applicable~~

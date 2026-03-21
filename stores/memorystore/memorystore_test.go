@@ -16,34 +16,26 @@ func record(version int64, data string) *recordv1.Record {
 	return &recordv1.Record{Version: version, Data: []byte(data)}
 }
 
-// --- New / Options ---
+// --- New ---
 
 func TestNew_DefaultSnapshotInterval(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	if got := m.SnapshotInterval(); got != 0 {
 		t.Errorf("expected default snapshot interval 0, got %d", got)
 	}
 }
 
 func TestNew_WithSnapshotInterval(t *testing.T) {
-	m := memorystore.New(memorystore.WithSnapshotInterval(50))
+	m := memorystore.New(50)
 	if got := m.SnapshotInterval(); got != 50 {
 		t.Errorf("expected snapshot interval 50, got %d", got)
-	}
-}
-
-func TestSetSnapshotInterval(t *testing.T) {
-	m := memorystore.New()
-	m.SetSnapshotInterval(25)
-	if got := m.SnapshotInterval(); got != 25 {
-		t.Errorf("expected snapshot interval 25, got %d", got)
 	}
 }
 
 // --- Save ---
 
 func TestSave_SingleRecord(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	err := m.Save(context.Background(), "agg-1", record(1, "hello"))
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -51,7 +43,7 @@ func TestSave_SingleRecord(t *testing.T) {
 }
 
 func TestSave_MultipleRecordsAtOnce(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	err := m.Save(context.Background(), "agg-1",
 		record(1, "a"),
 		record(2, "b"),
@@ -68,7 +60,7 @@ func TestSave_MultipleRecordsAtOnce(t *testing.T) {
 }
 
 func TestSave_AppendsToPreviousRecords(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 
 	_ = m.Save(ctx, "agg-1", record(1, "first"))
@@ -88,7 +80,7 @@ func TestSave_AppendsToPreviousRecords(t *testing.T) {
 }
 
 func TestSave_NoRecords(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	err := m.Save(context.Background(), "agg-1")
 	if err != nil {
 		t.Fatalf("save with no records should succeed, got: %v", err)
@@ -102,7 +94,7 @@ func TestSave_NoRecords(t *testing.T) {
 }
 
 func TestSave_CancelledContext(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -113,7 +105,7 @@ func TestSave_CancelledContext(t *testing.T) {
 }
 
 func TestSave_DeadlineExceededContext(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx, cancel := context.WithTimeout(context.Background(), 0)
 	defer cancel()
 
@@ -126,7 +118,7 @@ func TestSave_DeadlineExceededContext(t *testing.T) {
 // --- Load ---
 
 func TestLoad_NonExistentAggregate(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	h, err := m.Load(context.Background(), "does-not-exist")
 	if err != nil {
 		t.Fatalf("load of non-existent aggregate should not error, got: %v", err)
@@ -137,7 +129,7 @@ func TestLoad_NonExistentAggregate(t *testing.T) {
 }
 
 func TestLoad_AfterSave(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 
 	_ = m.Save(ctx, "agg-1",
@@ -163,7 +155,7 @@ func TestLoad_AfterSave(t *testing.T) {
 }
 
 func TestLoad_CancelledContext(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
@@ -176,7 +168,7 @@ func TestLoad_CancelledContext(t *testing.T) {
 // --- Aggregate isolation ---
 
 func TestSaveLoad_IndependentAggregates(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 
 	_ = m.Save(ctx, "agg-1", record(1, "alpha"))
@@ -197,7 +189,7 @@ func TestSaveLoad_IndependentAggregates(t *testing.T) {
 // --- Record data integrity ---
 
 func TestLoad_PreservesRecordFields(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 
 	original := &recordv1.Record{
@@ -220,7 +212,7 @@ func TestLoad_PreservesRecordFields(t *testing.T) {
 // --- Concurrency ---
 
 func TestConcurrent_SaveAndLoad(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 	const numAggregates = 10
 	const eventsPerAggregate = 50
@@ -255,7 +247,7 @@ func TestConcurrent_SaveAndLoad(t *testing.T) {
 }
 
 func TestConcurrent_SaveAndLoadSameAggregate(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 	const numGoroutines = 20
 
@@ -292,7 +284,7 @@ func TestConcurrent_SaveAndLoadSameAggregate(t *testing.T) {
 // --- Proto equality (sanity check that proto records survive round-trip) ---
 
 func TestLoad_RecordProtoEquality(t *testing.T) {
-	m := memorystore.New()
+	m := memorystore.New(0)
 	ctx := context.Background()
 
 	saved := &recordv1.Record{

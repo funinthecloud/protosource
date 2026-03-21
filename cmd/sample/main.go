@@ -4,16 +4,19 @@ import (
 	"context"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/funinthecloud/protosource"
 	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
-	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
-	"github.com/funinthecloud/protosource/stores/memorystore"
 )
 
 func main() {
-	foo := GetMeARepo()
+	foo := InitializeRepository()
 
 	const SampleId = "56286b71-1c41-4300-86d7-29e4a94f0d2c"
+
+	const SmallBody = `0123456789`
+	const BigBody = `0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789`
 
 	create := &samplev1.Create{
 		Id:    SampleId,
@@ -29,7 +32,10 @@ func main() {
 		u := &samplev1.Update{
 			Id:    SampleId,
 			Actor: "HelgaFeld",
-			Body:  "Burp",
+			Body:  SmallBody,
+		}
+		if i%2 == 0 {
+			u.Body = BigBody
 		}
 		if _, err := foo.Apply(context.TODO(), u); err != nil {
 			panic(err)
@@ -42,12 +48,10 @@ func main() {
 	}
 	spew.Dump(bar)
 
-}
-
-func GetMeARepo() *protosource.Repository {
-
-	serializer := protobinaryserializer.NewSerializer()
-	store := memorystore.New(memorystore.WithSnapshotInterval(10))
-	return protosource.New(&samplev1.Sample{}, protosource.WithSerializer(serializer), protosource.WithStore(store))
+	baz, err := foo.History(context.TODO(), SampleId)
+	if err != nil {
+		panic(err)
+	}
+	spew.Dump(baz)
 
 }

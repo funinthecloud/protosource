@@ -10,18 +10,17 @@ import (
 	"github.com/funinthecloud/protosource/stores/memorystore"
 )
 
-func newCompressedRepo(threshold int, storeOpts ...memorystore.Option) *protosource.Repository {
-	store := memorystore.New(storeOpts...)
+func newCompressedRepo(threshold int, snapshotInterval int32) *protosource.Repository {
 	return protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		memorystore.New(snapshotInterval),
+		protobinaryserializer.NewSerializer(),
 		protosource.WithCompression(threshold),
 	)
 }
 
 func TestCompression_EventRoundTrip(t *testing.T) {
-	repo := newCompressedRepo(10)
+	repo := newCompressedRepo(10, 0)
 	ctx := context.Background()
 
 	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello world"})
@@ -52,14 +51,15 @@ func TestCompression_EventRoundTrip(t *testing.T) {
 }
 
 func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
-	store := memorystore.New()
+	store := memorystore.New(0)
 	ctx := context.Background()
 
 	// Write without compression
+	ser := protobinaryserializer.NewSerializer()
 	repoNoCompress := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		ser,
 	)
 	_, err := repoNoCompress.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "old data"})
 	if err != nil {
@@ -69,8 +69,8 @@ func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
 	// Read with compression enabled — should still work
 	repoWithCompress := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		ser,
 		protosource.WithCompression(10),
 	)
 	agg, err := repoWithCompress.Load(ctx, "id-1")
@@ -83,7 +83,7 @@ func TestCompression_BackwardCompat_UncompressedDataLoads(t *testing.T) {
 }
 
 func TestCompression_WithSnapshots(t *testing.T) {
-	repo := newCompressedRepo(10, memorystore.WithSnapshotInterval(3))
+	repo := newCompressedRepo(10, 3)
 	ctx := context.Background()
 
 	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "snapshot test body"})
@@ -108,14 +108,14 @@ func TestCompression_WithSnapshots(t *testing.T) {
 }
 
 func TestCompression_ZeroThresholdDisables(t *testing.T) {
-	store := memorystore.New()
+	store := memorystore.New(0)
 	ctx := context.Background()
 
 	// WithCompression(0) should disable compression — data stored uncompressed
 	repo := protosource.New(
 		&testv1.Test{},
-		protosource.WithStore(store),
-		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		store,
+		protobinaryserializer.NewSerializer(),
 		protosource.WithCompression(0),
 	)
 	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "zero threshold"})
@@ -133,7 +133,7 @@ func TestCompression_ZeroThresholdDisables(t *testing.T) {
 }
 
 func TestCompression_MultipleAggregatesIndependent(t *testing.T) {
-	repo := newCompressedRepo(10)
+	repo := newCompressedRepo(10, 0)
 	ctx := context.Background()
 
 	_, _ = repo.Apply(ctx, &testv1.Create{Id: "agg-1", Actor: "actor", Body: "first aggregate"})
