@@ -10,14 +10,15 @@ package {{ package . }}
 {{ end }}
 
 import (
+{{ if $hasOpaque -}}
+    "context"
+{{ end -}}
     "fmt"
     "sync"
 
     "buf.build/go/protovalidate"
     "github.com/funinthecloud/protosource"
 {{ if $hasOpaque }}
-    "context"
-
     "github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
     "github.com/aws/aws-sdk-go-v2/service/dynamodb"
     "github.com/funinthecloud/protosource/opaquedata"

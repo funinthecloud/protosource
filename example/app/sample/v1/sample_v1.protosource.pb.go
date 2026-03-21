@@ -3,13 +3,12 @@
 package samplev1
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"buf.build/go/protovalidate"
 	"github.com/funinthecloud/protosource"
-
-	"context"
 
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"

@@ -1,45 +1,9 @@
 package opaquedata
 
-import (
-	"bytes"
-	"compress/gzip"
-	"fmt"
-	"io"
-)
+import "github.com/funinthecloud/protosource/internal/compress"
 
-const defaultCompressThreshold = 300
+const defaultCompressThreshold = compress.DefaultThreshold
 
-func isGzipped(data []byte) bool {
-	return len(data) >= 2 && data[0] == 0x1f && data[1] == 0x8b
-}
-
-func maybeCompress(data []byte, threshold int) ([]byte, error) {
-	if threshold <= 0 || len(data) < threshold {
-		return data, nil
-	}
-	var buf bytes.Buffer
-	w := gzip.NewWriter(&buf)
-	if _, err := w.Write(data); err != nil {
-		return nil, fmt.Errorf("opaquedata: gzip write: %w", err)
-	}
-	if err := w.Close(); err != nil {
-		return nil, fmt.Errorf("opaquedata: gzip close: %w", err)
-	}
-	return buf.Bytes(), nil
-}
-
-func maybeDecompress(data []byte) ([]byte, error) {
-	if !isGzipped(data) {
-		return data, nil
-	}
-	r, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, fmt.Errorf("opaquedata: gzip reader: %w", err)
-	}
-	defer r.Close()
-	out, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("opaquedata: gzip read: %w", err)
-	}
-	return out, nil
-}
+func isGzipped(data []byte) bool                              { return compress.IsGzipped(data) }
+func maybeCompress(data []byte, threshold int) ([]byte, error) { return compress.MaybeCompress(data, threshold) }
+func maybeDecompress(data []byte) ([]byte, error)              { return compress.MaybeDecompress(data) }

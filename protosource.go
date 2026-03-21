@@ -44,6 +44,12 @@ type Store interface {
 type AggregateStore interface {
 	// SaveAggregate persists the materialized aggregate state.
 	// The store owns serialization and key computation.
+	//
+	// This is a write-only interface — the repository does not read materialized
+	// aggregates back (it always rebuilds from events via Load). The persisted
+	// state is intended for external consumers (dashboards, APIs, projections)
+	// that query the store directly. A LoadAggregate read path may be added in
+	// the future.
 	SaveAggregate(ctx context.Context, aggregate proto.Message) error
 }
 

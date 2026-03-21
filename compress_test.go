@@ -107,6 +107,31 @@ func TestCompression_WithSnapshots(t *testing.T) {
 	}
 }
 
+func TestCompression_ZeroThresholdDisables(t *testing.T) {
+	store := memorystore.New()
+	ctx := context.Background()
+
+	// WithCompression(0) should disable compression — data stored uncompressed
+	repo := protosource.New(
+		&testv1.Test{},
+		protosource.WithStore(store),
+		protosource.WithSerializer(protobinaryserializer.NewSerializer()),
+		protosource.WithCompression(0),
+	)
+	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "zero threshold"})
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	agg, err := repo.Load(ctx, "id-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	if agg.(*testv1.Test).GetBody() != "zero threshold" {
+		t.Errorf("expected body 'zero threshold', got %q", agg.(*testv1.Test).GetBody())
+	}
+}
+
 func TestCompression_MultipleAggregatesIndependent(t *testing.T) {
 	repo := newCompressedRepo(10)
 	ctx := context.Background()

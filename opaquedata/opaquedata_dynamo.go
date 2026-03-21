@@ -103,8 +103,6 @@ func GetValue(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 	return item
 }
 
-// PrefixPKs prepends prefix+"#" to the primary PK and all non-empty GSI PKs.
-// This is used by multi-tenant stores to isolate key spaces.
 // PrefixPKs prepends prefix+"#" to the primary PK and all non-empty, non-sentinel
 // GSI PKs. Values that are empty or "NA" (unused GSI slots) are left untouched.
 // This is used by multi-tenant stores to isolate key spaces.
