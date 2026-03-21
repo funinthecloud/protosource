@@ -226,37 +226,6 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 	return &dynamodb.GetItemOutput{Item: item}, nil
 }
 
-func (m *mockDynamoer) DeleteItem(ctx context.Context, input *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	table := m.ensureTable(*input.TableName)
-	var key string
-	if v, ok := input.Key["a"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-	} else if v, ok := input.Key["pk"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-		if sk, ok := input.Key["sk"]; ok {
-			key += "|" + sk.(*types.AttributeValueMemberS).Value
-		}
-	}
-	if key == "" {
-		return nil, fmt.Errorf("mockDynamoer.DeleteItem: no 'a' or 'pk' attribute in key — malformed delete")
-	}
-	delete(table, key)
-	return &dynamodb.DeleteItemOutput{}, nil
-}
-
-func (m *mockDynamoer) UpdateItem(ctx context.Context, input *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return &dynamodb.UpdateItemOutput{}, nil
-}
-
 func strPtr(s string) *string { return &s }
 
 // ---------------------------------------------------------------------------
