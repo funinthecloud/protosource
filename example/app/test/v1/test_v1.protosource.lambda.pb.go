@@ -4,6 +4,7 @@ package testv1
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -65,11 +66,7 @@ func (h *Handlers) HandleCreate(ctx context.Context, request protosource.Request
 		return commandErrorResponse(err)
 	}
 
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       `{"id":"` + cmd.GetId() + `","version":` + itoa(version) + `}`,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
+	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
 }
 
 // HandleUpdate processes a Update command.
@@ -99,11 +96,7 @@ func (h *Handlers) HandleUpdate(ctx context.Context, request protosource.Request
 		return commandErrorResponse(err)
 	}
 
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       `{"id":"` + cmd.GetId() + `","version":` + itoa(version) + `}`,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
+	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
 }
 
 // HandleLock processes a Lock command.
@@ -133,11 +126,7 @@ func (h *Handlers) HandleLock(ctx context.Context, request protosource.Request) 
 		return commandErrorResponse(err)
 	}
 
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       `{"id":"` + cmd.GetId() + `","version":` + itoa(version) + `}`,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
+	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
 }
 
 // HandleUnlock processes a Unlock command.
@@ -167,11 +156,7 @@ func (h *Handlers) HandleUnlock(ctx context.Context, request protosource.Request
 		return commandErrorResponse(err)
 	}
 
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       `{"id":"` + cmd.GetId() + `","version":` + itoa(version) + `}`,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
+	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
 }
 
 // HandleGet retrieves the current state of a Test aggregate.
@@ -307,6 +292,23 @@ func extractID(request protosource.Request) string {
 	return request.QueryParameters["id"]
 }
 
+// jsonResponse marshals a value as JSON and returns a protosource.Response.
+func jsonResponse(statusCode int, v any) protosource.Response {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return protosource.Response{
+			StatusCode: http.StatusInternalServerError,
+			Body:       `{"error":"failed to serialize response"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}
+	}
+	return protosource.Response{
+		StatusCode: statusCode,
+		Body:       string(b),
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}
+}
+
 // commandErrorResponse maps protosource errors to appropriate HTTP responses.
 func commandErrorResponse(err error) protosource.Response {
 	statusCode := http.StatusInternalServerError
@@ -333,33 +335,5 @@ func commandErrorResponse(err error) protosource.Response {
 		message = "command not authorized"
 	}
 
-	return protosource.Response{
-		StatusCode: statusCode,
-		Body:       `{"error":"` + message + `"}`,
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
-}
-
-// itoa converts an int64 to its string representation.
-func itoa(n int64) string {
-	if n == 0 {
-		return "0"
-	}
-	neg := false
-	if n < 0 {
-		neg = true
-		n = -n
-	}
-	var buf [20]byte
-	i := len(buf)
-	for n > 0 {
-		i--
-		buf[i] = byte('0' + n%10)
-		n /= 10
-	}
-	if neg {
-		i--
-		buf[i] = '-'
-	}
-	return string(buf[i:])
+	return jsonResponse(statusCode, map[string]string{"error": message})
 }

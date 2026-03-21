@@ -4,6 +4,7 @@ package awslambda
 
 import (
 	"context"
+	"encoding/base64"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/funinthecloud/protosource"
@@ -32,21 +33,9 @@ func New(handler protosource.HandlerFunc, extractor ActorExtractor) *Adapter {
 
 // Handle is the Lambda entry point. Pass this to lambda.Start().
 func (a *Adapter) Handle(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	req := protosource.Request{
-		Body:            request.Body,
-		PathParameters:  request.PathParameters,
-		QueryParameters: request.QueryStringParameters,
-		Headers:         request.Headers,
-		Actor:           a.extractor(request),
-	}
-
+	req := decodeRequest(request, a.extractor)
 	resp := a.handler(ctx, req)
-
-	return events.APIGatewayProxyResponse{
-		StatusCode: resp.StatusCode,
-		Body:       resp.Body,
-		Headers:    resp.Headers,
-	}, nil
+	return encodeResponse(resp), nil
 }
 
 // Wrap is a convenience function that returns the Handle method directly,
@@ -59,20 +48,45 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) func(contex
 // the request's HTTP method and path. Suitable for passing to lambda.Start().
 func WrapRouter(router *protosource.Router, extractor ActorExtractor) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-		req := protosource.Request{
-			Body:            request.Body,
-			PathParameters:  request.PathParameters,
-			QueryParameters: request.QueryStringParameters,
-			Headers:         request.Headers,
-			Actor:           extractor(request),
-		}
-
+		req := decodeRequest(request, extractor)
 		resp := router.Dispatch(ctx, request.HTTPMethod, request.Path, req)
-
-		return events.APIGatewayProxyResponse{
-			StatusCode: resp.StatusCode,
-			Body:       resp.Body,
-			Headers:    resp.Headers,
-		}, nil
+		return encodeResponse(resp), nil
 	}
+}
+
+// decodeRequest converts an API Gateway request to a protosource Request,
+// decoding base64 bodies when IsBase64Encoded is set.
+func decodeRequest(request events.APIGatewayProxyRequest, extractor ActorExtractor) protosource.Request {
+	body := request.Body
+	if request.IsBase64Encoded {
+		if decoded, err := base64.StdEncoding.DecodeString(body); err == nil {
+			body = string(decoded)
+		}
+	}
+	return protosource.Request{
+		Body:            body,
+		PathParameters:  request.PathParameters,
+		QueryParameters: request.QueryStringParameters,
+		Headers:         request.Headers,
+		Actor:           extractor(request),
+	}
+}
+
+// encodeResponse converts a protosource Response to an API Gateway response,
+// base64-encoding the body for binary content types.
+func encodeResponse(resp protosource.Response) events.APIGatewayProxyResponse {
+	ct := resp.Headers["Content-Type"]
+	isBinary := ct == "application/protobuf" || ct == "application/octet-stream"
+
+	apiResp := events.APIGatewayProxyResponse{
+		StatusCode: resp.StatusCode,
+		Headers:    resp.Headers,
+	}
+	if isBinary {
+		apiResp.Body = base64.StdEncoding.EncodeToString([]byte(resp.Body))
+		apiResp.IsBase64Encoded = true
+	} else {
+		apiResp.Body = resp.Body
+	}
+	return apiResp
 }

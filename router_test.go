@@ -112,6 +112,17 @@ func TestRouterMultipleRoutes(t *testing.T) {
 	}
 }
 
+func TestRouterDoubleSlash(t *testing.T) {
+	r := NewRouter()
+	r.Handle("GET", "a/b/c", handler("abc"))
+
+	// Double slashes in the request path should still match
+	resp := r.Dispatch(context.Background(), "GET", "/a//b/c", Request{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200 with double slash, got %d", resp.StatusCode)
+	}
+}
+
 func TestRouterEmptyPath(t *testing.T) {
 	r := NewRouter()
 	r.Handle("GET", "foo", handler("foo"))

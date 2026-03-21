@@ -75,12 +75,17 @@ func (r *Router) Dispatch(ctx context.Context, method, path string, request Requ
 
 // splitPath splits a URL path into non-empty segments.
 func splitPath(path string) []string {
-	path = strings.TrimPrefix(path, "/")
-	path = strings.TrimSuffix(path, "/")
-	if path == "" {
+	parts := strings.Split(path, "/")
+	segments := parts[:0]
+	for _, p := range parts {
+		if p != "" {
+			segments = append(segments, p)
+		}
+	}
+	if len(segments) == 0 {
 		return nil
 	}
-	return strings.Split(path, "/")
+	return segments
 }
 
 // matchSegments checks whether pathSegs matches the pattern segments.

@@ -206,11 +206,23 @@ func (r *Repository) Load(ctx context.Context, aggregateId string) (Aggregate, e
 
 // History returns the full event history for an aggregate, bypassing any snapshot
 // tail optimization. This is intended for query endpoints that need the complete stream.
+// Record data is transparently decompressed when compression is enabled.
 func (r *Repository) History(ctx context.Context, aggregateID string) (*historyv1.History, error) {
 	if aggregateID == "" {
 		return nil, ErrEmptyAggregateId
 	}
-	return r.store.Load(ctx, aggregateID)
+	history, err := r.store.Load(ctx, aggregateID)
+	if err != nil {
+		return nil, err
+	}
+	for _, record := range history.GetRecords() {
+		decompressed, err := maybeDecompress(record.Data)
+		if err != nil {
+			return nil, fmt.Errorf("decompress event: %w", err)
+		}
+		record.Data = decompressed
+	}
+	return history, nil
 }
 
 // Apply processes the given command and returns the current version of the aggregate.

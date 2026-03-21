@@ -91,3 +91,63 @@ func TestHeaderExtractor_Missing(t *testing.T) {
 		t.Errorf("expected empty string, got %q", got)
 	}
 }
+
+func TestWrapRouter(t *testing.T) {
+	router := protosource.NewRouter()
+	router.Handle("GET", "sample/v1/{id}", func(ctx context.Context, req protosource.Request) protosource.Response {
+		return protosource.Response{
+			StatusCode: http.StatusOK,
+			Body:       req.PathParameters["id"],
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}
+	})
+	router.Handle("POST", "sample/v1/create", func(ctx context.Context, req protosource.Request) protosource.Response {
+		return protosource.Response{
+			StatusCode: http.StatusOK,
+			Body:       req.Body,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}
+	})
+
+	extractor := HeaderExtractor("X-User-Id")
+	handler := WrapRouter(router, extractor)
+
+	t.Run("GET with param", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/sample/v1/abc-123", nil)
+		req.Header.Set("X-User-Id", "user-1")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		if rec.Body.String() != "abc-123" {
+			t.Errorf("expected body=abc-123, got %q", rec.Body.String())
+		}
+	})
+
+	t.Run("POST command", func(t *testing.T) {
+		body := strings.NewReader(`{"id":"x"}`)
+		req := httptest.NewRequest(http.MethodPost, "/sample/v1/create", body)
+		req.Header.Set("X-User-Id", "user-1")
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+		if rec.Body.String() != `{"id":"x"}` {
+			t.Errorf("expected body, got %q", rec.Body.String())
+		}
+	})
+
+	t.Run("404 no match", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/no/such/path", nil)
+		rec := httptest.NewRecorder()
+		handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected 404, got %d", rec.Code)
+		}
+	})
+}
