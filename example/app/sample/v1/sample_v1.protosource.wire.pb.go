@@ -11,23 +11,17 @@ import (
 	"github.com/google/wire"
 )
 
-func provideStore() *memorystore.MemoryStore {
-	return memorystore.New(memorystore.WithSnapshotInterval(SnapshotEveryNEvents))
-}
-
-func provideSerializer() *protobinaryserializer.Serializer {
-	return protobinaryserializer.NewSerializer()
-}
-
 func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
 	return NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
 }
 
+// ProviderSet wires a Repository with a memorystore and protobinaryserializer.
+// To use a different store or serializer, compose your own wire.NewSet with the
+// appropriate package's ProviderSet (e.g., dynamodbstore.ProviderSet) and
+// provideRepository.
 var ProviderSet = wire.NewSet(
-	provideStore,
-	provideSerializer,
+	memorystore.ProviderSet,
+	protobinaryserializer.ProviderSet,
 	provideRepository,
-	wire.Bind(new(protosource.Store), new(*memorystore.MemoryStore)),
-	wire.Bind(new(protosource.Serializer), new(*protobinaryserializer.Serializer)),
 	wire.Bind(new(protosource.Repo), new(*protosource.Repository)),
 )
