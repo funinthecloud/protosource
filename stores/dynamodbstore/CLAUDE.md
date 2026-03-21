@@ -15,10 +15,14 @@ type Store interface {
     Load(ctx context.Context, aggregateId string) (*historyv1.History, error)
 }
 
-// AggregateStore — required
+// AggregateStore — optional, write-only
+// The repository passes the fully materialized aggregate after persisting events.
+// The store owns serialization and key computation. When WithOpaqueTable is
+// configured and the aggregate implements opaquedata.AutoPKSK, the store writes
+// to the opaque table with GSI indexing. Otherwise it marshals to the aggregates table.
+// The repository never reads materialized aggregates back (always rebuilds from events).
 type AggregateStore interface {
-    SaveAggregate(ctx context.Context, aggregateID string, data []byte, version int64) error
-    LoadAggregate(ctx context.Context, aggregateID string) (data []byte, version int64, err error)
+    SaveAggregate(ctx context.Context, aggregate proto.Message) error
 }
 
 // SnapshotTailStore — required
@@ -115,10 +119,11 @@ Using two separate tables keeps the schema clean.
 - Reverse the results to return ascending version order
 - This is the natural DynamoDB pattern for "last N by sort key"
 
-### SaveAggregate / LoadAggregate
+### SaveAggregate
 
-- `SaveAggregate`: `PutItem` to aggregates table with `a`, `v`, `d`
-- `LoadAggregate`: `GetItem` by `a`; return `nil, 0, nil` if not found
+- Write-only: the repository passes the materialized aggregate after event persistence
+- **Opaquedata path**: if `WithOpaqueTable` is configured and the aggregate implements `opaquedata.AutoPKSK`, the store writes to the opaque table via `opaquedata.NewOpaqueDataFromProto` + `GetItem`. When `WithTenantPrefix` is set, `opaquedata.PrefixPKs` is applied to isolate key spaces.
+- **Fallback path**: `proto.Marshal` + `PutItem` to aggregates table with `a`, `v`, `d`
 
 ### Functional Options
 
@@ -127,7 +132,8 @@ type Option func(*DynamoDBStore)
 
 func WithEventsTable(name string) Option     // default: "events"
 func WithAggregatesTable(name string) Option // default: "aggregates"
-func WithTenantPrefix(prefix string) Option  // prepends "prefix#" to aggregate IDs for multi-tenant tables
+func WithTenantPrefix(prefix string) Option  // prepends "prefix#" to all keys (events, aggregates, and opaquedata PKs/GSI PKs)
+func WithOpaqueTable(name string) Option     // enables opaquedata single-table storage for AutoPKSK aggregates
 func WithTTL(ttl time.Duration) Option       // sets TTL on event records; table must have TTL enabled on "t"
 ```
 
@@ -160,10 +166,10 @@ Use a mock implementation of the `Dynamoer` interface for unit tests. The mock s
 - Records come back in version order
 
 **AggregateStore basics:**
-- SaveAggregate / LoadAggregate round-trip
-- LoadAggregate for non-existent returns nil data, version 0, no error
-- SaveAggregate overwrites previous state
-- Independent aggregates don't interfere
+- SaveAggregate persists materialized state (write-only, no read-back)
+- SaveAggregate with opaquedata path (AutoPKSK aggregate + WithOpaqueTable)
+- SaveAggregate with tenant prefix applies PrefixPKs to opaquedata keys
+- SaveAggregate fallback path (non-AutoPKSK, marshals to aggregates table)
 
 **SnapshotTailStore:**
 - LoadTail returns last N records in ascending order
