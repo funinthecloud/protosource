@@ -78,6 +78,16 @@ func (b *Builder) nextVersion() int64 {
     {{ end }}
 {{end}}
 
+{{ if and $hasSnapshot (gt $everyN 0) -}}
+// SnapshotEveryNEvents is the snapshot interval from the proto annotation.
+const SnapshotEveryNEvents int32 = {{ $everyN }}
+{{ end -}}
+
+// NewRepository creates a new protosource.Repository for the {{ $aggregate }} aggregate.
+func NewRepository(opts ...protosource.Option) *protosource.Repository {
+    return protosource.New(&{{ $aggregate }}{}, opts...)
+}
+
 {{/* This is the main loop */}}
 {{ range $message := .AllMessages }}
 {{/*The aggregate*/}}
@@ -93,7 +103,7 @@ func (aggregate *{{$aggregate}}) Snapshot(version int64) protosource.Event {
     }
 }
 func (aggregate *{{$aggregate}}) SnapshotInterval() int32 {
-    return {{ $everyN }}
+    return SnapshotEveryNEvents
 }
 func (aggregate *{{$aggregate}}) RestoreSnapshot(snapshot *Snapshot) {
     {{ range $field := $message.Fields | excludeInternal -}}

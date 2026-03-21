@@ -15,6 +15,12 @@ func main() {
 
 	const SampleId = "56286b71-1c41-4300-86d7-29e4a94f0d2c"
 
+	const SmallBody = `0123456789`
+	const BigBody = `0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789
+0123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789`
+
 	create := &samplev1.Create{
 		Id:    SampleId,
 		Actor: "SeanConnery",
@@ -29,7 +35,10 @@ func main() {
 		u := &samplev1.Update{
 			Id:    SampleId,
 			Actor: "HelgaFeld",
-			Body:  "Burp",
+			Body:  SmallBody,
+		}
+		if i%2 == 0 {
+			u.Body = BigBody
 		}
 		if _, err := foo.Apply(context.TODO(), u); err != nil {
 			panic(err)
@@ -42,12 +51,18 @@ func main() {
 	}
 	spew.Dump(bar)
 
+	baz, err := foo.History(context.TODO(), SampleId)
+	if err != nil {
+		panic(err)
+	}
+	spew.Dump(baz)
+
 }
 
 func GetMeARepo() *protosource.Repository {
 
+	store := memorystore.New(memorystore.WithSnapshotInterval(samplev1.SnapshotEveryNEvents))
 	serializer := protobinaryserializer.NewSerializer()
-	store := memorystore.New(memorystore.WithSnapshotInterval(10))
-	return protosource.New(&samplev1.Sample{}, protosource.WithSerializer(serializer), protosource.WithStore(store))
+	return samplev1.NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
 
 }

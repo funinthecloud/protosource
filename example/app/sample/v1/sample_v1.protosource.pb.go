@@ -51,6 +51,14 @@ func (b *Builder) nextVersion() int64 {
 	return b.version
 }
 
+// SnapshotEveryNEvents is the snapshot interval from the proto annotation.
+const SnapshotEveryNEvents int32 = 50
+
+// NewRepository creates a new protosource.Repository for the Sample aggregate.
+func NewRepository(opts ...protosource.Option) *protosource.Repository {
+	return protosource.New(&Sample{}, opts...)
+}
+
 func (aggregate *Sample) Snapshot(version int64) protosource.Event {
 	return &Snapshot{
 		Id:       aggregate.GetId(),
@@ -61,7 +69,7 @@ func (aggregate *Sample) Snapshot(version int64) protosource.Event {
 	}
 }
 func (aggregate *Sample) SnapshotInterval() int32 {
-	return 50
+	return SnapshotEveryNEvents
 }
 func (aggregate *Sample) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()

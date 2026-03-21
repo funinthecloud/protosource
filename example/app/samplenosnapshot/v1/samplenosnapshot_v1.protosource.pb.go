@@ -44,6 +44,11 @@ func (b *Builder) nextVersion() int64 {
 	return b.version
 }
 
+// NewRepository creates a new protosource.Repository for the Sample aggregate.
+func NewRepository(opts ...protosource.Option) *protosource.Repository {
+	return protosource.New(&Sample{}, opts...)
+}
+
 func (aggregate *Sample) setCreated(event protosource.Event) {
 	aggregate.CreateAt = event.GetAt()
 	aggregate.CreateBy = event.GetActor()
