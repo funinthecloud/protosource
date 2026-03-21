@@ -4,14 +4,11 @@ import (
 	"context"
 
 	"github.com/davecgh/go-spew/spew"
-	"github.com/funinthecloud/protosource"
 	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
-	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
-	"github.com/funinthecloud/protosource/stores/memorystore"
 )
 
 func main() {
-	foo := GetMeARepo()
+	foo := InitializeRepository()
 
 	const SampleId = "56286b71-1c41-4300-86d7-29e4a94f0d2c"
 
@@ -56,13 +53,5 @@ func main() {
 		panic(err)
 	}
 	spew.Dump(baz)
-
-}
-
-func GetMeARepo() *protosource.Repository {
-
-	store := memorystore.New(memorystore.WithSnapshotInterval(samplev1.SnapshotEveryNEvents))
-	serializer := protobinaryserializer.NewSerializer()
-	return samplev1.NewRepository(protosource.WithStore(store), protosource.WithSerializer(serializer))
 
 }
