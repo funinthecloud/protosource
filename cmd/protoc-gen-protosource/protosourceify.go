@@ -308,9 +308,10 @@ func CLICommandFields(fields []pgs.Field) []pgs.Field {
 }
 
 // validateCLICommandFields checks that all non-id/actor command fields are
-// scalar types the generated CLI can parse from os.Args (string, integer,
-// float, bool). Repeated, map, message, and enum fields are rejected because
-// they cannot be meaningfully parsed from a single positional argument.
+// scalar types the generated CLI can parse from os.Args: string, integer,
+// float, bool, and bytes (read from a file path). Repeated, map, message,
+// and enum fields are rejected because they cannot be meaningfully parsed
+// from a single positional argument.
 func validateCLICommandFields(m pgs.Message) error {
 	for _, field := range CLICommandFields(m.Fields()) {
 		if field.Type().IsRepeated() || field.Type().IsMap() {
@@ -337,7 +338,12 @@ func validateCLICommandFields(m pgs.Message) error {
 
 // cliParseExpr returns the Go expression to parse an os.Args value into the
 // correct type for a command field. For strings it returns the arg directly;
-// for numeric/bool types it wraps with a mustParseXxx helper.
+// for numeric/bool types it wraps with a mustParseXxx helper; for bytes it
+// reads the contents from the file path given as the argument.
+//
+// Note: pgs names the signed/fixed variants without the T suffix (SInt32,
+// SFixed64) while the primary types use it (Int32T, UInt64T). This is a
+// naming inconsistency in protoc-gen-star, not a typo.
 func cliParseExpr(f pgs.Field, argIdx int) string {
 	arg := fmt.Sprintf("os.Args[%d]", argIdx)
 	name := strings.ToLower(f.Name().String())
@@ -359,7 +365,7 @@ func cliParseExpr(f pgs.Field, argIdx int) string {
 	case pgs.BoolT:
 		return fmt.Sprintf("mustParseBool(%s, %q)", arg, name)
 	case pgs.BytesT:
-		return fmt.Sprintf("[]byte(%s)", arg)
+		return fmt.Sprintf("mustReadFile(%s, %q)", arg, name)
 	default:
 		return arg
 	}

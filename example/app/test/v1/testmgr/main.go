@@ -231,3 +231,11 @@ func mustParseBool(s, field string) bool {
 	}
 	return v
 }
+
+func mustReadFile(path, field string) []byte {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		fatal(fmt.Sprintf("cannot read file for %s: %v", field, err))
+	}
+	return b
+}
