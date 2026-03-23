@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package test.cli_valid;
+
+option go_package = "github.com/funinthecloud/protosource/test/cli_valid;clivalid";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+message Widget {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {};
+  string id      = 1;
+  int64  version = 2;
+  string body    = 3;
+}
+
+message Create {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: ["Created"]
+    lifecycle: COMMAND_LIFECYCLE_CREATION
+  };
+  string id    = 1;
+  string actor = 2;
+  string body  = 3;
+  string label = 4;
+}
+
+message Created {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {};
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string body    = 5;
+  string label   = 6;
+}

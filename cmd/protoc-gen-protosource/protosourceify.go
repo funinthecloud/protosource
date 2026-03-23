@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/template"
@@ -69,6 +70,10 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
 		"routePrefix":            p.routePrefix,
 		"lower":                  strings.ToLower,
+		"importPath":             p.importPath,
+		"cliCommandFields":       CLICommandFields,
+		"cliParseExpr":           cliParseExpr,
+		"add":                    func(a, b int) int { return a + b },
 	}
 }
 
@@ -289,6 +294,83 @@ func ExcludeCommandInternal(fields []pgs.Field) interface{} {
 	return results
 }
 
+// CLICommandFields returns command fields excluding id and actor (both are
+// handled automatically by the CLI: id from args, actor from OS user+hostname).
+func CLICommandFields(fields []pgs.Field) []pgs.Field {
+	results := make([]pgs.Field, 0)
+	for _, field := range fields {
+		if field.Name() == "id" || field.Name() == "actor" {
+			continue
+		}
+		results = append(results, field)
+	}
+	return results
+}
+
+// validateCLICommandFields checks that all non-id/actor command fields are
+// scalar types the generated CLI can parse from os.Args: string, integer,
+// float, bool, and bytes (read from a file path). Repeated, map, message,
+// and enum fields are rejected because they cannot be meaningfully parsed
+// from a single positional argument.
+func validateCLICommandFields(m pgs.Message) error {
+	for _, field := range CLICommandFields(m.Fields()) {
+		if field.Type().IsRepeated() || field.Type().IsMap() {
+			return fmt.Errorf(
+				"command %s: field %q is repeated/map — the generated CLI only supports scalar fields; "+
+					"use a hand-written CLI for complex types",
+				m.Name(), field.Name())
+		}
+		if field.Type().IsEmbed() {
+			return fmt.Errorf(
+				"command %s: field %q is a message type — the generated CLI only supports scalar fields; "+
+					"use a hand-written CLI for complex types",
+				m.Name(), field.Name())
+		}
+		if field.Type().IsEnum() {
+			return fmt.Errorf(
+				"command %s: field %q is an enum — the generated CLI cannot parse enum values; "+
+					"use a hand-written CLI for enum fields",
+				m.Name(), field.Name())
+		}
+	}
+	return nil
+}
+
+// cliParseExpr returns the Go expression to parse an os.Args value into the
+// correct type for a command field. For strings it returns the arg directly;
+// for numeric/bool types it wraps with a mustParseXxx helper; for bytes it
+// reads the contents from the file path given as the argument.
+//
+// Note: pgs names the signed/fixed variants without the T suffix (SInt32,
+// SFixed64) while the primary types use it (Int32T, UInt64T). This is a
+// naming inconsistency in protoc-gen-star, not a typo.
+func cliParseExpr(f pgs.Field, argIdx int) string {
+	arg := fmt.Sprintf("os.Args[%d]", argIdx)
+	name := strings.ToLower(f.Name().String())
+	switch f.Type().ProtoType() {
+	case pgs.StringT:
+		return arg
+	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
+		return fmt.Sprintf("mustParseInt32(%s, %q)", arg, name)
+	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
+		return fmt.Sprintf("mustParseInt64(%s, %q)", arg, name)
+	case pgs.UInt32T, pgs.Fixed32T:
+		return fmt.Sprintf("mustParseUint32(%s, %q)", arg, name)
+	case pgs.UInt64T, pgs.Fixed64T:
+		return fmt.Sprintf("mustParseUint64(%s, %q)", arg, name)
+	case pgs.FloatT:
+		return fmt.Sprintf("float32(mustParseFloat(%s, 32, %q))", arg, name)
+	case pgs.DoubleT:
+		return fmt.Sprintf("mustParseFloat(%s, 64, %q)", arg, name)
+	case pgs.BoolT:
+		return fmt.Sprintf("mustParseBool(%s, %q)", arg, name)
+	case pgs.BytesT:
+		return fmt.Sprintf("mustReadFile(%s, %q)", arg, name)
+	default:
+		return arg
+	}
+}
+
 func ExcludeInternal(fields []pgs.Field) interface{} {
 	results := make([]pgs.Field, 0)
 
@@ -365,10 +447,16 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 
 // outputPathForTemplate computes the output file path for a proto file and template.
 // The default template ("protosource.gotext") produces ".protosource.pb.go" (backward compatible).
+// The cli template ("cli.gotext") produces a subdirectory: "<aggregate_lower>mgr/main.go".
 // Other templates produce ".protosource.<name>.pb.go" where <name> is the template name
 // without the ".gotext" extension.
 func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Template) string {
 	importPath := p.ctx.ImportPath(f).String()
+
+	// CLI template goes into a <aggregate>mgr/ subdirectory as package main.
+	if tpl.Name() == "cli.gotext" {
+		return p.cliOutputPath(f, importPath)
+	}
 
 	suffix := ".protosource.pb.go"
 	if tplName := tpl.Name(); tplName != "protosource.gotext" {
@@ -387,6 +475,38 @@ func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Temp
 	// Fallback: use OutputPath from pgsgo context
 	out := p.ctx.OutputPath(f).String()
 	return strings.TrimSuffix(out, ".pb.go") + suffix
+}
+
+// cliOutputPath returns the output path for the CLI template, placing it in
+// a <aggregate_lower>mgr/ subdirectory (e.g., "example/app/test/v1/testmgr/main.go").
+func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string {
+	aggregateName := ""
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			aggregateName = strings.ToLower(m.Name().String())
+			break
+		}
+	}
+	if aggregateName == "" {
+		aggregateName = "cli"
+	}
+
+	dir := aggregateName + "mgr"
+
+	if mod := p.params.Str("module"); mod != "" {
+		rel := strings.TrimPrefix(importPath, mod)
+		rel = strings.TrimPrefix(rel, "/")
+		return rel + "/" + dir + "/main.go"
+	}
+
+	out := p.ctx.OutputPath(f).String()
+	parent := filepath.Dir(out)
+	return filepath.Join(parent, dir, "main.go")
+}
+
+// importPath returns the full Go import path for the proto file's package.
+func (p *ProtosourceModule) importPath(f pgs.File) string {
+	return p.ctx.ImportPath(f).String()
 }
 
 // routePrefix returns the module-stripped import path for a proto file,
@@ -439,6 +559,10 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 				return
 			}
 			if err := p.validateAllowedStates(m); err != nil {
+				p.Fail(err.Error())
+				return
+			}
+			if err := validateCLICommandFields(m); err != nil {
 				p.Fail(err.Error())
 				return
 			}
