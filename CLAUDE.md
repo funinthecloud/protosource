@@ -1,3 +1,7 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
 # protosource
 
 An event sourcing framework where domain models are defined entirely in protocol buffers. A buf plugin generates all Go boilerplate — including the aggregate's `On` method, builders, event emission, snapshot support, lifecycle validation, state transitions, and authorization — so domain logic is expressed purely through proto annotations.
@@ -10,60 +14,54 @@ go install ./cmd/protoc-gen-protosource  # IMPORTANT: install plugin to $GOPATH/
 buf generate                             # generate Go code from proto/
 go build ./...                           # build everything
 go test ./...                            # run tests
+go test ./stores/memorystore/...         # run tests for a single package
+go test -run TestApply ./...             # run a specific test by name
 go vet ./...                             # static analysis
 ```
 
-**IMPORTANT**: After modifying the plugin template (`cmd/protoc-gen-protosource/content/protosource.gotext`) or plugin code (`cmd/protoc-gen-protosource/protosourceify.go`), you MUST run `go install ./cmd/protoc-gen-protosource` before `buf generate`. The `buf generate` command invokes `protoc-gen-protosource` as a local plugin from `$GOPATH/bin`, so `go build` alone is not enough — the binary must be installed.
+**IMPORTANT**: After modifying the plugin template (`cmd/protoc-gen-protosource/content/*.gotext`) or plugin code (`cmd/protoc-gen-protosource/protosourceify.go`), you MUST run `go install ./cmd/protoc-gen-protosource` before `buf generate`. The `buf generate` command invokes `protoc-gen-protosource` as a local plugin from `$GOPATH/bin`, so `go build` alone is not enough — the binary must be installed.
 
-## Project Layout
+## Architecture
 
-```
-protosource.go          — runtime: Repository, Store, Serializer, core interfaces
-stores/                 — Store implementations (memorystore, dynamodbstore, mysqlstore, boltdbstore)
-serializers/            — Serializer implementations (protobinaryserializer, protojsonserializer)
-internal/compress/      — shared gzip compression helpers (used by protosource and opaquedata)
-opaquedata/             — single-table DynamoDB storage for arbitrary protos with GSI indexing
-opaquedata/v1/          — generated Go code for opaquedata proto (do not edit by hand)
-cmd/
-  protoc-gen-protosource/ — buf plugin (generates .protosource.pb.go files)
-  sample/                 — example CLI showing Create/Update/Load cycle
-proto/                  — protobuf definitions (buf module root)
-  funinthecloud/protosource/options/v1/ — custom options proto (aggregate, command, event, snapshot, projection)
-  funinthecloud/protosource/record/v1/ — record proto (version + data)
-  funinthecloud/protosource/history/v1/ — history proto (list of records)
-  funinthecloud/protosource/opaquedata/v1/ — opaquedata proto (single-table DynamoDB storage)
-  example/app/sample/v1/            — sample domain with snapshots (fictitious org)
-  example/app/samplenosnapshot/v1/  — sample domain without snapshots (fictitious org)
-  example/app/test/v1/              — test domain (fictitious org)
-options/v1/             — generated Go code for options proto (do not edit by hand)
-record/v1/              — generated Go code for record proto (do not edit by hand)
-history/v1/             — generated Go code for history proto (do not edit by hand)
-example/app/               — generated Go code for example protos (do not edit by hand)
-tools/                  — go:generate tool installs (buf, wire, protoc-gen-go)
-```
+### Runtime Core (`protosource.go`)
 
-## Key Concepts
+The framework's central types:
+- **`Repository`** — processes commands through a pipeline (validate, authorize, evaluate, emit, persist) and rebuilds aggregates from event history. Created via `New(prototype, store, serializer, ...opts)`.
+- **`Store`** — persistence interface (`Save`/`Load`). Optional `AggregateStore` for materialized views, `SnapshotTailStore` for optimized snapshot loading.
+- **`Serializer`** — marshals events to/from `Record` protos.
+- **`Aggregate`**, **`Commander`**, **`Event`** — domain interfaces implemented by generated code.
+- **`Request`/`Response`/`HandlerFunc`** — provider-agnostic HTTP abstractions for generated handlers.
 
-- **Aggregate**: the state object, rebuilt by replaying events. First message in the proto file.
-- **Command**: present-tense action (Create, Update). Validated, then emits events.
-- **Event**: past-tense fact (Created, Updated). Immutable. Fields 1-4 are reserved (id, version, at, actor).
-- **Snapshot**: periodic aggregate state capture for replay cost control.
-- **Projection**: read-side view model (not yet implemented in runtime).
+### Code Generation (`cmd/protoc-gen-protosource/`)
 
-## Command Processing Pipeline
+The buf plugin reads proto annotations and generates four files per domain package:
+- `*.protosource.pb.go` — aggregate `On` method, command builders, event emission, version validation, authorization, snapshot support (from `protosource.gotext`)
+- `*.protosource.lambda.pb.go` — per-command HTTP handlers, Get, and History endpoints (from `lambda.gotext`)
+- `*.protosource.wire.pb.go` — Wire dependency injection provider sets (from `wire.gotext`)
+- `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`)
 
-`Repository.Apply` processes commands through this pipeline in order:
+The plugin logic is in `protosourceify.go`; templates are in `content/`.
+
+### Transport Layer
+
+- **`Router`** (`router.go`) — lightweight path-pattern router mapping `(method, path)` to `HandlerFunc`, with `{param}` extraction.
+- **`adapters/awslambda/`** — converts API Gateway proxy requests to/from `Request`/`Response`. Supports `Wrap` (single handler) and `WrapRouter` (router dispatch).
+- **`adapters/httpstandard/`** — converts `net/http` requests to/from `Request`/`Response`. Includes `BearerTokenExtractor` and `HeaderExtractor` for actor identity.
+
+### Command Processing Pipeline
+
+`Repository.Apply` processes commands in order:
 
 1. **VersionValidator** — lifecycle gate (create requires version==0, mutation requires version>0)
-2. **ProtoValidater** — annotation-driven field and cross-field constraints via buf/protovalidate
-3. **CommandAuthorizer** — validate command against current aggregate state (state-machine transitions via `allowed_states`)
-4. **EventEmitter check** — fail fast if command cannot emit events (before running custom logic)
-5. **CommandEvaluator** — optional custom business logic comparing command against aggregate state (duplicate detection, idempotency, conditional no-ops). Return `ErrSkip` for silent no-op, or any other error to abort.
+2. **ProtoValidater** — annotation-driven field constraints via buf/protovalidate
+3. **CommandAuthorizer** — state-machine transitions via `allowed_states`
+4. **EventEmitter check** — fail fast if command cannot emit events
+5. **CommandEvaluator** — optional custom business logic (return `ErrSkip` for silent no-op)
 6. **EventEmitter** — emit events (generated from `produces_events`)
 7. **Persist** — save events to store
-8. **Materialize** _(optional, runtime)_ — if the store implements `AggregateStore`, pass the fully materialized aggregate to `SaveAggregate(ctx, proto.Message)` for write-only persistence (best-effort; event persistence in step 7 is the source of truth). This is opt-in per store — only dynamodbstore implements it (for GSI-indexed single-table storage via opaquedata). The repository never reads materialized aggregates back; it always rebuilds from events. The persisted state is for external consumers (dashboards, APIs, projections) that query the store directly.
+8. **Materialize** _(optional)_ — if store implements `AggregateStore`, persist materialized aggregate (write-only, best-effort)
 
-Steps 1-3 and 6 are generated from proto annotations. For complex authorization beyond state checks, implement `Authorize` by hand on the command type. For custom business logic that inspects the aggregate before event emission, implement `Evaluate` on the command type. See `docs/pipeline.md` for full details.
+Steps 1-3 and 6 are generated. For custom authorization, implement `Authorize` on the command type. For custom evaluation, implement `Evaluate`. See `docs/pipeline.md` for details.
 
 ## Proto Conventions
 
@@ -96,18 +94,10 @@ message Snapshot {
 
 The **two-event pattern** for initial state: CREATION commands emit a domain event (Created) plus a state-transition event (Unlocked), so every state — including the initial one — is an explicit event in the stream. The `sets_state` annotation on event messages generates state assignments in the `On` method.
 
-The `On` method is **fully generated**. Event fields are mechanically copied to matching aggregate fields. No hand-written code in the generated files is needed.
+The `On` method is **fully generated**. Event fields are mechanically copied to matching aggregate fields.
 
 Command messages must have `id` (field 1, string) and `actor` (field 2, string).
 Event messages must have `id` (field 1), `version` (field 2, int64), `at` (field 3, int64), `actor` (field 4, string). Domain fields start at 5.
-
-## Dependencies
-
-- **buf** for proto management and code generation
-- **buf/protovalidate** for annotation-driven field validation
-- **protoc-gen-star/v2** for the plugin framework
-- **google.golang.org/protobuf** for proto runtime
-- **wire** for dependency injection
 
 ## Conventions
 
@@ -139,18 +129,5 @@ git checkout -b <branch-name> origin/main
 
 ## TODO
 
-- [x] ~~Generate starter `aggregate.go`~~ (superseded: `On` method is now fully generated from proto annotations)
-- [x] ~~Create annotations for auto-generating single aggregate projections~~ (has legacy code examples to reference)
-- [x] ~~Finish growing test coverage of memorystore~~ (100% coverage)
-- [x] ~~Create a boltdb store with good test coverage~~ (84.2% coverage)
-- [x] ~~Analyze dynamodbstore to ensure it still works with current framework changes~~ (rewritten to implement all framework interfaces in PR #11)
-- [x] ~~Add capabilities to all stores to store the aggregate post-apply~~ (AggregateStore is now opt-in per store; only dynamodbstore implements it for GSI-indexed opaquedata storage)
-- [x] ~~Generate constants/accessors for proto annotations (e.g., snapshot frequency) so callers can use them when constructing repositories and stores without duplicating values~~ (SnapshotEveryNEvents constant, NewRepository constructor, wire ProviderSet)
 - [ ] Look deeper into multi-package projections and auto-generation possibilities
-- [x] ~~Add plugin validation for `sets_state` references (verify enum value exists in file)~~
-- [x] ~~Update sample and samplenosnapshot protos to use two-event pattern and `sets_state` if applicable~~
-- [x] ~~Investigate TTL / event expiration~~ (DynamoDB TTL, scheduled cleanup for SQL/BoltDB stores)
-- [x] ~~Auto-generate a Lambda (or similar) endpoint for receiving event data~~ (lambda.gotext generates per-command handlers, Get, and History endpoints)
-- [x] ~~Create a protojsonserializer that uses proto JSON serialization~~
-- [x] ~~Remove scenario package~~ (superseded: use memorystore + real serializer for testing)
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)
