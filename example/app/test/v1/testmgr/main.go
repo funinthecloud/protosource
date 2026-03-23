@@ -57,7 +57,7 @@ func main() {
 			Actor: actor,
 			Body:  os.Args[3],
 		}
-		applyAndPrint(ctx, repo, serializer, cmd)
+		applyAndPrint(ctx, repo, cmd)
 
 	case "update":
 		if len(os.Args) != 4 {
@@ -68,7 +68,7 @@ func main() {
 			Actor: actor,
 			Body:  os.Args[3],
 		}
-		applyAndPrint(ctx, repo, serializer, cmd)
+		applyAndPrint(ctx, repo, cmd)
 
 	case "lock":
 		if len(os.Args) != 3 {
@@ -78,7 +78,7 @@ func main() {
 			Id:    os.Args[2],
 			Actor: actor,
 		}
-		applyAndPrint(ctx, repo, serializer, cmd)
+		applyAndPrint(ctx, repo, cmd)
 
 	case "unlock":
 		if len(os.Args) != 3 {
@@ -88,7 +88,7 @@ func main() {
 			Id:    os.Args[2],
 			Actor: actor,
 		}
-		applyAndPrint(ctx, repo, serializer, cmd)
+		applyAndPrint(ctx, repo, cmd)
 
 	case "load":
 		if len(os.Args) != 3 {
@@ -133,7 +133,7 @@ func main() {
 	}
 }
 
-func applyAndPrint(ctx context.Context, repo *protosource.Repository, serializer *protobinaryserializer.Serializer, cmd protosource.Commander) {
+func applyAndPrint(ctx context.Context, repo *protosource.Repository, cmd protosource.Commander) {
 	if _, err := repo.Apply(ctx, cmd); err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		os.Exit(1)

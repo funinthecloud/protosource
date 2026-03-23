@@ -71,7 +71,7 @@ func main() {
             Actor: actor,
 {{ range $i, $f := $fields }}            {{ name $f }}: os.Args[{{ add 3 $i }}],
 {{ end }}        }
-        applyAndPrint(ctx, repo, serializer, cmd)
+        applyAndPrint(ctx, repo, cmd)
 {{ end }}
 {{ end }}
     case "load":
@@ -117,7 +117,7 @@ func main() {
     }
 }
 
-func applyAndPrint(ctx context.Context, repo *protosource.Repository, serializer *protobinaryserializer.Serializer, cmd protosource.Commander) {
+func applyAndPrint(ctx context.Context, repo *protosource.Repository, cmd protosource.Commander) {
     if _, err := repo.Apply(ctx, cmd); err != nil {
         fmt.Fprintf(os.Stderr, "error: %v\n", err)
         os.Exit(1)

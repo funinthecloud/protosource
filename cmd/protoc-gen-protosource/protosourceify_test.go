@@ -245,5 +245,123 @@ func TestOpaqueReservedNames(t *testing.T) {
 	}
 }
 
+func TestValidateCLICommandFields_StringOnly(t *testing.T) {
+	f := loadTestProto(t, "cli_valid.proto")
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+	if err := validateCLICommandFields(m); err != nil {
+		t.Errorf("expected no error for string-only fields, got: %v", err)
+	}
+}
+
+func TestValidateCLICommandFields_NoExtraFields(t *testing.T) {
+	f := loadTestProto(t, "valid.proto")
+
+	// Create only has id + actor, so zero CLI fields — should pass.
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+	if err := validateCLICommandFields(m); err != nil {
+		t.Errorf("expected no error for id-and-actor-only command, got: %v", err)
+	}
+}
+
+func TestValidateCLICommandFields_Int64Rejected(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_int.proto")
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+	err := validateCLICommandFields(m)
+	if err == nil {
+		t.Fatal("expected error for int64 field, got nil")
+	}
+	if !strings.Contains(err.Error(), "count") {
+		t.Errorf("error should mention field name 'count', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "Create") {
+		t.Errorf("error should mention command name 'Create', got: %v", err)
+	}
+}
+
+func TestValidateCLICommandFields_RepeatedRejected(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_repeated.proto")
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+	err := validateCLICommandFields(m)
+	if err == nil {
+		t.Fatal("expected error for repeated field, got nil")
+	}
+	if !strings.Contains(err.Error(), "tags") {
+		t.Errorf("error should mention field name 'tags', got: %v", err)
+	}
+}
+
+func TestValidateCLICommandFields_MessageRejected(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_message.proto")
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+	err := validateCLICommandFields(m)
+	if err == nil {
+		t.Fatal("expected error for message field, got nil")
+	}
+	if !strings.Contains(err.Error(), "metadata") {
+		t.Errorf("error should mention field name 'metadata', got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "message type") {
+		t.Errorf("error should mention 'message type', got: %v", err)
+	}
+}
+
+func TestCLIOutputPath_WithModule(t *testing.T) {
+	f := loadTestProto(t, "valid.proto")
+	p := newModule()
+	p.params = pgs.Parameters{"module": "github.com/funinthecloud/protosource"}
+
+	// valid.proto has aggregate "Thing", so directory should be "thingmgr".
+	got := p.cliOutputPath(f, "github.com/funinthecloud/protosource/test/valid")
+	want := "test/valid/thingmgr/main.go"
+	if got != want {
+		t.Errorf("cliOutputPath = %q, want %q", got, want)
+	}
+}
+
+func TestCLIOutputPath_WithModule_CLIValid(t *testing.T) {
+	f := loadTestProto(t, "cli_valid.proto")
+	p := newModule()
+	p.params = pgs.Parameters{"module": "github.com/funinthecloud/protosource"}
+
+	// cli_valid.proto has aggregate "Widget".
+	got := p.cliOutputPath(f, "github.com/funinthecloud/protosource/test/cli_valid")
+	want := "test/cli_valid/widgetmgr/main.go"
+	if got != want {
+		t.Errorf("cliOutputPath = %q, want %q", got, want)
+	}
+}
+
+func TestCLIOutputPath_NoAggregate(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_int.proto")
+	p := newModule()
+	p.params = pgs.Parameters{"module": "github.com/funinthecloud/protosource"}
+
+	// cli_invalid_int.proto has aggregate "Gadget".
+	got := p.cliOutputPath(f, "github.com/funinthecloud/protosource/test/cli_invalid_int")
+	want := "test/cli_invalid_int/gadgetmgr/main.go"
+	if got != want {
+		t.Errorf("cliOutputPath = %q, want %q", got, want)
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType
