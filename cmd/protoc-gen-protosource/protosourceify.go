@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
-	"path"
+	"path/filepath"
 	"sort"
 	"strings"
 	"text/template"
@@ -500,8 +500,8 @@ func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string 
 	}
 
 	out := p.ctx.OutputPath(f).String()
-	parent := path.Dir(out)
-	return parent + "/" + dir + "/main.go"
+	parent := filepath.Dir(out)
+	return filepath.Join(parent, dir, "main.go")
 }
 
 // importPath returns the full Go import path for the proto file's package.
