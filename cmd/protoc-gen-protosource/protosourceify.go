@@ -72,6 +72,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"lower":                  strings.ToLower,
 		"importPath":             p.importPath,
 		"cliCommandFields":       CLICommandFields,
+		"cliParseExpr":           cliParseExpr,
 		"add":                    func(a, b int) int { return a + b },
 	}
 }
@@ -307,31 +308,61 @@ func CLICommandFields(fields []pgs.Field) []pgs.Field {
 }
 
 // validateCLICommandFields checks that all non-id/actor command fields are
-// scalar strings. The generated CLI assigns os.Args values directly, so
-// non-string types (int64, bool, enums, repeated, maps, messages) would
-// produce uncompilable Go.
+// scalar types the generated CLI can parse from os.Args (string, integer,
+// float, bool). Repeated, map, message, and enum fields are rejected because
+// they cannot be meaningfully parsed from a single positional argument.
 func validateCLICommandFields(m pgs.Message) error {
 	for _, field := range CLICommandFields(m.Fields()) {
 		if field.Type().IsRepeated() || field.Type().IsMap() {
 			return fmt.Errorf(
-				"command %s: field %q is %s — the generated CLI only supports scalar string fields; "+
-					"use a hand-written CLI for complex types",
-				m.Name(), field.Name(), field.Type().ProtoType())
-		}
-		if field.Type().IsEmbed() {
-			return fmt.Errorf(
-				"command %s: field %q is a message type — the generated CLI only supports scalar string fields; "+
+				"command %s: field %q is repeated/map — the generated CLI only supports scalar fields; "+
 					"use a hand-written CLI for complex types",
 				m.Name(), field.Name())
 		}
-		if field.Type().ProtoType() != pgs.StringT {
+		if field.Type().IsEmbed() {
 			return fmt.Errorf(
-				"command %s: field %q is %s — the generated CLI only supports string fields; "+
-					"use a hand-written CLI for non-string types",
-				m.Name(), field.Name(), field.Type().ProtoType())
+				"command %s: field %q is a message type — the generated CLI only supports scalar fields; "+
+					"use a hand-written CLI for complex types",
+				m.Name(), field.Name())
+		}
+		if field.Type().IsEnum() {
+			return fmt.Errorf(
+				"command %s: field %q is an enum — the generated CLI cannot parse enum values; "+
+					"use a hand-written CLI for enum fields",
+				m.Name(), field.Name())
 		}
 	}
 	return nil
+}
+
+// cliParseExpr returns the Go expression to parse an os.Args value into the
+// correct type for a command field. For strings it returns the arg directly;
+// for numeric/bool types it wraps with a mustParseXxx helper.
+func cliParseExpr(f pgs.Field, argIdx int) string {
+	arg := fmt.Sprintf("os.Args[%d]", argIdx)
+	name := strings.ToLower(f.Name().String())
+	switch f.Type().ProtoType() {
+	case pgs.StringT:
+		return arg
+	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
+		return fmt.Sprintf("mustParseInt32(%s, %q)", arg, name)
+	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
+		return fmt.Sprintf("mustParseInt64(%s, %q)", arg, name)
+	case pgs.UInt32T, pgs.Fixed32T:
+		return fmt.Sprintf("mustParseUint32(%s, %q)", arg, name)
+	case pgs.UInt64T, pgs.Fixed64T:
+		return fmt.Sprintf("mustParseUint64(%s, %q)", arg, name)
+	case pgs.FloatT:
+		return fmt.Sprintf("float32(mustParseFloat(%s, 32, %q))", arg, name)
+	case pgs.DoubleT:
+		return fmt.Sprintf("mustParseFloat(%s, 64, %q)", arg, name)
+	case pgs.BoolT:
+		return fmt.Sprintf("mustParseBool(%s, %q)", arg, name)
+	case pgs.BytesT:
+		return fmt.Sprintf("[]byte(%s)", arg)
+	default:
+		return arg
+	}
 }
 
 func ExcludeInternal(fields []pgs.Field) interface{} {

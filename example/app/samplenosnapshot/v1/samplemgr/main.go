@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"strconv"
 	"text/tabwriter"
 	"time"
 
@@ -157,4 +158,54 @@ func detectActor() string {
 func fatal(msg string) {
 	fmt.Fprintln(os.Stderr, msg)
 	os.Exit(1)
+}
+
+// ── Scalar parsing helpers ──────────────────────────────────────────────────
+
+func mustParseInt32(s, field string) int32 {
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return int32(v)
+}
+
+func mustParseInt64(s, field string) int64 {
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return v
+}
+
+func mustParseUint32(s, field string) uint32 {
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return uint32(v)
+}
+
+func mustParseUint64(s, field string) uint64 {
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return v
+}
+
+func mustParseFloat(s string, bitSize int, field string) float64 {
+	v, err := strconv.ParseFloat(s, bitSize)
+	if err != nil {
+		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return v
+}
+
+func mustParseBool(s, field string) bool {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return v
 }

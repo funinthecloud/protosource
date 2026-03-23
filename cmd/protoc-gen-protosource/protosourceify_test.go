@@ -270,8 +270,20 @@ func TestValidateCLICommandFields_NoExtraFields(t *testing.T) {
 	}
 }
 
-func TestValidateCLICommandFields_Int64Rejected(t *testing.T) {
-	f := loadTestProto(t, "cli_invalid_int.proto")
+func TestValidateCLICommandFields_Int64Accepted(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_int.proto") // has int64 "count" field
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+	if err := validateCLICommandFields(m); err != nil {
+		t.Errorf("expected no error for int64 field, got: %v", err)
+	}
+}
+
+func TestValidateCLICommandFields_EnumRejected(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_enum.proto")
 
 	m := findMessage(f, "Create")
 	if m == nil {
@@ -279,13 +291,13 @@ func TestValidateCLICommandFields_Int64Rejected(t *testing.T) {
 	}
 	err := validateCLICommandFields(m)
 	if err == nil {
-		t.Fatal("expected error for int64 field, got nil")
+		t.Fatal("expected error for enum field, got nil")
 	}
-	if !strings.Contains(err.Error(), "count") {
-		t.Errorf("error should mention field name 'count', got: %v", err)
+	if !strings.Contains(err.Error(), "priority") {
+		t.Errorf("error should mention field name 'priority', got: %v", err)
 	}
-	if !strings.Contains(err.Error(), "Create") {
-		t.Errorf("error should mention command name 'Create', got: %v", err)
+	if !strings.Contains(err.Error(), "enum") {
+		t.Errorf("error should mention 'enum', got: %v", err)
 	}
 }
 
@@ -360,6 +372,49 @@ func TestCLIOutputPath_NoAggregate(t *testing.T) {
 	want := "test/cli_invalid_int/gadgetmgr/main.go"
 	if got != want {
 		t.Errorf("cliOutputPath = %q, want %q", got, want)
+	}
+}
+
+func TestCLIParseExpr_Types(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_int.proto") // has int64 "count" field
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+
+	// Find the "count" field (int64, field index 0 after filtering id+actor).
+	fields := CLICommandFields(m.Fields())
+	if len(fields) != 1 {
+		t.Fatalf("expected 1 CLI field, got %d", len(fields))
+	}
+
+	got := cliParseExpr(fields[0], 3)
+	if !strings.Contains(got, "mustParseInt64") {
+		t.Errorf("expected mustParseInt64 for int64 field, got: %s", got)
+	}
+	if !strings.Contains(got, "os.Args[3]") {
+		t.Errorf("expected os.Args[3] in expression, got: %s", got)
+	}
+}
+
+func TestCLIParseExpr_String(t *testing.T) {
+	f := loadTestProto(t, "cli_valid.proto")
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+
+	// First CLI field is "body" (string).
+	fields := CLICommandFields(m.Fields())
+	if len(fields) < 1 {
+		t.Fatal("expected at least 1 CLI field")
+	}
+
+	got := cliParseExpr(fields[0], 3)
+	if got != "os.Args[3]" {
+		t.Errorf("expected os.Args[3] for string field, got: %s", got)
 	}
 }
 
