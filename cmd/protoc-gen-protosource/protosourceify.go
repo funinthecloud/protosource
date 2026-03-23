@@ -69,6 +69,9 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
 		"routePrefix":            p.routePrefix,
 		"lower":                  strings.ToLower,
+		"importPath":             p.importPath,
+		"cliCommandFields":       CLICommandFields,
+		"add":                    func(a, b int) int { return a + b },
 	}
 }
 
@@ -289,6 +292,19 @@ func ExcludeCommandInternal(fields []pgs.Field) interface{} {
 	return results
 }
 
+// CLICommandFields returns command fields excluding id and actor (both are
+// handled automatically by the CLI: id from args, actor from OS user+hostname).
+func CLICommandFields(fields []pgs.Field) []pgs.Field {
+	results := make([]pgs.Field, 0)
+	for _, field := range fields {
+		if field.Name() == "id" || field.Name() == "actor" {
+			continue
+		}
+		results = append(results, field)
+	}
+	return results
+}
+
 func ExcludeInternal(fields []pgs.Field) interface{} {
 	results := make([]pgs.Field, 0)
 
@@ -365,10 +381,16 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 
 // outputPathForTemplate computes the output file path for a proto file and template.
 // The default template ("protosource.gotext") produces ".protosource.pb.go" (backward compatible).
+// The cli template ("cli.gotext") produces a subdirectory: "<aggregate_lower>mgr/main.go".
 // Other templates produce ".protosource.<name>.pb.go" where <name> is the template name
 // without the ".gotext" extension.
 func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Template) string {
 	importPath := p.ctx.ImportPath(f).String()
+
+	// CLI template goes into a <aggregate>mgr/ subdirectory as package main.
+	if tpl.Name() == "cli.gotext" {
+		return p.cliOutputPath(f, importPath)
+	}
 
 	suffix := ".protosource.pb.go"
 	if tplName := tpl.Name(); tplName != "protosource.gotext" {
@@ -387,6 +409,38 @@ func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Temp
 	// Fallback: use OutputPath from pgsgo context
 	out := p.ctx.OutputPath(f).String()
 	return strings.TrimSuffix(out, ".pb.go") + suffix
+}
+
+// cliOutputPath returns the output path for the CLI template, placing it in
+// a <aggregate_lower>mgr/ subdirectory (e.g., "example/app/test/v1/testmgr/main.go").
+func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string {
+	aggregateName := ""
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			aggregateName = strings.ToLower(m.Name().String())
+			break
+		}
+	}
+	if aggregateName == "" {
+		aggregateName = "cli"
+	}
+
+	dir := aggregateName + "mgr"
+
+	if mod := p.params.Str("module"); mod != "" {
+		rel := strings.TrimPrefix(importPath, mod)
+		rel = strings.TrimPrefix(rel, "/")
+		return rel + "/" + dir + "/main.go"
+	}
+
+	out := p.ctx.OutputPath(f).String()
+	parent := out[:strings.LastIndex(out, "/")]
+	return parent + "/" + dir + "/main.go"
+}
+
+// importPath returns the full Go import path for the proto file's package.
+func (p *ProtosourceModule) importPath(f pgs.File) string {
+	return p.ctx.ImportPath(f).String()
 }
 
 // routePrefix returns the module-stripped import path for a proto file,
