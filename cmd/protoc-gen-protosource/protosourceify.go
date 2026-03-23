@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io/fs"
+	"path"
 	"sort"
 	"strings"
 	"text/template"
@@ -305,6 +306,34 @@ func CLICommandFields(fields []pgs.Field) []pgs.Field {
 	return results
 }
 
+// validateCLICommandFields checks that all non-id/actor command fields are
+// scalar strings. The generated CLI assigns os.Args values directly, so
+// non-string types (int64, bool, enums, repeated, maps, messages) would
+// produce uncompilable Go.
+func validateCLICommandFields(m pgs.Message) error {
+	for _, field := range CLICommandFields(m.Fields()) {
+		if field.Type().IsRepeated() || field.Type().IsMap() {
+			return fmt.Errorf(
+				"command %s: field %q is %s — the generated CLI only supports scalar string fields; "+
+					"use a hand-written CLI for complex types",
+				m.Name(), field.Name(), field.Type().ProtoType())
+		}
+		if field.Type().IsEmbed() {
+			return fmt.Errorf(
+				"command %s: field %q is a message type — the generated CLI only supports scalar string fields; "+
+					"use a hand-written CLI for complex types",
+				m.Name(), field.Name())
+		}
+		if field.Type().ProtoType() != pgs.StringT {
+			return fmt.Errorf(
+				"command %s: field %q is %s — the generated CLI only supports string fields; "+
+					"use a hand-written CLI for non-string types",
+				m.Name(), field.Name(), field.Type().ProtoType())
+		}
+	}
+	return nil
+}
+
 func ExcludeInternal(fields []pgs.Field) interface{} {
 	results := make([]pgs.Field, 0)
 
@@ -434,7 +463,7 @@ func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string 
 	}
 
 	out := p.ctx.OutputPath(f).String()
-	parent := out[:strings.LastIndex(out, "/")]
+	parent := path.Dir(out)
 	return parent + "/" + dir + "/main.go"
 }
 
@@ -493,6 +522,10 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 				return
 			}
 			if err := p.validateAllowedStates(m); err != nil {
+				p.Fail(err.Error())
+				return
+			}
+			if err := validateCLICommandFields(m); err != nil {
 				p.Fail(err.Error())
 				return
 			}
