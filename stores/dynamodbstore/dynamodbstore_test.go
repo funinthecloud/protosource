@@ -541,42 +541,6 @@ func TestDuplicateVersionReturnsError(t *testing.T) {
 	assert.Error(t, err)
 }
 
-func TestTenantPrefix_NamespacesAggregates(t *testing.T) {
-	mock := newMockDynamoer()
-	store1, err := New(mock, WithTenantPrefix("tenant-a"))
-	require.NoError(t, err)
-	store2, err := New(mock, WithTenantPrefix("tenant-b"))
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	require.NoError(t, store1.Save(ctx, "agg-1", makeRecord(1, []byte("from-a"))))
-	require.NoError(t, store2.Save(ctx, "agg-1", makeRecord(1, []byte("from-b"))))
-
-	h1, err := store1.Load(ctx, "agg-1")
-	require.NoError(t, err)
-	require.Len(t, h1.Records, 1)
-	assert.Equal(t, []byte("from-a"), h1.Records[0].Data)
-
-	h2, err := store2.Load(ctx, "agg-1")
-	require.NoError(t, err)
-	require.Len(t, h2.Records, 1)
-	assert.Equal(t, []byte("from-b"), h2.Records[0].Data)
-}
-
-func TestSaveAggregate_RequiresAutoPKSK_WithTenantPrefix(t *testing.T) {
-	mock := newMockDynamoer()
-	opaqueStore := &mockOpaqueStore{}
-	store, err := New(mock, WithTenantPrefix("t1"), WithOpaqueStore(opaqueStore))
-	require.NoError(t, err)
-	ctx := context.Background()
-
-	// testv1.Test does not implement AutoPKSK, even with OpaqueStore configured.
-	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "t1-data"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not implement opaquedata.AutoPKSK")
-}
-
 func TestLoad_PaginatesAcrossPages(t *testing.T) {
 	// Use a mock with a tiny page size to force multiple round-trips.
 	store, _ := newPaginatingTestStore(t, 3)

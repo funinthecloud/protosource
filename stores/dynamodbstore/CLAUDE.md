@@ -126,7 +126,6 @@ must implement `AutoPKSK` to be materialized via `SaveAggregate`.
 - Requires `WithOpaqueStore` configured and aggregate implementing `opaquedata.AutoPKSK`
 - Stores via `opaquedata.NewOpaqueDataFromProto` + `OpaqueStore.Put`
 - Returns error if OpaqueStore is nil or aggregate doesn't implement AutoPKSK
-- `DynamoDBStore.WithTenantPrefix` only prefixes event keys (via `makeKey`). For aggregate tenant isolation, the OpaqueStore adapter must be independently configured with the same prefix (e.g. `opaquedata/dynamo.WithTenantPrefix`)
 
 ### Functional Options
 
@@ -134,7 +133,6 @@ must implement `AutoPKSK` to be materialized via `SaveAggregate`.
 type Option func(*DynamoDBStore)
 
 func WithEventsTable(name string) Option                    // default: "events"
-func WithTenantPrefix(prefix string) Option                 // prepends "prefix#" to all keys
 func WithOpaqueStore(store opaquedata.OpaqueStore) Option   // required for SaveAggregate
 func WithTTL(ttl time.Duration) Option                      // sets TTL on event records; table must have TTL enabled on "t"
 ```

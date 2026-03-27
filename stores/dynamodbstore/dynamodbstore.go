@@ -41,11 +41,10 @@ const (
 // DynamoDBStore implements the protosource Store, AggregateStore, and
 // SnapshotTailStore interfaces backed by DynamoDB.
 type DynamoDBStore struct {
-	client       Dynamoer
-	eventsTable  string
-	opaqueStore  opaquedata.OpaqueStore // SaveAggregate requires this; aggregates are stored via opaquedata with GSI indexing
-	tenantPrefix string
-	ttl          time.Duration // when non-zero, sets TTL attribute on event writes
+	client      Dynamoer
+	eventsTable string
+	opaqueStore opaquedata.OpaqueStore // SaveAggregate requires this; aggregates are stored via opaquedata with GSI indexing
+	ttl         time.Duration          // when non-zero, sets TTL attribute on event writes
 }
 
 // New creates a new DynamoDBStore. The client must not be nil.
@@ -71,21 +70,10 @@ func WithEventsTable(name string) Option {
 	return func(s *DynamoDBStore) { s.eventsTable = name }
 }
 
-// WithTenantPrefix prepends "prefix#" to all aggregate IDs for multi-tenant
-// table sharing.
-func WithTenantPrefix(prefix string) Option {
-	return func(s *DynamoDBStore) { s.tenantPrefix = prefix }
-}
-
 // WithOpaqueStore sets the OpaqueStore used by SaveAggregate to persist
 // materialized aggregates. The aggregates table uses pk/sk (String/String)
 // keys with up to 20 GSIs for query access patterns. All aggregates must
 // implement opaquedata.AutoPKSK to be materialized.
-//
-// The OpaqueStore adapter owns all storage-level concerns including tenant
-// isolation. If using WithTenantPrefix on this DynamoDBStore, configure the
-// same prefix on the OpaqueStore adapter (e.g. dynamo.WithTenantPrefix) so
-// that event and aggregate key spaces are consistently isolated.
 func WithOpaqueStore(store opaquedata.OpaqueStore) Option {
 	return func(s *DynamoDBStore) { s.opaqueStore = store }
 }
@@ -119,8 +107,6 @@ func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ..
 		return nil
 	}
 
-	key := s.makeKey(aggregateID)
-
 	// Batch into groups of maxTransactItems.
 	for i := 0; i < len(records); i += maxTransactItems {
 		end := i + maxTransactItems
@@ -132,7 +118,7 @@ func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ..
 		items := make([]types.TransactWriteItem, len(batch))
 		for j, rec := range batch {
 			item := map[string]types.AttributeValue{
-				attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+				attrPartitionKey: &types.AttributeValueMemberS{Value: aggregateID},
 				attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetVersion(), 10)},
 				attrData:         &types.AttributeValueMemberB{Value: rec.GetData()},
 			}
@@ -166,7 +152,6 @@ func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv
 		return nil, fmt.Errorf("dynamodbstore.Load: %w", err)
 	}
 
-	key := s.makeKey(aggregateID)
 	history := &historyv1.History{}
 
 	var exclusiveStartKey map[string]types.AttributeValue
@@ -177,7 +162,7 @@ func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv
 			ScanIndexForward:       aws.Bool(true),
 			KeyConditionExpression: aws.String("a = :id"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":id": &types.AttributeValueMemberS{Value: key},
+				":id": &types.AttributeValueMemberS{Value: aggregateID},
 			},
 		}
 		if exclusiveStartKey != nil {
@@ -227,7 +212,6 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 		limit = maxInt32
 	}
 
-	key := s.makeKey(aggregateID)
 	history := &historyv1.History{}
 	remaining := n
 
@@ -245,7 +229,7 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 			Limit:                  aws.Int32(int32(pageLimit)),
 			KeyConditionExpression: aws.String("a = :id"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":id": &types.AttributeValueMemberS{Value: key},
+				":id": &types.AttributeValueMemberS{Value: aggregateID},
 			},
 		}
 		if exclusiveStartKey != nil {
@@ -306,15 +290,6 @@ func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregate proto.Messa
 		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 	}
 	return nil
-}
-
-// makeKey returns the DynamoDB partition key for the given aggregate ID,
-// prepending the tenant prefix if configured.
-func (s *DynamoDBStore) makeKey(aggregateID string) string {
-	if s.tenantPrefix != "" {
-		return s.tenantPrefix + "#" + aggregateID
-	}
-	return aggregateID
 }
 
 // itemToRecord converts a DynamoDB item into a recordv1.Record.

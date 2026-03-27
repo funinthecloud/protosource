@@ -151,7 +151,6 @@ type Option func(*CosmosDBStore)
 
 func WithEventsContainer(name string) Option     // default: "events"
 func WithAggregatesContainer(name string) Option // default: "aggregates"
-func WithTenantPrefix(prefix string) Option      // prepends "prefix#" to aggregate IDs for multi-tenant containers
 func WithTTL(ttl time.Duration) Option           // sets TTL on event documents; container must have TTL enabled
 ```
 
