@@ -555,10 +555,10 @@ type CollectionMapping struct {
 	Target string `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// What this event does to the collection.
 	Action CollectionAction `protobuf:"varint,2,opt,name=action,proto3,enum=funinthecloud.protosource.options.v1.CollectionAction" json:"action,omitempty"`
-	// For REMOVE: the field name on the collection element used as the key
-	// (e.g. "item_id"). The event must have a field with the same name whose
-	// value identifies which element to remove.
-	// For ADD: optional. If set, used for deduplication (idempotent add).
+	// For REMOVE: required. The field name on the collection element used as
+	// the key (e.g. "item_id"). The event must have a field with the same
+	// name and type whose value identifies which element to remove.
+	// For ADD: unused. Reserved for future idempotent-add behavior.
 	KeyField      string `protobuf:"bytes,3,opt,name=key_field,json=keyField,proto3" json:"key_field,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

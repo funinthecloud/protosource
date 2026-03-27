@@ -434,7 +434,7 @@ func TestValidateCollectionMapping_ValidAdd(t *testing.T) {
 		t.Fatal("event WidgetAdded not found")
 	}
 
-	if err := p.validateCollectionMapping(evt, agg); err != nil {
+	if err := p.validateCollectionMapping(evt, agg, f); err != nil {
 		t.Errorf("validateCollectionMapping(WidgetAdded) unexpected error: %v", err)
 	}
 }
@@ -453,7 +453,7 @@ func TestValidateCollectionMapping_ValidRemove(t *testing.T) {
 		t.Fatal("event WidgetRemoved not found")
 	}
 
-	if err := p.validateCollectionMapping(evt, agg); err != nil {
+	if err := p.validateCollectionMapping(evt, agg, f); err != nil {
 		t.Errorf("validateCollectionMapping(WidgetRemoved) unexpected error: %v", err)
 	}
 }
@@ -469,7 +469,7 @@ func TestValidateCollectionMapping_NoCollection(t *testing.T) {
 	}
 
 	// Events without collection annotations should pass validation.
-	if err := p.validateCollectionMapping(evt, agg); err != nil {
+	if err := p.validateCollectionMapping(evt, agg, f); err != nil {
 		t.Errorf("validateCollectionMapping(Created) unexpected error: %v", err)
 	}
 }
@@ -484,7 +484,7 @@ func TestValidateCollectionMapping_BadTarget(t *testing.T) {
 		t.Fatal("messages not found")
 	}
 
-	err := p.validateCollectionMapping(evt, agg)
+	err := p.validateCollectionMapping(evt, agg, f)
 	if err == nil {
 		t.Fatal("expected error for bad target, got nil")
 	}
@@ -503,7 +503,7 @@ func TestValidateCollectionMapping_MissingKeyField(t *testing.T) {
 		t.Fatal("messages not found")
 	}
 
-	err := p.validateCollectionMapping(evt, agg)
+	err := p.validateCollectionMapping(evt, agg, f)
 	if err == nil {
 		t.Fatal("expected error for missing key_field, got nil")
 	}

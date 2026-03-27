@@ -285,14 +285,21 @@ func (p *ProtosourceModule) eventSetsState(m pgs.Message) string {
 }
 
 // eventCollectionMapping returns the CollectionMapping annotation for an event,
-// or nil if the event does not modify a collection.
+// or nil if the event does not have a collection annotation at all.
+// Note: a non-nil return does NOT mean the mapping is valid — call
+// validateCollectionMapping to check for required fields like target.
 func (p *ProtosourceModule) eventCollectionMapping(m pgs.Message) *optionsv1.CollectionMapping {
 	opts := p.messageOptions(m)
 	if opts == nil || opts.GetEvent() == nil {
 		return nil
 	}
 	cm := opts.GetEvent().GetCollection()
-	if cm == nil || cm.GetTarget() == "" {
+	if cm == nil {
+		return nil
+	}
+	// A CollectionMapping with all zero values is indistinguishable from
+	// "not set" in proto3. Treat it as absent.
+	if cm.GetTarget() == "" && cm.GetAction() == optionsv1.CollectionAction_COLLECTION_ACTION_UNSPECIFIED && cm.GetKeyField() == "" {
 		return nil
 	}
 	return cm
@@ -411,17 +418,23 @@ func (p *ProtosourceModule) eventCollectionKeyField(m pgs.Message) string {
 }
 
 // validateCollectionMapping validates the collection annotation on an event message.
-func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.Message) error {
+func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.Message, f pgs.File) error {
 	cm := p.eventCollectionMapping(evt)
 	if cm == nil {
 		return nil
 	}
 
+	// Target is required whenever a collection annotation is present.
+	if cm.GetTarget() == "" {
+		return fmt.Errorf("event %s: collection annotation present but target is empty",
+			evt.Name())
+	}
+
 	// Target field must exist on aggregate.
 	var targetField pgs.Field
-	for _, f := range agg.Fields() {
-		if f.Name().String() == cm.GetTarget() {
-			targetField = f
+	for _, af := range agg.Fields() {
+		if af.Name().String() == cm.GetTarget() {
+			targetField = af
 			break
 		}
 	}
@@ -442,13 +455,31 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 
 	elemMsg := targetField.Type().Element().Embed()
 
+	// REMOVE is not valid on creation events — the collection is empty at creation time.
+	if cm.GetAction() == optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE {
+		if p.isCreationEvent(evt, f) {
+			return fmt.Errorf("event %s: collection REMOVE is not valid on a creation event",
+				evt.Name())
+		}
+	}
+
 	switch cm.GetAction() {
 	case optionsv1.CollectionAction_COLLECTION_ACTION_ADD:
 		// Event must have exactly one embedded field matching the element type.
-		srcField := p.eventCollectionSourceField(evt, agg)
-		if srcField == nil {
+		elemFQN := elemMsg.FullyQualifiedName()
+		var matchCount int
+		for _, ef := range evt.Fields() {
+			if ef.Type().IsEmbed() && ef.Type().Embed().FullyQualifiedName() == elemFQN {
+				matchCount++
+			}
+		}
+		if matchCount == 0 {
 			return fmt.Errorf("event %s: collection ADD requires a field of type %s, but none found",
 				evt.Name(), elemMsg.Name())
+		}
+		if matchCount > 1 {
+			return fmt.Errorf("event %s: collection ADD requires exactly one field of type %s, but found %d",
+				evt.Name(), elemMsg.Name(), matchCount)
 		}
 
 	case optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE:
@@ -458,28 +489,34 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 				evt.Name())
 		}
 		// key_field must exist on the element message.
-		var elemHasKey bool
+		var elemKeyField pgs.Field
 		for _, ef := range elemMsg.Fields() {
 			if ef.Name().String() == cm.GetKeyField() {
-				elemHasKey = true
+				elemKeyField = ef
 				break
 			}
 		}
-		if !elemHasKey {
+		if elemKeyField == nil {
 			return fmt.Errorf("event %s: collection REMOVE key_field %q not found on element %s",
 				evt.Name(), cm.GetKeyField(), elemMsg.Name())
 		}
 		// Event must have a field with the same name as key_field.
-		var evtHasKey bool
+		var evtKeyField pgs.Field
 		for _, ef := range evt.Fields() {
 			if ef.Name().String() == cm.GetKeyField() {
-				evtHasKey = true
+				evtKeyField = ef
 				break
 			}
 		}
-		if !evtHasKey {
+		if evtKeyField == nil {
 			return fmt.Errorf("event %s: collection REMOVE requires a field named %q matching the key_field",
 				evt.Name(), cm.GetKeyField())
+		}
+		// Key field types must match between element and event.
+		if elemKeyField.Type().ProtoType() != evtKeyField.Type().ProtoType() {
+			return fmt.Errorf("event %s: collection REMOVE key_field %q type mismatch — element %s has %s, event has %s",
+				evt.Name(), cm.GetKeyField(), elemMsg.Name(),
+				elemKeyField.Type().ProtoType(), evtKeyField.Type().ProtoType())
 		}
 
 	default:
@@ -903,7 +940,7 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 				return
 			}
 			if agg != nil {
-				if err := p.validateCollectionMapping(m, agg); err != nil {
+				if err := p.validateCollectionMapping(m, agg, f); err != nil {
 					p.Fail(err.Error())
 					return
 				}
