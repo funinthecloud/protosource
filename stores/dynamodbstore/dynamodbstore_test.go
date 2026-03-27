@@ -255,7 +255,7 @@ func (m *mockOpaqueStore) Get(_ context.Context, pk, sk string) (*opaquedatav1.O
 	if od, ok := m.items[pk+"|"+sk]; ok {
 		return od, nil
 	}
-	return nil, fmt.Errorf("not found")
+	return nil, opaquedata.ErrNotFound
 }
 
 func (m *mockOpaqueStore) Delete(_ context.Context, _, _ string) error { return nil }

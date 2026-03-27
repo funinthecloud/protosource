@@ -126,7 +126,7 @@ must implement `AutoPKSK` to be materialized via `SaveAggregate`.
 - Requires `WithOpaqueStore` configured and aggregate implementing `opaquedata.AutoPKSK`
 - Stores via `opaquedata.NewOpaqueDataFromProto` + `OpaqueStore.Put`
 - Returns error if OpaqueStore is nil or aggregate doesn't implement AutoPKSK
-- When `WithTenantPrefix` is set, `opaquedata.PrefixPKs` is applied to isolate key spaces
+- `DynamoDBStore.WithTenantPrefix` only prefixes event keys (via `makeKey`). For aggregate tenant isolation, the OpaqueStore adapter must be independently configured with the same prefix (e.g. `opaquedata/dynamo.WithTenantPrefix`)
 
 ### Functional Options
 
