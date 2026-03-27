@@ -67,8 +67,12 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueFieldNameLower":   opaqueFieldNameLower,
 		"opaqueKeySlotName":      opaqueKeySlotName,
 		"opaqueKeySlotGSINum":    opaqueKeySlotGSINum,
-		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
-		"routePrefix":            p.routePrefix,
+		"opaqueKeySlotIsSK":          opaqueKeySlotIsSK,
+		"projectionSKValue":          p.projectionSKValue,
+		"projectionMatchingFields":   p.projectionMatchingFields,
+		"projectionsForFile":         p.projectionsForFile,
+		"aggregateForFile":           p.aggregateForFile,
+		"routePrefix":                p.routePrefix,
 		"lower":                  strings.ToLower,
 		"importPath":             p.importPath,
 		"cliCommandFields":       CLICommandFields,
@@ -445,6 +449,96 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 	return nil
 }
 
+// validateFileStructure enforces structural guardrails on the proto file:
+//   - Exactly one aggregate message
+//   - Aggregate must be the first message
+//   - Exactly one CREATION command
+//   - Non-first events in a CREATION command must also be produced by a MUTATION command
+//   - At most one snapshot message
+//   - Projection messages must have an "id" field
+func (p *ProtosourceModule) validateFileStructure(f pgs.File) error {
+	// Count aggregates and verify the first message is the aggregate.
+	aggregateCount := 0
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			aggregateCount++
+		}
+	}
+	if aggregateCount == 0 {
+		return fmt.Errorf("file %s: no aggregate message defined", f.Name())
+	}
+	if aggregateCount > 1 {
+		return fmt.Errorf("file %s: exactly one aggregate per file, found %d", f.Name(), aggregateCount)
+	}
+	if !p.isAggregate(f.Messages()[0]) {
+		return fmt.Errorf("file %s: aggregate must be the first message, but %s is not an aggregate", f.Name(), f.Messages()[0].Name())
+	}
+
+	// Exactly one CREATION command.
+	creationCount := 0
+	var creationCmd pgs.Message
+	for _, m := range f.Messages() {
+		if p.isCommand(m) && p.commandLifecycle(m) == "CREATION" {
+			creationCount++
+			creationCmd = m
+		}
+	}
+	if creationCount != 1 {
+		return fmt.Errorf("file %s: exactly one CREATION command required, found %d", f.Name(), creationCount)
+	}
+
+	// Non-first events in a CREATION command must also be produced by a MUTATION command.
+	if creationCmd != nil {
+		events := p.commandEvents(creationCmd)
+		if len(events) > 1 {
+			// Build set of events produced by MUTATION commands.
+			mutationEvents := make(map[string]bool)
+			for _, m := range f.Messages() {
+				if p.isCommand(m) && p.commandLifecycle(m) != "CREATION" {
+					for _, e := range p.commandEvents(m) {
+						mutationEvents[e] = true
+					}
+				}
+			}
+			for _, eventName := range events[1:] {
+				if !mutationEvents[eventName] {
+					return fmt.Errorf("file %s: CREATION command %s produces event %q which is not produced by any MUTATION command — every non-first creation event must also be a standalone command",
+						f.Name(), creationCmd.Name(), eventName)
+				}
+			}
+		}
+	}
+
+	// At most one snapshot.
+	snapshotCount := 0
+	for _, m := range f.Messages() {
+		if p.isSnapshot(m) {
+			snapshotCount++
+		}
+	}
+	if snapshotCount > 1 {
+		return fmt.Errorf("file %s: at most one snapshot per file, found %d", f.Name(), snapshotCount)
+	}
+
+	// Projection messages must have an "id" field.
+	for _, m := range f.Messages() {
+		if p.isProjection(m) {
+			hasID := false
+			for _, field := range m.Fields() {
+				if field.Name().String() == "id" {
+					hasID = true
+					break
+				}
+			}
+			if !hasID {
+				return fmt.Errorf("file %s: projection %s must have an \"id\" field (required for PK derivation)", f.Name(), m.Name())
+			}
+		}
+	}
+
+	return nil
+}
+
 // outputPathForTemplate computes the output file path for a proto file and template.
 // The default template ("protosource.gotext") produces ".protosource.pb.go" (backward compatible).
 // The cli template ("cli.gotext") produces a subdirectory: "<aggregate_lower>mgr/main.go".
@@ -546,6 +640,12 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		return
 	}
 
+	// ── File-level structural guardrails ──
+	if err := p.validateFileStructure(f); err != nil {
+		p.Fail(err.Error())
+		return
+	}
+
 	p.enumValueIndex = buildEnumValueIndex(f)
 
 	for _, m := range f.Messages() {
@@ -590,6 +690,16 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		}
 	}
 
+	// Validate projection fields match aggregate fields by name and type.
+	if agg := p.aggregateForFile(f); agg != nil {
+		for _, proj := range p.projectionsForFile(f) {
+			if err := p.validateProjectionFields(proj, agg); err != nil {
+				p.Fail(err.Error())
+				return
+			}
+		}
+	}
+
 	if hasOpaque {
 		if err := p.validateMessageNamesAgainstOpaque(f); err != nil {
 			p.Fail(err.Error())
@@ -622,9 +732,9 @@ func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
 }
 
 // hasOpaqueAnnotations returns true if the message should get AutoPKSK methods.
-// All aggregates get PK/SK automatically; non-aggregates need explicit field annotations.
+// Aggregates and projections get PK/SK automatically; others need explicit field annotations.
 func (p *ProtosourceModule) hasOpaqueAnnotations(m pgs.Message) bool {
-	if p.isAggregate(m) {
+	if p.isAggregate(m) || p.isProjection(m) {
 		return true
 	}
 	for _, f := range m.Fields() {
@@ -677,13 +787,21 @@ func (p *ProtosourceModule) opaqueKeyPrefix(m pgs.Message, f pgs.File) string {
 func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 	mappings := p.opaqueKeyMappings(m)
 
-	// Aggregates get PK/SK automatically — reject explicit PK/SK annotations.
-	if p.isAggregate(m) {
+	// Aggregates and projections get PK/SK automatically — reject explicit PK/SK annotations.
+	if p.isAggregate(m) || p.isProjection(m) {
+		kind := "aggregate"
+		if p.isProjection(m) {
+			kind = "projection"
+		}
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; ok {
-			return fmt.Errorf("message %s: aggregate PK is automatic (derived from package + id) — remove OPAQUE_KEY_TYPE_PK annotations", m.Name())
+			return fmt.Errorf("message %s: %s PK is automatic (derived from package + id) — remove OPAQUE_KEY_TYPE_PK annotations", m.Name(), kind)
 		}
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_SK]; ok {
-			return fmt.Errorf("message %s: aggregate SK is automatic (always \"AGG\") — remove OPAQUE_KEY_TYPE_SK annotations", m.Name())
+			skVal := "AGG"
+			if p.isProjection(m) {
+				skVal = "PROJ#" + m.Name().String()
+			}
+			return fmt.Errorf("message %s: %s SK is automatic (%q) — remove OPAQUE_KEY_TYPE_SK annotations", m.Name(), kind, skVal)
 		}
 		if len(mappings) == 0 {
 			return nil
@@ -694,8 +812,8 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 		return nil
 	}
 
-	// Non-aggregates must have at least PK
-	if !p.isAggregate(m) {
+	// Non-aggregates/projections must have at least PK
+	if !p.isAggregate(m) && !p.isProjection(m) {
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; !ok {
 			return fmt.Errorf("message %s: opaque annotations present but no PK field defined", m.Name())
 		}
@@ -846,10 +964,10 @@ func (p *ProtosourceModule) opaqueGSISKFields(m pgs.Message, gsiNum int) []opaqu
 }
 
 // opaquePKFields returns the fields that compose the table PK.
-// For aggregates, PK is always derived from the id field (field 1).
-// For non-aggregates, PK comes from explicit OPAQUE_KEY_TYPE_PK annotations.
+// For aggregates and projections, PK is always derived from the id field.
+// For other messages, PK comes from explicit OPAQUE_KEY_TYPE_PK annotations.
 func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
-	if p.isAggregate(m) {
+	if p.isAggregate(m) || p.isProjection(m) {
 		for _, f := range m.Fields() {
 			if f.Name().String() == "id" {
 				return []opaqueFieldMapping{{Field: f, Order: 1}}
@@ -859,4 +977,93 @@ func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
 	}
 	mappings := p.opaqueKeyMappings(m)
 	return mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]
+}
+
+// aggregateForFile returns the aggregate message in the same file as the given message.
+func (p *ProtosourceModule) aggregateForFile(f pgs.File) pgs.Message {
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			return m
+		}
+	}
+	return nil
+}
+
+// projectionSKValue returns the SK value for a projection: "PROJ#MessageName".
+func (p *ProtosourceModule) projectionSKValue(m pgs.Message) string {
+	return "PROJ#" + m.Name().String()
+}
+
+// projectionMatchingFields returns the projection fields whose names match aggregate fields.
+// Used to generate the Project() method that copies fields from aggregate to projection.
+type projectionFieldPair struct {
+	ProjectionField pgs.Field
+	AggregateField  pgs.Field
+}
+
+func (p *ProtosourceModule) projectionMatchingFields(proj pgs.Message, agg pgs.Message) []projectionFieldPair {
+	aggFields := make(map[string]pgs.Field)
+	for _, f := range agg.Fields() {
+		aggFields[f.Name().String()] = f
+	}
+	var pairs []projectionFieldPair
+	for _, pf := range proj.Fields() {
+		if af, ok := aggFields[pf.Name().String()]; ok {
+			pairs = append(pairs, projectionFieldPair{
+				ProjectionField: pf,
+				AggregateField:  af,
+			})
+		}
+	}
+	return pairs
+}
+
+// validateProjectionFields checks that all projection fields match aggregate fields
+// by name AND proto type. Returns an error listing any mismatches.
+func (p *ProtosourceModule) validateProjectionFields(proj pgs.Message, agg pgs.Message) error {
+	aggFields := make(map[string]pgs.Field)
+	for _, f := range agg.Fields() {
+		aggFields[f.Name().String()] = f
+	}
+	var errs []string
+	for _, pf := range proj.Fields() {
+		af, ok := aggFields[pf.Name().String()]
+		if !ok {
+			errs = append(errs, fmt.Sprintf("field %q: not found on aggregate %s", pf.Name(), agg.Name()))
+			continue
+		}
+		if pf.Type().ProtoType() != af.Type().ProtoType() {
+			errs = append(errs, fmt.Sprintf("field %q: type mismatch — projection has %s, aggregate %s has %s",
+				pf.Name(), pf.Type().ProtoType(), agg.Name(), af.Type().ProtoType()))
+			continue
+		}
+		// For message/enum types, verify the underlying type name matches.
+		if pf.Type().IsEmbed() && af.Type().IsEmbed() {
+			if pf.Type().Embed().FullyQualifiedName() != af.Type().Embed().FullyQualifiedName() {
+				errs = append(errs, fmt.Sprintf("field %q: message type mismatch — projection has %s, aggregate has %s",
+					pf.Name(), pf.Type().Embed().FullyQualifiedName(), af.Type().Embed().FullyQualifiedName()))
+			}
+		}
+		if pf.Type().IsEnum() && af.Type().IsEnum() {
+			if pf.Type().Enum().FullyQualifiedName() != af.Type().Enum().FullyQualifiedName() {
+				errs = append(errs, fmt.Sprintf("field %q: enum type mismatch — projection has %s, aggregate has %s",
+					pf.Name(), pf.Type().Enum().FullyQualifiedName(), af.Type().Enum().FullyQualifiedName()))
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("projection %s: %s", proj.Name(), strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// projectionsForFile returns all projection messages in the file.
+func (p *ProtosourceModule) projectionsForFile(f pgs.File) []pgs.Message {
+	var projs []pgs.Message
+	for _, m := range f.Messages() {
+		if p.isProjection(m) {
+			projs = append(projs, m)
+		}
+	}
+	return projs
 }

@@ -54,6 +54,18 @@ type AggregateStore interface {
 	SaveAggregate(ctx context.Context, aggregate proto.Message) error
 }
 
+// Projector is an optional interface that aggregates implement when they have
+// projection messages defined in their proto file. The generated Projections()
+// method returns all projection views derived from the current aggregate state.
+// The Repository persists each projection via SaveAggregate after materializing
+// the aggregate itself. Like materialization, projection is best-effort.
+//
+// Each returned proto.Message must implement opaquedata.AutoPKSK (which is
+// guaranteed by the code generator for projection message types).
+type Projector interface {
+	Projections() []proto.Message
+}
+
 // SnapshotTailStore is an optional interface that stores can implement to
 // support efficient partial event loading. When the aggregate has a snapshot
 // interval, the repository calls LoadTail to retrieve only the last N events
@@ -129,6 +141,18 @@ type Event interface {
 	GetActor() string
 }
 
+// Logger is the interface for repository diagnostic logging. Materialization
+// and projection failures are logged here rather than returned to the caller
+// (events are the source of truth; materialization is best-effort).
+type Logger interface {
+	Warn(msg string, args ...any)
+}
+
+// noopLogger discards all log output. Used as the default when no logger is configured.
+type noopLogger struct{}
+
+func (noopLogger) Warn(string, ...any) {}
+
 // Repository provides the primary abstraction for saving and loading events.
 // It uses a store to persist data and a serializer to convert between events and records.
 type Repository struct {
@@ -136,6 +160,7 @@ type Repository struct {
 	store             Store        // Underlying storage for events
 	serializer        Serializer   // Converts between events and records
 	compressThreshold int          // 0 = disabled; >0 = compress data at or above this byte size
+	logger            Logger       // diagnostic logging for best-effort operations
 }
 
 // New creates a new Repository with the given prototype, store, and serializer.
@@ -163,6 +188,7 @@ func New(prototype Aggregate, store Store, serializer Serializer, opts ...Option
 		store:             store,
 		serializer:        serializer,
 		compressThreshold: DefaultCompressThreshold,
+		logger:            noopLogger{},
 	}
 
 	for _, opt := range opts {
@@ -186,6 +212,16 @@ type Option func(*Repository)
 //
 // Use 300 as a sensible starting threshold. Pass 0 or any negative value to
 // disable compression (the default).
+// WithLogger sets the logger used for diagnostic messages (materialization
+// and projection failures). By default, no logging occurs.
+func WithLogger(logger Logger) Option {
+	return func(r *Repository) {
+		if logger != nil {
+			r.logger = logger
+		}
+	}
+}
+
 func WithCompression(threshold int) Option {
 	return func(r *Repository) {
 		r.compressThreshold = threshold
@@ -312,7 +348,28 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 				return version, nil // events saved; aggregate store is best-effort
 			}
 		}
-		_ = as.SaveAggregate(ctx, aggregate)
+		if err := as.SaveAggregate(ctx, aggregate); err != nil {
+			r.logger.Warn("materialize failed",
+				"aggregate_id", command.GetId(),
+				"error", err,
+			)
+		}
+
+		// 9. Project (optional).
+		// If the aggregate implements Projector, persist each projection view.
+		// Projections share the same PK as the aggregate but have distinct SKs.
+		// Best-effort: projection failure does not affect the command result.
+		if p, ok := aggregate.(Projector); ok {
+			for _, proj := range p.Projections() {
+				if err := as.SaveAggregate(ctx, proj); err != nil {
+					r.logger.Warn("projection failed",
+						"aggregate_id", command.GetId(),
+						"projection", fmt.Sprintf("%T", proj),
+						"error", err,
+					)
+				}
+			}
+		}
 	}
 
 	return version, nil

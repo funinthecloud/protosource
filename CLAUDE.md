@@ -106,7 +106,18 @@ message Snapshot {
 }
 ```
 
-The **two-event pattern** for initial state: CREATION commands emit a domain event (Created) plus a state-transition event (Unlocked), so every state — including the initial one — is an explicit event in the stream. The `sets_state` annotation on event messages generates state assignments in the `On` method.
+### Command/Event Guidelines
+
+**One command, one event** is the recommended pattern. The `Created` event should use `sets_state` to set the initial state directly:
+```protobuf
+message Created {
+  option (...).event = { sets_state: "STATE_DRAFT" };
+}
+```
+
+**Multi-event commands** (`produces_events: ["Created", "Unlocked"]`) are valid when the second event is also a standalone command. For example, `Unlock` is a real command that independently produces the `Unlocked` event — the `Create` command reuses it to set initial state. Don't create events that exist solely to set initial state on creation (e.g., a `Drafted` event that no command produces independently).
+
+The `sets_state` annotation on event messages generates state assignments in the `On` method.
 
 The `On` method is **fully generated**. Event fields are mechanically copied to matching aggregate fields.
 
@@ -143,5 +154,6 @@ git checkout -b <branch-name> origin/main
 
 ## TODO
 
-- [ ] Look deeper into multi-package projections and auto-generation possibilities
+- [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)
+- [ ] Multi-aggregate projections: projections that join/denormalize across multiple aggregate types (e.g. Order + Customer → OrderWithCustomerView). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)

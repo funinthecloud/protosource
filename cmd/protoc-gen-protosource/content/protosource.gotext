@@ -272,17 +272,21 @@ func (m *{{ $message.Name }}) EventName() string {
 
 // ── AutoPKSK methods for {{ $msgName }} ──
 
-{{ if isAggregate $message -}}
-// PK is automatic for aggregates: package#type#id#<id_value>
+{{ if or (isAggregate $message) (isProjection $message) -}}
+{{ $aggPrefix := opaqueKeyPrefix (aggregateForFile $) $ -}}
+// PK is automatic: package#aggregate#id#<id_value>
 func (m *{{ $msgName }}) PK() string {
     if m == nil {
         return ""
     }
-    return fmt.Sprintf("{{ $prefix }}#id#%v", m.GetId())
+    return fmt.Sprintf("{{ $aggPrefix }}#id#%v", m.GetId())
 }
 
+{{ if isAggregate $message -}}
 func (m *{{ $msgName }}) SK() string { return "AGG" }
-
+{{ else -}}
+func (m *{{ $msgName }}) SK() string { return "{{ projectionSKValue $message }}" }
+{{ end }}
 {{ range $kt := opaqueAllKeySlots }}{{ $slotName := opaqueKeySlotName $kt -}}
 {{ if gt (opaqueKeySlotGSINum $kt) 0 -}}
 {{ $fields := index $mappings $kt -}}
@@ -444,6 +448,28 @@ func rehydrate{{ $msgName }}(results []*opaquedatav1.OpaqueData) ([]*{{ $msgName
     }
     return out, nil
 }
+
+{{ if isAggregate $message -}}
+{{ $projs := projectionsForFile $ -}}
+{{ range $proj := $projs -}}
+{{ $projName := $proj.Name -}}
+{{ $pairs := projectionMatchingFields $proj $message -}}
+// Project{{ $projName }} builds a {{ $projName }} projection from the aggregate.
+func (m *{{ $msgName }}) Project{{ $projName }}() *{{ $projName }} {
+    return &{{ $projName }}{
+{{ range $pair := $pairs }}        {{ name $pair.ProjectionField }}: m.Get{{ name $pair.AggregateField }}(),
+{{ end }}    }
+}
+{{ end -}}
+{{ if $projs -}}
+// Projections returns all projection views derived from this aggregate.
+func (m *{{ $msgName }}) Projections() []proto.Message {
+    return []proto.Message{
+{{ range $proj := $projs }}        m.Project{{ $proj.Name }}(),
+{{ end }}    }
+}
+{{ end -}}
+{{ end -}}
 
 {{ end -}}
 {{- end }}

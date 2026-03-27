@@ -87,7 +87,7 @@ func (aggregate *Sample) On(event protosource.Event) error {
 
 // ── AutoPKSK methods for Sample ──
 
-// PK is automatic for aggregates: package#type#id#<id_value>
+// PK is automatic: package#aggregate#id#<id_value>
 func (m *Sample) PK() string {
 	if m == nil {
 		return ""
