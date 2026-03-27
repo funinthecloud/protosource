@@ -174,60 +174,6 @@ func (m *mockDynamoer) Query(ctx context.Context, input *dynamodb.QueryInput, _ 
 	}, nil
 }
 
-func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	table := m.ensureTable(*input.TableName)
-	// Derive a storage key from whichever PK attribute is present.
-	// For opaquedata tables (pk+sk), use composite key to avoid collisions.
-	var key string
-	if v, ok := input.Item["a"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-	} else if v, ok := input.Item["pk"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-		if sk, ok := input.Item["sk"]; ok {
-			key += "|" + sk.(*types.AttributeValueMemberS).Value
-		}
-	}
-	if key == "" {
-		return nil, fmt.Errorf("mockDynamoer.PutItem: no 'a' or 'pk' attribute in item — malformed write")
-	}
-	table[key] = input.Item
-	return &dynamodb.PutItemOutput{}, nil
-}
-
-func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	table := m.ensureTable(*input.TableName)
-	// Support both "a" (events/aggregates tables) and "pk"+"sk" (opaquedata tables).
-	var key string
-	if v, ok := input.Key["a"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-	} else if v, ok := input.Key["pk"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-		if sk, ok := input.Key["sk"]; ok {
-			key += "|" + sk.(*types.AttributeValueMemberS).Value
-		}
-	}
-	if key == "" {
-		return nil, fmt.Errorf("mockDynamoer.GetItem: no 'a' or 'pk' attribute in key — malformed read")
-	}
-	item, ok := table[key]
-	if !ok {
-		return &dynamodb.GetItemOutput{}, nil
-	}
-	return &dynamodb.GetItemOutput{Item: item}, nil
-}
-
 func strPtr(s string) *string { return &s }
 
 // ---------------------------------------------------------------------------
