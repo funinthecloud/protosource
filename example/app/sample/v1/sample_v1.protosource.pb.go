@@ -124,15 +124,16 @@ func (aggregate *Sample) On(event protosource.Event) error {
 
 // ── AutoPKSK methods for Sample ──
 
+// PK is automatic for aggregates: package#type#id#<id_value>
 func (m *Sample) PK() string {
 	if m == nil {
 		return ""
 	}
-	var fields string
-	fields += fmt.Sprintf("#id#%v", m.GetId())
-	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+	return fmt.Sprintf("example_app_sample_v1#sample#id#%v", m.GetId())
 }
+
 func (m *Sample) SK() string { return "AGG" }
+
 func (m *Sample) GSI1PK() string {
 	if m == nil {
 		return ""

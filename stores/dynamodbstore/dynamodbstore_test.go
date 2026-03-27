@@ -397,17 +397,17 @@ func TestSaveAggregate_NoOpaqueStore(t *testing.T) {
 	assert.Contains(t, err.Error(), "no OpaqueStore configured")
 }
 
-func TestSaveAggregate_NotAutoPKSK(t *testing.T) {
+func TestSaveAggregate_WithOpaqueStore(t *testing.T) {
 	mock := newMockDynamoer()
 	opaqueStore := &mockOpaqueStore{}
 	store, err := New(mock, WithOpaqueStore(opaqueStore))
 	require.NoError(t, err)
 	ctx := context.Background()
 
-	// testv1.Test does not implement AutoPKSK
+	// All aggregates implement AutoPKSK automatically.
 	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "does not implement opaquedata.AutoPKSK")
+	require.NoError(t, err)
+	assert.Len(t, opaqueStore.items, 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -517,13 +517,10 @@ func TestSaveAggregate_DoesNotAffectEvents(t *testing.T) {
 	ctx := context.Background()
 
 	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("event"))))
+	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate"}))
 
-	// SaveAggregate fails for testv1.Test (no AutoPKSK), but events are unaffected.
-	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate"})
-	require.Error(t, err)
-
-	h, loadErr := store.Load(ctx, "agg-1")
-	require.NoError(t, loadErr)
+	h, err := store.Load(ctx, "agg-1")
+	require.NoError(t, err)
 	require.Len(t, h.Records, 1)
 	assert.Equal(t, []byte("event"), h.Records[0].Data)
 }

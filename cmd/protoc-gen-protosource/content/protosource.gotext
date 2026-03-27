@@ -272,6 +272,36 @@ func (m *{{ $message.Name }}) EventName() string {
 
 // ── AutoPKSK methods for {{ $msgName }} ──
 
+{{ if isAggregate $message -}}
+// PK is automatic for aggregates: package#type#id#<id_value>
+func (m *{{ $msgName }}) PK() string {
+    if m == nil {
+        return ""
+    }
+    return fmt.Sprintf("{{ $prefix }}#id#%v", m.GetId())
+}
+
+func (m *{{ $msgName }}) SK() string { return "AGG" }
+
+{{ range $kt := opaqueAllKeySlots }}{{ $slotName := opaqueKeySlotName $kt -}}
+{{ if gt (opaqueKeySlotGSINum $kt) 0 -}}
+{{ $fields := index $mappings $kt -}}
+{{ if $fields -}}
+func (m *{{ $msgName }}) {{ $slotName }}() string {
+    if m == nil {
+        return ""
+    }
+    var fields string
+{{ range $fm := $fields }}    fields += fmt.Sprintf("#{{ opaqueFieldNameLower $fm.Field }}#%v", m.Get{{ name $fm.Field }}())
+{{ end -}}
+    return fmt.Sprintf("{{ $prefix }}%s", fields)
+}
+{{ else -}}
+func (m *{{ $msgName }}) {{ $slotName }}() string { return "NA" }
+{{ end -}}
+{{ end -}}
+{{ end -}}
+{{ else -}}
 {{ range $kt := opaqueAllKeySlots }}{{ $slotName := opaqueKeySlotName $kt }}{{ $fields := index $mappings $kt -}}
 {{ if $fields -}}
 func (m *{{ $msgName }}) {{ $slotName }}() string {
@@ -288,6 +318,7 @@ func (m *{{ $msgName }}) {{ $slotName }}() string {
 func (m *{{ $msgName }}) {{ $slotName }}() string { return "AGG" }
 {{ else -}}
 func (m *{{ $msgName }}) {{ $slotName }}() string { return "NA" }
+{{ end -}}
 {{ end -}}
 {{ end -}}
 {{ end }}
