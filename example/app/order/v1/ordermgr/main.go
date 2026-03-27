@@ -22,7 +22,7 @@ var usage = "Usage: ordermgr <command> [args]\n\nCommands:\n" +
 	"  create  <id>  <customerid>  <customername>\n" +
 	"  additem  <id>  <description>  <pricecents>  <quantity>\n" +
 	"  setshipping  <id>  <shippingaddress>\n" +
-	"  place  <id>\n" +
+	"  place  <id>  <placedat>\n" +
 	"  cancel  <id>  <reason>\n" +
 	"  load     <id>\n" +
 	"  history  <id>\n" +
@@ -87,12 +87,13 @@ func main() {
 		applyAndPrint(ctx, repo, cmd)
 
 	case "place":
-		if len(os.Args) != 3 {
-			fatal("usage: ordermgr place <id>")
+		if len(os.Args) != 4 {
+			fatal("usage: ordermgr place <id> <placedat>")
 		}
 		cmd := &pkg.Place{
-			Id:    os.Args[2],
-			Actor: actor,
+			Id:       os.Args[2],
+			Actor:    actor,
+			PlacedAt: mustParseInt64(os.Args[3], "placed_at"),
 		}
 		applyAndPrint(ctx, repo, cmd)
 

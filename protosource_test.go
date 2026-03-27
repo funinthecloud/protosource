@@ -8,12 +8,14 @@ import (
 	"time"
 
 	"github.com/funinthecloud/protosource"
+	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
 	samplenov1 "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1"
 	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
+	"google.golang.org/protobuf/proto"
 )
 
 // newTestRepo creates a Repository wired to the test domain with memorystore and protobinary serializer.
@@ -398,6 +400,156 @@ func TestApply_MaterializedAggregateReflectsStateTransitions(t *testing.T) {
 	}
 	if test.GetState() != testv1.State_STATE_LOCKED {
 		t.Errorf("expected STATE_LOCKED, got %s", test.GetState())
+	}
+}
+
+// --- Projection tests ---
+
+// recordingStore wraps a memorystore and records SaveAggregate calls.
+type recordingStore struct {
+	*memorystore.MemoryStore
+	saved []proto.Message
+}
+
+func (s *recordingStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
+	s.saved = append(s.saved, aggregate)
+	return nil
+}
+
+// failingAggregateStore wraps a memorystore but fails SaveAggregate calls.
+type failingAggregateStore struct {
+	*memorystore.MemoryStore
+}
+
+func (s *failingAggregateStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
+	return fmt.Errorf("simulated store failure")
+}
+
+// testLogger records Warn calls for assertion.
+type testLogger struct {
+	warnings []string
+}
+
+func (l *testLogger) Warn(msg string, args ...any) {
+	l.warnings = append(l.warnings, msg)
+}
+
+func newOrderRepo(store protosource.Store, opts ...protosource.Option) *protosource.Repository {
+	return protosource.New(
+		&orderv1.Order{},
+		store,
+		protobinaryserializer.NewSerializer(),
+		opts...,
+	)
+}
+
+func TestApply_ProjectionsSavedAfterMaterialize(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+	ctx := context.Background()
+
+	_, err := repo.Apply(ctx, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	if err != nil {
+		t.Fatalf("create failed: %v", err)
+	}
+
+	// SaveAggregate should be called twice: once for the aggregate, once for OrderSummary.
+	if len(store.saved) != 2 {
+		t.Fatalf("expected 2 SaveAggregate calls, got %d", len(store.saved))
+	}
+
+	// First call is the aggregate.
+	if _, ok := store.saved[0].(*orderv1.Order); !ok {
+		t.Errorf("expected first save to be *Order, got %T", store.saved[0])
+	}
+
+	// Second call is the projection.
+	summary, ok := store.saved[1].(*orderv1.OrderSummary)
+	if !ok {
+		t.Fatalf("expected second save to be *OrderSummary, got %T", store.saved[1])
+	}
+	if summary.GetId() != "order-1" {
+		t.Errorf("expected projection id 'order-1', got %q", summary.GetId())
+	}
+	if summary.GetCustomerId() != "cust-1" {
+		t.Errorf("expected projection customer_id 'cust-1', got %q", summary.GetCustomerId())
+	}
+	if summary.GetState() != orderv1.State_STATE_DRAFT {
+		t.Errorf("expected projection state DRAFT, got %s", summary.GetState())
+	}
+}
+
+func TestApply_ProjectionUpdatedOnMutation(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+	ctx := context.Background()
+
+	_, _ = repo.Apply(ctx, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	store.saved = nil // reset to only track the Place mutation
+
+	_, _ = repo.Apply(ctx, &orderv1.Place{
+		Id: "order-1", Actor: "alice", PlacedAt: 1711468800,
+	})
+
+	if len(store.saved) != 2 {
+		t.Fatalf("expected 2 SaveAggregate calls after mutation, got %d", len(store.saved))
+	}
+
+	// Projection should reflect the new state.
+	summary := store.saved[1].(*orderv1.OrderSummary)
+	if summary.GetState() != orderv1.State_STATE_PLACED {
+		t.Errorf("expected state PLACED, got %s", summary.GetState())
+	}
+	if summary.GetPlacedAt() != 1711468800 {
+		t.Errorf("expected placed_at 1711468800, got %d", summary.GetPlacedAt())
+	}
+}
+
+func TestApply_ProjectionFailureIsBestEffort(t *testing.T) {
+	store := &failingAggregateStore{MemoryStore: memorystore.New(0)}
+	logger := &testLogger{}
+	repo := newOrderRepo(store, protosource.WithLogger(logger))
+	ctx := context.Background()
+
+	// Apply should succeed even though SaveAggregate fails.
+	version, err := repo.Apply(ctx, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	if err != nil {
+		t.Fatalf("expected Apply to succeed despite store failure, got: %v", err)
+	}
+	if version != 2 {
+		t.Errorf("expected version 2, got %d", version)
+	}
+
+	// Logger should have captured warnings for both materialize and projection failures.
+	if len(logger.warnings) < 2 {
+		t.Errorf("expected at least 2 warnings, got %d: %v", len(logger.warnings), logger.warnings)
+	}
+}
+
+func TestApply_NoProjectionsForAggregateWithoutProjector(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	// Use testv1.Test which has no projections.
+	repo := protosource.New(
+		&testv1.Test{},
+		store,
+		protobinaryserializer.NewSerializer(),
+	)
+	ctx := context.Background()
+
+	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+
+	// Only the aggregate should be saved, no projections.
+	if len(store.saved) != 1 {
+		t.Fatalf("expected 1 SaveAggregate call (aggregate only), got %d", len(store.saved))
+	}
+	if _, ok := store.saved[0].(*testv1.Test); !ok {
+		t.Errorf("expected *Test, got %T", store.saved[0])
 	}
 }
 

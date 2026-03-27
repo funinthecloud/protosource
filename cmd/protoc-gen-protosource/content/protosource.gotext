@@ -142,7 +142,8 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ range $evt := $.AllMessages -}}
 {{ if isEvent $evt -}}
 {{ if isCreationEvent $evt $ }}    case *{{ $evt.Name }}:
-        aggregate.setCreated(e)
+{{ if isFirstCreationEvent $evt $ }}        aggregate.setCreated(e)
+{{ end -}}
         aggregate.setModified(e)
 {{ range $field := $evt.Fields | excludeInternal -}}
 {{ if not (eq (printf "%s" $field.Name) "actor") }}{{ if aggregateHasField $field $message }}        aggregate.{{ name $field }} = e.Get{{ name $field }}()

@@ -118,7 +118,6 @@ func (aggregate *Order) On(event protosource.Event) error {
 		aggregate.CustomerId = e.GetCustomerId()
 		aggregate.CustomerName = e.GetCustomerName()
 	case *Drafted:
-		aggregate.setCreated(e)
 		aggregate.setModified(e)
 		aggregate.State = State_STATE_DRAFT
 	case *ItemAdded:
@@ -128,6 +127,7 @@ func (aggregate *Order) On(event protosource.Event) error {
 		aggregate.ShippingAddress = e.GetShippingAddress()
 	case *Placed:
 		aggregate.setModified(e)
+		aggregate.PlacedAt = e.GetPlacedAt()
 		aggregate.State = State_STATE_PLACED
 	case *Cancelled:
 		aggregate.setModified(e)
@@ -471,7 +471,7 @@ func (m *Place) Authorize(aggregate protosource.Aggregate) error {
 func (m *Place) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := proto.Clone(aggregate).(*Order)
-	b.Placed(m.GetActor())
+	b.Placed(m.GetActor(), m.GetPlacedAt())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)
 	return b.Events
@@ -582,10 +582,11 @@ func (m *Placed) EventName() string {
 	return "Placed"
 }
 
-func (b *Builder) Placed(Actor string) {
+func (b *Builder) Placed(Actor string, PlacedAt int64) {
 	event := &Placed{
-		Id:    b.id,
-		Actor: Actor,
+		Id:       b.id,
+		Actor:    Actor,
+		PlacedAt: PlacedAt,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),

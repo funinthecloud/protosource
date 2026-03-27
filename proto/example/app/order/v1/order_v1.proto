@@ -93,8 +93,9 @@ message Place {
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
   };
-  string id    = 1;
-  string actor = 2;
+  string id        = 1;
+  string actor     = 2;
+  int64  placed_at = 3;
 }
 
 message Cancel {
@@ -163,10 +164,11 @@ message Placed {
       .event = {
     sets_state: "STATE_PLACED"
   };
-  string id      = 1;
-  int64  version = 2;
-  int64  at      = 3;
-  string actor   = 4;
+  string id        = 1;
+  int64  version   = 2;
+  int64  at        = 3;
+  string actor     = 4;
+  int64  placed_at = 5;
 }
 
 message Cancelled {

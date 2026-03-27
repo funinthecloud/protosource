@@ -47,6 +47,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"isProjection":           p.isProjection,
 		"isSnapshot":             p.isSnapshot,
 		"isCreationEvent":        p.isCreationEvent,
+		"isFirstCreationEvent":   p.isFirstCreationEvent,
 		"aggregateHasField":      p.aggregateHasField,
 		"excludeInternal":        ExcludeInternal,
 		"excludeCommandInternal": ExcludeCommandInternal,
@@ -147,6 +148,27 @@ func (p *ProtosourceModule) isCreationEvent(m pgs.Message, f pgs.File) bool {
 		}
 	}
 	return producedByCreation
+}
+
+// isFirstCreationEvent returns true only for the first event in a CREATION
+// command's produces_events list. This is used to call setCreated only once,
+// avoiding a second creation event (e.g., Drafted) from overwriting the
+// CreateAt/CreateBy set by the first event (e.g., Created).
+func (p *ProtosourceModule) isFirstCreationEvent(m pgs.Message, f pgs.File) bool {
+	if !p.isCreationEvent(m, f) {
+		return false
+	}
+	eventName := m.Name().String()
+	for _, msg := range f.AllMessages() {
+		if !p.isCommand(msg) {
+			continue
+		}
+		if p.commandLifecycle(msg) == "CREATION" {
+			events := p.commandEvents(msg)
+			return len(events) > 0 && events[0] == eventName
+		}
+	}
+	return false
 }
 
 // aggregateHasField returns true if the aggregate message has a field with the
@@ -594,6 +616,16 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		}
 	}
 
+	// Validate projection fields match aggregate fields by name and type.
+	if agg := p.aggregateForFile(f); agg != nil {
+		for _, proj := range p.projectionsForFile(f) {
+			if err := p.validateProjectionFields(proj, agg); err != nil {
+				p.Fail(err.Error())
+				return
+			}
+		}
+	}
+
 	if hasOpaque {
 		if err := p.validateMessageNamesAgainstOpaque(f); err != nil {
 			p.Fail(err.Error())
@@ -691,7 +723,11 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 			return fmt.Errorf("message %s: %s PK is automatic (derived from package + id) — remove OPAQUE_KEY_TYPE_PK annotations", m.Name(), kind)
 		}
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_SK]; ok {
-			return fmt.Errorf("message %s: %s SK is automatic (\"PROJ#%s\") — remove OPAQUE_KEY_TYPE_SK annotations", m.Name(), kind, m.Name())
+			skVal := "AGG"
+			if p.isProjection(m) {
+				skVal = "PROJ#" + m.Name().String()
+			}
+			return fmt.Errorf("message %s: %s SK is automatic (%q) — remove OPAQUE_KEY_TYPE_SK annotations", m.Name(), kind, skVal)
 		}
 		if len(mappings) == 0 {
 			return nil
@@ -906,6 +942,45 @@ func (p *ProtosourceModule) projectionMatchingFields(proj pgs.Message, agg pgs.M
 		}
 	}
 	return pairs
+}
+
+// validateProjectionFields checks that all projection fields match aggregate fields
+// by name AND proto type. Returns an error listing any mismatches.
+func (p *ProtosourceModule) validateProjectionFields(proj pgs.Message, agg pgs.Message) error {
+	aggFields := make(map[string]pgs.Field)
+	for _, f := range agg.Fields() {
+		aggFields[f.Name().String()] = f
+	}
+	var errs []string
+	for _, pf := range proj.Fields() {
+		af, ok := aggFields[pf.Name().String()]
+		if !ok {
+			errs = append(errs, fmt.Sprintf("field %q: not found on aggregate %s", pf.Name(), agg.Name()))
+			continue
+		}
+		if pf.Type().ProtoType() != af.Type().ProtoType() {
+			errs = append(errs, fmt.Sprintf("field %q: type mismatch — projection has %s, aggregate %s has %s",
+				pf.Name(), pf.Type().ProtoType(), agg.Name(), af.Type().ProtoType()))
+			continue
+		}
+		// For message/enum types, verify the underlying type name matches.
+		if pf.Type().IsEmbed() && af.Type().IsEmbed() {
+			if pf.Type().Embed().FullyQualifiedName() != af.Type().Embed().FullyQualifiedName() {
+				errs = append(errs, fmt.Sprintf("field %q: message type mismatch — projection has %s, aggregate has %s",
+					pf.Name(), pf.Type().Embed().FullyQualifiedName(), af.Type().Embed().FullyQualifiedName()))
+			}
+		}
+		if pf.Type().IsEnum() && af.Type().IsEnum() {
+			if pf.Type().Enum().FullyQualifiedName() != af.Type().Enum().FullyQualifiedName() {
+				errs = append(errs, fmt.Sprintf("field %q: enum type mismatch — projection has %s, aggregate has %s",
+					pf.Name(), pf.Type().Enum().FullyQualifiedName(), af.Type().Enum().FullyQualifiedName()))
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("projection %s: %s", proj.Name(), strings.Join(errs, "; "))
+	}
+	return nil
 }
 
 // projectionsForFile returns all projection messages in the file.

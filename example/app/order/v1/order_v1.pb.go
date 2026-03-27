@@ -431,6 +431,7 @@ type Place struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	PlacedAt      int64                  `protobuf:"varint,3,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -477,6 +478,13 @@ func (x *Place) GetActor() string {
 		return x.Actor
 	}
 	return ""
+}
+
+func (x *Place) GetPlacedAt() int64 {
+	if x != nil {
+		return x.PlacedAt
+	}
+	return 0
 }
 
 type Cancel struct {
@@ -865,6 +873,7 @@ type Placed struct {
 	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	At            int64                  `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
 	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	PlacedAt      int64                  `protobuf:"varint,5,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -925,6 +934,13 @@ func (x *Placed) GetActor() string {
 		return x.Actor
 	}
 	return ""
+}
+
+func (x *Placed) GetPlacedAt() int64 {
+	if x != nil {
+		return x.PlacedAt
+	}
+	return 0
 }
 
 type Cancelled struct {
@@ -1232,10 +1248,11 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12)\n" +
 	"\x10shipping_address\x18\x03 \x01(\tR\x0fshippingAddress:\"ʬ\x1d\x1e\n" +
 	"\x1c\n" +
-	"\vShippingSet\x10\x02\x1a\vSTATE_DRAFT\"L\n" +
+	"\vShippingSet\x10\x02\x1a\vSTATE_DRAFT\"i\n" +
 	"\x05Place\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1dʬ\x1d\x19\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x1b\n" +
+	"\tplaced_at\x18\x03 \x01(\x03R\bplacedAt:\x1dʬ\x1d\x19\n" +
 	"\x17\n" +
 	"\x06Placed\x10\x02\x1a\vSTATE_DRAFT\"\x82\x01\n" +
 	"\x06Cancel\x12\x0e\n" +
@@ -1272,12 +1289,13 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12)\n" +
-	"\x10shipping_address\x18\x05 \x01(\tR\x0fshippingAddress:\x06ʬ\x1d\x02\x12\x00\"n\n" +
+	"\x10shipping_address\x18\x05 \x01(\tR\x0fshippingAddress:\x06ʬ\x1d\x02\x12\x00\"\x8b\x01\n" +
 	"\x06Placed\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
-	"\x05actor\x18\x04 \x01(\tR\x05actor:\x14ʬ\x1d\x10\x12\x0e\x12\fSTATE_PLACED\"\x8c\x01\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x1b\n" +
+	"\tplaced_at\x18\x05 \x01(\x03R\bplacedAt:\x14ʬ\x1d\x10\x12\x0e\x12\fSTATE_PLACED\"\x8c\x01\n" +
 	"\tCancelled\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
