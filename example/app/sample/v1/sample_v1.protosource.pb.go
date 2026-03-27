@@ -132,7 +132,7 @@ func (m *Sample) PK() string {
 	fields += fmt.Sprintf("#id#%v", m.GetId())
 	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
 }
-func (m *Sample) SK() string { return "NA" }
+func (m *Sample) SK() string { return "AGG" }
 func (m *Sample) GSI1PK() string {
 	if m == nil {
 		return ""

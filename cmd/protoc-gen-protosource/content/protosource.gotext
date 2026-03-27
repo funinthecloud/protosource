@@ -284,7 +284,11 @@ func (m *{{ $msgName }}) {{ $slotName }}() string {
     return fmt.Sprintf("{{ $prefix }}%s", fields)
 }
 {{ else -}}
+{{ if and (opaqueKeySlotIsSK $kt) (eq (opaqueKeySlotGSINum $kt) 0) -}}
+func (m *{{ $msgName }}) {{ $slotName }}() string { return "AGG" }
+{{ else -}}
 func (m *{{ $msgName }}) {{ $slotName }}() string { return "NA" }
+{{ end -}}
 {{ end -}}
 {{ end }}
 
