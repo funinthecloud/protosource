@@ -47,7 +47,6 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"isProjection":           p.isProjection,
 		"isSnapshot":             p.isSnapshot,
 		"isCreationEvent":        p.isCreationEvent,
-		"isFirstCreationEvent":   p.isFirstCreationEvent,
 		"aggregateHasField":      p.aggregateHasField,
 		"excludeInternal":        ExcludeInternal,
 		"excludeCommandInternal": ExcludeCommandInternal,
@@ -148,27 +147,6 @@ func (p *ProtosourceModule) isCreationEvent(m pgs.Message, f pgs.File) bool {
 		}
 	}
 	return producedByCreation
-}
-
-// isFirstCreationEvent returns true only for the first event in a CREATION
-// command's produces_events list. This is used to call setCreated only once,
-// avoiding a second creation event (e.g., Drafted) from overwriting the
-// CreateAt/CreateBy set by the first event (e.g., Created).
-func (p *ProtosourceModule) isFirstCreationEvent(m pgs.Message, f pgs.File) bool {
-	if !p.isCreationEvent(m, f) {
-		return false
-	}
-	eventName := m.Name().String()
-	for _, msg := range f.AllMessages() {
-		if !p.isCommand(msg) {
-			continue
-		}
-		if p.commandLifecycle(msg) == "CREATION" {
-			events := p.commandEvents(msg)
-			return len(events) > 0 && events[0] == eventName
-		}
-	}
-	return false
 }
 
 // aggregateHasField returns true if the aggregate message has a field with the
@@ -471,6 +449,96 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 	return nil
 }
 
+// validateFileStructure enforces structural guardrails on the proto file:
+//   - Exactly one aggregate message
+//   - Aggregate must be the first message
+//   - Exactly one CREATION command
+//   - Non-first events in a CREATION command must also be produced by a MUTATION command
+//   - At most one snapshot message
+//   - Projection messages must have an "id" field
+func (p *ProtosourceModule) validateFileStructure(f pgs.File) error {
+	// Count aggregates and verify the first message is the aggregate.
+	aggregateCount := 0
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			aggregateCount++
+		}
+	}
+	if aggregateCount == 0 {
+		return fmt.Errorf("file %s: no aggregate message defined", f.Name())
+	}
+	if aggregateCount > 1 {
+		return fmt.Errorf("file %s: exactly one aggregate per file, found %d", f.Name(), aggregateCount)
+	}
+	if !p.isAggregate(f.Messages()[0]) {
+		return fmt.Errorf("file %s: aggregate must be the first message, but %s is not an aggregate", f.Name(), f.Messages()[0].Name())
+	}
+
+	// Exactly one CREATION command.
+	creationCount := 0
+	var creationCmd pgs.Message
+	for _, m := range f.Messages() {
+		if p.isCommand(m) && p.commandLifecycle(m) == "CREATION" {
+			creationCount++
+			creationCmd = m
+		}
+	}
+	if creationCount > 1 {
+		return fmt.Errorf("file %s: exactly one CREATION command per file, found %d", f.Name(), creationCount)
+	}
+
+	// Non-first events in a CREATION command must also be produced by a MUTATION command.
+	if creationCmd != nil {
+		events := p.commandEvents(creationCmd)
+		if len(events) > 1 {
+			// Build set of events produced by MUTATION commands.
+			mutationEvents := make(map[string]bool)
+			for _, m := range f.Messages() {
+				if p.isCommand(m) && p.commandLifecycle(m) != "CREATION" {
+					for _, e := range p.commandEvents(m) {
+						mutationEvents[e] = true
+					}
+				}
+			}
+			for _, eventName := range events[1:] {
+				if !mutationEvents[eventName] {
+					return fmt.Errorf("file %s: CREATION command %s produces event %q which is not produced by any MUTATION command — every non-first creation event must also be a standalone command",
+						f.Name(), creationCmd.Name(), eventName)
+				}
+			}
+		}
+	}
+
+	// At most one snapshot.
+	snapshotCount := 0
+	for _, m := range f.Messages() {
+		if p.isSnapshot(m) {
+			snapshotCount++
+		}
+	}
+	if snapshotCount > 1 {
+		return fmt.Errorf("file %s: at most one snapshot per file, found %d", f.Name(), snapshotCount)
+	}
+
+	// Projection messages must have an "id" field.
+	for _, m := range f.Messages() {
+		if p.isProjection(m) {
+			hasID := false
+			for _, field := range m.Fields() {
+				if field.Name().String() == "id" {
+					hasID = true
+					break
+				}
+			}
+			if !hasID {
+				return fmt.Errorf("file %s: projection %s must have an \"id\" field (required for PK derivation)", f.Name(), m.Name())
+			}
+		}
+	}
+
+	return nil
+}
+
 // outputPathForTemplate computes the output file path for a proto file and template.
 // The default template ("protosource.gotext") produces ".protosource.pb.go" (backward compatible).
 // The cli template ("cli.gotext") produces a subdirectory: "<aggregate_lower>mgr/main.go".
@@ -569,6 +637,12 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 	var fileOpts optionsv1.FileOptions
 	ok, err := f.Extension(optionsv1.E_ProtosourceFile, &fileOpts)
 	if err != nil || !ok || !fileOpts.GetEnabled() {
+		return
+	}
+
+	// ── File-level structural guardrails ──
+	if err := p.validateFileStructure(f); err != nil {
+		p.Fail(err.Error())
 		return
 	}
 
