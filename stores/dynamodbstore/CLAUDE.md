@@ -17,9 +17,7 @@ type Store interface {
 
 // AggregateStore — optional, write-only
 // The repository passes the fully materialized aggregate after persisting events.
-// The store owns serialization and key computation. When WithOpaqueTable is
-// configured and the aggregate implements opaquedata.AutoPKSK, the store writes
-// to the opaque table with GSI indexing. Otherwise it marshals to the aggregates table.
+// Requires WithOpaqueStore and aggregate implementing opaquedata.AutoPKSK.
 // The repository never reads materialized aggregates back (always rebuilds from events).
 type AggregateStore interface {
     SaveAggregate(ctx context.Context, aggregate proto.Message) error
@@ -77,8 +75,6 @@ Minimal interface covering the DynamoDB operations needed:
 type Dynamoer interface {
     Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
     TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
-    PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
-    GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 ```
 
@@ -91,10 +87,13 @@ type Dynamoer interface {
 - Attribute: `t` (N) — TTL epoch seconds (optional, only when `WithTTL` is set)
 
 **Aggregates table** (default name: `aggregates`):
-- Partition key: `a` (S) — aggregate ID
-- Attributes: `d` (B) — aggregate state, `v` (N) — version
+- Partition key: `pk` (S) — e.g. `package_v1#aggregate#id`
+- Sort key: `sk` (S) — `"AGG"` for aggregates, `"PROJ#<Name>"` for future projections
+- 20 GSIs: `gsi1pk`/`gsi1sk` through `gsi20pk`/`gsi20sk` (all String/String)
+- Body stored in `body` (B), version in `version` (N)
 
-Using two separate tables keeps the schema clean.
+The aggregates table uses the opaquedata single-table design. All aggregates
+must implement `AutoPKSK` to be materialized via `SaveAggregate`.
 
 ### Save Implementation
 
@@ -122,19 +121,18 @@ Using two separate tables keeps the schema clean.
 ### SaveAggregate
 
 - Write-only: the repository passes the materialized aggregate after event persistence
-- **Opaquedata path**: if `WithOpaqueTable` is configured and the aggregate implements `opaquedata.AutoPKSK`, the store writes to the opaque table via `opaquedata.NewOpaqueDataFromProto` + `GetItem`. When `WithTenantPrefix` is set, `opaquedata.PrefixPKs` is applied to isolate key spaces.
-- **Fallback path**: `proto.Marshal` + `PutItem` to aggregates table with `a`, `v`, `d`
+- Requires `WithOpaqueStore` configured and aggregate implementing `opaquedata.AutoPKSK`
+- Stores via `opaquedata.NewOpaqueDataFromProto` + `OpaqueStore.Put`
+- Returns error if OpaqueStore is nil or aggregate doesn't implement AutoPKSK
 
 ### Functional Options
 
 ```go
 type Option func(*DynamoDBStore)
 
-func WithEventsTable(name string) Option     // default: "events"
-func WithAggregatesTable(name string) Option // default: "aggregates"
-func WithTenantPrefix(prefix string) Option  // prepends "prefix#" to all keys (events, aggregates, and opaquedata PKs/GSI PKs)
-func WithOpaqueTable(name string) Option     // enables opaquedata single-table storage for AutoPKSK aggregates
-func WithTTL(ttl time.Duration) Option       // sets TTL on event records; table must have TTL enabled on "t"
+func WithEventsTable(name string) Option                    // default: "events"
+func WithOpaqueStore(store opaquedata.OpaqueStore) Option   // required for SaveAggregate
+func WithTTL(ttl time.Duration) Option                      // sets TTL on event records; table must have TTL enabled on "t"
 ```
 
 ### TTL (Time To Live)
@@ -166,10 +164,9 @@ Use a mock implementation of the `Dynamoer` interface for unit tests. The mock s
 - Records come back in version order
 
 **AggregateStore basics:**
-- SaveAggregate persists materialized state (write-only, no read-back)
-- SaveAggregate with opaquedata path (AutoPKSK aggregate + WithOpaqueTable)
-- SaveAggregate with tenant prefix applies PrefixPKs to opaquedata keys
-- SaveAggregate fallback path (non-AutoPKSK, marshals to aggregates table)
+- SaveAggregate errors when no OpaqueStore configured
+- SaveAggregate errors when aggregate doesn't implement AutoPKSK
+- SaveAggregate does not affect event storage
 
 **SnapshotTailStore:**
 - LoadTail returns last N records in ascending order

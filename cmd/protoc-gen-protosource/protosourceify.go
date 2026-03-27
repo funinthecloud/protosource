@@ -621,8 +621,12 @@ func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
 	return &opts
 }
 
-// hasOpaqueAnnotations returns true if any field in the message has opaque annotations.
+// hasOpaqueAnnotations returns true if the message should get AutoPKSK methods.
+// All aggregates get PK/SK automatically; non-aggregates need explicit field annotations.
 func (p *ProtosourceModule) hasOpaqueAnnotations(m pgs.Message) bool {
+	if p.isAggregate(m) {
+		return true
+	}
 	for _, f := range m.Fields() {
 		if opts := fieldOpaqueOptions(f); opts != nil && len(opts.GetAttributes()) > 0 {
 			return true
@@ -672,13 +676,29 @@ func (p *ProtosourceModule) opaqueKeyPrefix(m pgs.Message, f pgs.File) string {
 // validateOpaqueAnnotations validates the opaque field annotations on a message.
 func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 	mappings := p.opaqueKeyMappings(m)
+
+	// Aggregates get PK/SK automatically — reject explicit PK/SK annotations.
+	if p.isAggregate(m) {
+		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; ok {
+			return fmt.Errorf("message %s: aggregate PK is automatic (derived from package + id) — remove OPAQUE_KEY_TYPE_PK annotations", m.Name())
+		}
+		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_SK]; ok {
+			return fmt.Errorf("message %s: aggregate SK is automatic (always \"AGG\") — remove OPAQUE_KEY_TYPE_SK annotations", m.Name())
+		}
+		if len(mappings) == 0 {
+			return nil
+		}
+	}
+
 	if len(mappings) == 0 {
 		return nil
 	}
 
-	// Must have at least PK
-	if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; !ok {
-		return fmt.Errorf("message %s: opaque annotations present but no PK field defined", m.Name())
+	// Non-aggregates must have at least PK
+	if !p.isAggregate(m) {
+		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; !ok {
+			return fmt.Errorf("message %s: opaque annotations present but no PK field defined", m.Name())
+		}
 	}
 
 	// Validate ordering within each key type
@@ -825,8 +845,18 @@ func (p *ProtosourceModule) opaqueGSISKFields(m pgs.Message, gsiNum int) []opaqu
 	return mappings[skType]
 }
 
-// opaquePKFields returns the fields mapped to the table PK.
+// opaquePKFields returns the fields that compose the table PK.
+// For aggregates, PK is always derived from the id field (field 1).
+// For non-aggregates, PK comes from explicit OPAQUE_KEY_TYPE_PK annotations.
 func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
+	if p.isAggregate(m) {
+		for _, f := range m.Fields() {
+			if f.Name().String() == "id" {
+				return []opaqueFieldMapping{{Field: f, Order: 1}}
+			}
+		}
+		return nil
+	}
 	mappings := p.opaqueKeyMappings(m)
 	return mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]
 }

@@ -23,9 +23,7 @@ option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
 message Sample {
   option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
   };
-  string id        = 1 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_PK, order: 1 } ]
-  }];
+  string id        = 1;
   int64  version   = 2;
   int64  create_at = 3 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
     attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ]

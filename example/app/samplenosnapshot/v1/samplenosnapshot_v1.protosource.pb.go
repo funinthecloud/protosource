@@ -3,11 +3,16 @@
 package samplenoprefixv1
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"buf.build/go/protovalidate"
 	"github.com/funinthecloud/protosource"
+
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -78,6 +83,123 @@ func (aggregate *Sample) On(event protosource.Event) error {
 	}
 
 	return nil
+}
+
+// ── AutoPKSK methods for Sample ──
+
+// PK is automatic for aggregates: package#type#id#<id_value>
+func (m *Sample) PK() string {
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("example_app_samplenosnapshot_v1#sample#id#%v", m.GetId())
+}
+
+func (m *Sample) SK() string { return "AGG" }
+
+func (m *Sample) GSI1PK() string  { return "NA" }
+func (m *Sample) GSI1SK() string  { return "NA" }
+func (m *Sample) GSI2PK() string  { return "NA" }
+func (m *Sample) GSI2SK() string  { return "NA" }
+func (m *Sample) GSI3PK() string  { return "NA" }
+func (m *Sample) GSI3SK() string  { return "NA" }
+func (m *Sample) GSI4PK() string  { return "NA" }
+func (m *Sample) GSI4SK() string  { return "NA" }
+func (m *Sample) GSI5PK() string  { return "NA" }
+func (m *Sample) GSI5SK() string  { return "NA" }
+func (m *Sample) GSI6PK() string  { return "NA" }
+func (m *Sample) GSI6SK() string  { return "NA" }
+func (m *Sample) GSI7PK() string  { return "NA" }
+func (m *Sample) GSI7SK() string  { return "NA" }
+func (m *Sample) GSI8PK() string  { return "NA" }
+func (m *Sample) GSI8SK() string  { return "NA" }
+func (m *Sample) GSI9PK() string  { return "NA" }
+func (m *Sample) GSI9SK() string  { return "NA" }
+func (m *Sample) GSI10PK() string { return "NA" }
+func (m *Sample) GSI10SK() string { return "NA" }
+func (m *Sample) GSI11PK() string { return "NA" }
+func (m *Sample) GSI11SK() string { return "NA" }
+func (m *Sample) GSI12PK() string { return "NA" }
+func (m *Sample) GSI12SK() string { return "NA" }
+func (m *Sample) GSI13PK() string { return "NA" }
+func (m *Sample) GSI13SK() string { return "NA" }
+func (m *Sample) GSI14PK() string { return "NA" }
+func (m *Sample) GSI14SK() string { return "NA" }
+func (m *Sample) GSI15PK() string { return "NA" }
+func (m *Sample) GSI15SK() string { return "NA" }
+func (m *Sample) GSI16PK() string { return "NA" }
+func (m *Sample) GSI16SK() string { return "NA" }
+func (m *Sample) GSI17PK() string { return "NA" }
+func (m *Sample) GSI17SK() string { return "NA" }
+func (m *Sample) GSI18PK() string { return "NA" }
+func (m *Sample) GSI18SK() string { return "NA" }
+func (m *Sample) GSI19PK() string { return "NA" }
+func (m *Sample) GSI19SK() string { return "NA" }
+func (m *Sample) GSI20PK() string { return "NA" }
+func (m *Sample) GSI20SK() string { return "NA" }
+
+// ── Hydrater for Sample ──
+
+func (m *Sample) Hydrate(body []byte) error {
+	return proto.Unmarshal(body, m)
+}
+
+// ── Typed GSI SK value structs for Sample ──
+
+// ── Client for Sample ──
+
+type SampleClient struct {
+	store opaquedata.OpaqueStore
+}
+
+func NewSampleClient(store opaquedata.OpaqueStore) *SampleClient {
+	return &SampleClient{store: store}
+}
+
+func (c *SampleClient) AddSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) error {
+	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+	if err != nil {
+		return fmt.Errorf("SampleClient.AddSample: %w", err)
+	}
+	return c.store.Put(ctx, od)
+}
+
+func (c *SampleClient) GetSample(ctx context.Context, id string) (*Sample, error) {
+	key := &Sample{
+		Id: id,
+	}
+	od, err := c.store.Get(ctx, key.PK(), key.SK())
+	if err != nil {
+		return nil, fmt.Errorf("SampleClient.GetSample: %w", err)
+	}
+	target := &Sample{}
+	if err := opaquedata.ReHydrate(od, target); err != nil {
+		return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
+	}
+	return target, nil
+}
+
+func (c *SampleClient) UpdateSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) error {
+	return c.AddSample(ctx, d, opts...)
+}
+
+func (c *SampleClient) DeleteSample(ctx context.Context, id string) error {
+	key := &Sample{
+		Id: id,
+	}
+	return c.store.Delete(ctx, key.PK(), key.SK())
+}
+
+func rehydrateSample(results []*opaquedatav1.OpaqueData) ([]*Sample, error) {
+	out := make([]*Sample, 0, len(results))
+	for _, od := range results {
+		m := &Sample{}
+		if err := opaquedata.ReHydrate(od, m); err != nil {
+			return nil, fmt.Errorf("Sample: rehydrate: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 func (m *Create) CommandName() string {

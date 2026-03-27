@@ -3,11 +3,15 @@
 package testv1
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"buf.build/go/protovalidate"
 	"github.com/funinthecloud/protosource"
+
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -123,6 +127,123 @@ func (aggregate *Test) On(event protosource.Event) error {
 	}
 
 	return nil
+}
+
+// ── AutoPKSK methods for Test ──
+
+// PK is automatic for aggregates: package#type#id#<id_value>
+func (m *Test) PK() string {
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("example_app_test_v1#test#id#%v", m.GetId())
+}
+
+func (m *Test) SK() string { return "AGG" }
+
+func (m *Test) GSI1PK() string  { return "NA" }
+func (m *Test) GSI1SK() string  { return "NA" }
+func (m *Test) GSI2PK() string  { return "NA" }
+func (m *Test) GSI2SK() string  { return "NA" }
+func (m *Test) GSI3PK() string  { return "NA" }
+func (m *Test) GSI3SK() string  { return "NA" }
+func (m *Test) GSI4PK() string  { return "NA" }
+func (m *Test) GSI4SK() string  { return "NA" }
+func (m *Test) GSI5PK() string  { return "NA" }
+func (m *Test) GSI5SK() string  { return "NA" }
+func (m *Test) GSI6PK() string  { return "NA" }
+func (m *Test) GSI6SK() string  { return "NA" }
+func (m *Test) GSI7PK() string  { return "NA" }
+func (m *Test) GSI7SK() string  { return "NA" }
+func (m *Test) GSI8PK() string  { return "NA" }
+func (m *Test) GSI8SK() string  { return "NA" }
+func (m *Test) GSI9PK() string  { return "NA" }
+func (m *Test) GSI9SK() string  { return "NA" }
+func (m *Test) GSI10PK() string { return "NA" }
+func (m *Test) GSI10SK() string { return "NA" }
+func (m *Test) GSI11PK() string { return "NA" }
+func (m *Test) GSI11SK() string { return "NA" }
+func (m *Test) GSI12PK() string { return "NA" }
+func (m *Test) GSI12SK() string { return "NA" }
+func (m *Test) GSI13PK() string { return "NA" }
+func (m *Test) GSI13SK() string { return "NA" }
+func (m *Test) GSI14PK() string { return "NA" }
+func (m *Test) GSI14SK() string { return "NA" }
+func (m *Test) GSI15PK() string { return "NA" }
+func (m *Test) GSI15SK() string { return "NA" }
+func (m *Test) GSI16PK() string { return "NA" }
+func (m *Test) GSI16SK() string { return "NA" }
+func (m *Test) GSI17PK() string { return "NA" }
+func (m *Test) GSI17SK() string { return "NA" }
+func (m *Test) GSI18PK() string { return "NA" }
+func (m *Test) GSI18SK() string { return "NA" }
+func (m *Test) GSI19PK() string { return "NA" }
+func (m *Test) GSI19SK() string { return "NA" }
+func (m *Test) GSI20PK() string { return "NA" }
+func (m *Test) GSI20SK() string { return "NA" }
+
+// ── Hydrater for Test ──
+
+func (m *Test) Hydrate(body []byte) error {
+	return proto.Unmarshal(body, m)
+}
+
+// ── Typed GSI SK value structs for Test ──
+
+// ── Client for Test ──
+
+type TestClient struct {
+	store opaquedata.OpaqueStore
+}
+
+func NewTestClient(store opaquedata.OpaqueStore) *TestClient {
+	return &TestClient{store: store}
+}
+
+func (c *TestClient) AddTest(ctx context.Context, d *Test, opts ...opaquedata.Option) error {
+	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+	if err != nil {
+		return fmt.Errorf("TestClient.AddTest: %w", err)
+	}
+	return c.store.Put(ctx, od)
+}
+
+func (c *TestClient) GetTest(ctx context.Context, id string) (*Test, error) {
+	key := &Test{
+		Id: id,
+	}
+	od, err := c.store.Get(ctx, key.PK(), key.SK())
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.GetTest: %w", err)
+	}
+	target := &Test{}
+	if err := opaquedata.ReHydrate(od, target); err != nil {
+		return nil, fmt.Errorf("TestClient.GetTest: rehydrate: %w", err)
+	}
+	return target, nil
+}
+
+func (c *TestClient) UpdateTest(ctx context.Context, d *Test, opts ...opaquedata.Option) error {
+	return c.AddTest(ctx, d, opts...)
+}
+
+func (c *TestClient) DeleteTest(ctx context.Context, id string) error {
+	key := &Test{
+		Id: id,
+	}
+	return c.store.Delete(ctx, key.PK(), key.SK())
+}
+
+func rehydrateTest(results []*opaquedatav1.OpaqueData) ([]*Test, error) {
+	out := make([]*Test, 0, len(results))
+	for _, od := range results {
+		m := &Test{}
+		if err := opaquedata.ReHydrate(od, m); err != nil {
+			return nil, fmt.Errorf("Test: rehydrate: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }
 
 func (m *Create) CommandName() string {

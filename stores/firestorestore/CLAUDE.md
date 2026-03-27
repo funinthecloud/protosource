@@ -124,7 +124,6 @@ type Option func(*FirestoreStore)
 
 func WithEventsCollection(name string) Option     // default: "events"
 func WithAggregatesCollection(name string) Option // default: "aggregates"
-func WithTenantPrefix(prefix string) Option       // prepends "prefix#" to aggregate IDs for multi-tenant collections
 func WithTTL(ttl time.Duration) Option            // sets TTL field on event documents
 ```
 

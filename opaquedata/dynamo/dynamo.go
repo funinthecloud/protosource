@@ -11,7 +11,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/funinthecloud/protosource/opaquedata"
 	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-	"google.golang.org/protobuf/proto"
 )
 
 // DynamoDBer is the minimal DynamoDB interface needed by the dynamo adapter.
@@ -31,37 +30,19 @@ type Querier interface {
 
 // Store implements opaquedata.OpaqueStore backed by DynamoDB.
 type Store struct {
-	client       DynamoDBer
-	tableName    string
-	tenantPrefix string
-}
-
-// Option configures a Store.
-type Option func(*Store)
-
-// WithTenantPrefix prepends "prefix#" to all PKs and GSI PKs on Put.
-func WithTenantPrefix(prefix string) Option {
-	return func(s *Store) { s.tenantPrefix = prefix }
+	client    DynamoDBer
+	tableName string
 }
 
 // New creates a new DynamoDB-backed OpaqueStore.
-func New(client DynamoDBer, tableName string, opts ...Option) *Store {
-	s := &Store{client: client, tableName: tableName}
-	for _, opt := range opts {
-		opt(s)
-	}
-	return s
+func New(client DynamoDBer, tableName string) *Store {
+	return &Store{client: client, tableName: tableName}
 }
 
 func (s *Store) Put(ctx context.Context, od *opaquedatav1.OpaqueData) error {
-	target := od
-	if s.tenantPrefix != "" {
-		target = proto.Clone(od).(*opaquedatav1.OpaqueData)
-		PrefixPKs(target, s.tenantPrefix)
-	}
 	_, err := s.client.PutItem(ctx, &dynamodb.PutItemInput{
 		TableName: &s.tableName,
-		Item:      GetItem(target),
+		Item:      GetItem(od),
 	})
 	if err != nil {
 		return fmt.Errorf("dynamo.Store.Put: %w", err)
@@ -70,9 +51,6 @@ func (s *Store) Put(ctx context.Context, od *opaquedatav1.OpaqueData) error {
 }
 
 func (s *Store) Get(ctx context.Context, pk, sk string) (*opaquedatav1.OpaqueData, error) {
-	if s.tenantPrefix != "" {
-		pk = s.tenantPrefix + "#" + pk
-	}
 	resp, err := s.client.GetItem(ctx, &dynamodb.GetItemInput{
 		TableName: &s.tableName,
 		Key:       getKey(pk, sk),
@@ -91,9 +69,6 @@ func (s *Store) Get(ctx context.Context, pk, sk string) (*opaquedatav1.OpaqueDat
 }
 
 func (s *Store) Delete(ctx context.Context, pk, sk string) error {
-	if s.tenantPrefix != "" {
-		pk = s.tenantPrefix + "#" + pk
-	}
 	_, err := s.client.DeleteItem(ctx, &dynamodb.DeleteItemInput{
 		TableName: &s.tableName,
 		Key:       getKey(pk, sk),
@@ -109,10 +84,6 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 
 	if qo.GSIIndex < 0 || qo.GSIIndex > 20 {
 		return nil, fmt.Errorf("opaquedata: GSI index %d out of range [0,20]", qo.GSIIndex)
-	}
-
-	if s.tenantPrefix != "" {
-		pkValue = s.tenantPrefix + "#" + pkValue
 	}
 
 	exprNames := map[string]string{
@@ -304,35 +275,3 @@ func GetValue(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 	return item
 }
 
-// PrefixPKs prepends prefix+"#" to the primary PK and all non-empty, non-sentinel
-// GSI PKs. Values that are empty or "NA" (unused GSI slots) are left untouched.
-// This is used by multi-tenant stores to isolate key spaces.
-func PrefixPKs(od *opaquedatav1.OpaqueData, prefix string) {
-	pfx := func(v string) string {
-		if v == "" || v == "NA" {
-			return v
-		}
-		return prefix + "#" + v
-	}
-	od.Pk = prefix + "#" + od.Pk
-	od.Gsi1Pk = pfx(od.Gsi1Pk)
-	od.Gsi2Pk = pfx(od.Gsi2Pk)
-	od.Gsi3Pk = pfx(od.Gsi3Pk)
-	od.Gsi4Pk = pfx(od.Gsi4Pk)
-	od.Gsi5Pk = pfx(od.Gsi5Pk)
-	od.Gsi6Pk = pfx(od.Gsi6Pk)
-	od.Gsi7Pk = pfx(od.Gsi7Pk)
-	od.Gsi8Pk = pfx(od.Gsi8Pk)
-	od.Gsi9Pk = pfx(od.Gsi9Pk)
-	od.Gsi10Pk = pfx(od.Gsi10Pk)
-	od.Gsi11Pk = pfx(od.Gsi11Pk)
-	od.Gsi12Pk = pfx(od.Gsi12Pk)
-	od.Gsi13Pk = pfx(od.Gsi13Pk)
-	od.Gsi14Pk = pfx(od.Gsi14Pk)
-	od.Gsi15Pk = pfx(od.Gsi15Pk)
-	od.Gsi16Pk = pfx(od.Gsi16Pk)
-	od.Gsi17Pk = pfx(od.Gsi17Pk)
-	od.Gsi18Pk = pfx(od.Gsi18Pk)
-	od.Gsi19Pk = pfx(od.Gsi19Pk)
-	od.Gsi20Pk = pfx(od.Gsi20Pk)
-}

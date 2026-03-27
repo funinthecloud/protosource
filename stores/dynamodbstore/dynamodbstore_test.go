@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -172,61 +174,41 @@ func (m *mockDynamoer) Query(ctx context.Context, input *dynamodb.QueryInput, _ 
 	}, nil
 }
 
-func (m *mockDynamoer) PutItem(ctx context.Context, input *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	table := m.ensureTable(*input.TableName)
-	// Derive a storage key from whichever PK attribute is present.
-	// For opaquedata tables (pk+sk), use composite key to avoid collisions.
-	var key string
-	if v, ok := input.Item["a"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-	} else if v, ok := input.Item["pk"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-		if sk, ok := input.Item["sk"]; ok {
-			key += "|" + sk.(*types.AttributeValueMemberS).Value
-		}
-	}
-	if key == "" {
-		return nil, fmt.Errorf("mockDynamoer.PutItem: no 'a' or 'pk' attribute in item — malformed write")
-	}
-	table[key] = input.Item
-	return &dynamodb.PutItemOutput{}, nil
-}
-
-func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-
-	table := m.ensureTable(*input.TableName)
-	// Support both "a" (events/aggregates tables) and "pk"+"sk" (opaquedata tables).
-	var key string
-	if v, ok := input.Key["a"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-	} else if v, ok := input.Key["pk"]; ok {
-		key = v.(*types.AttributeValueMemberS).Value
-		if sk, ok := input.Key["sk"]; ok {
-			key += "|" + sk.(*types.AttributeValueMemberS).Value
-		}
-	}
-	if key == "" {
-		return nil, fmt.Errorf("mockDynamoer.GetItem: no 'a' or 'pk' attribute in key — malformed read")
-	}
-	item, ok := table[key]
-	if !ok {
-		return &dynamodb.GetItemOutput{}, nil
-	}
-	return &dynamodb.GetItemOutput{Item: item}, nil
-}
-
 func strPtr(s string) *string { return &s }
+
+// ---------------------------------------------------------------------------
+// Mock OpaqueStore
+// ---------------------------------------------------------------------------
+
+type mockOpaqueStore struct {
+	mu    sync.Mutex
+	items map[string]*opaquedatav1.OpaqueData // pk|sk -> OpaqueData
+}
+
+func (m *mockOpaqueStore) Put(_ context.Context, od *opaquedatav1.OpaqueData) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.items == nil {
+		m.items = make(map[string]*opaquedatav1.OpaqueData)
+	}
+	m.items[od.GetPk()+"|"+od.GetSk()] = od
+	return nil
+}
+
+func (m *mockOpaqueStore) Get(_ context.Context, pk, sk string) (*opaquedatav1.OpaqueData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if od, ok := m.items[pk+"|"+sk]; ok {
+		return od, nil
+	}
+	return nil, opaquedata.ErrNotFound
+}
+
+func (m *mockOpaqueStore) Delete(_ context.Context, _, _ string) error { return nil }
+
+func (m *mockOpaqueStore) Query(_ context.Context, _, _, _ string, _ *opaquedata.SortCondition, _ ...opaquedata.QueryOption) ([]*opaquedatav1.OpaqueData, error) {
+	return nil, nil
+}
 
 // ---------------------------------------------------------------------------
 // Test helpers
@@ -352,20 +334,26 @@ func TestRecordsReturnInVersionOrder(t *testing.T) {
 // AggregateStore basics
 // ---------------------------------------------------------------------------
 
-func TestSaveAggregate_Basic(t *testing.T) {
+func TestSaveAggregate_NoOpaqueStore(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
 	err := store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no OpaqueStore configured")
 }
 
-func TestSaveAggregate_Overwrites(t *testing.T) {
-	store, _ := newTestStore(t)
+func TestSaveAggregate_WithOpaqueStore(t *testing.T) {
+	mock := newMockDynamoer()
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithOpaqueStore(opaqueStore))
+	require.NoError(t, err)
 	ctx := context.Background()
 
-	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "v1"}))
-	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 2, Body: "v2"}))
+	// All aggregates implement AutoPKSK automatically.
+	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
+	require.NoError(t, err)
+	assert.Len(t, opaqueStore.items, 1)
 }
 
 // ---------------------------------------------------------------------------
@@ -467,8 +455,11 @@ func TestRecordDataSurvivesRoundTrip(t *testing.T) {
 	assert.Equal(t, data, h.Records[0].Data)
 }
 
-func TestEventsAndAggregateAreIndependent(t *testing.T) {
-	store, _ := newTestStore(t)
+func TestSaveAggregate_DoesNotAffectEvents(t *testing.T) {
+	mock := newMockDynamoer()
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithOpaqueStore(opaqueStore))
+	require.NoError(t, err)
 	ctx := context.Background()
 
 	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("event"))))
@@ -491,42 +482,6 @@ func TestDuplicateVersionReturnsError(t *testing.T) {
 	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("first"))))
 	err := store.Save(ctx, "agg-1", makeRecord(1, []byte("duplicate")))
 	assert.Error(t, err)
-}
-
-func TestTenantPrefix_NamespacesAggregates(t *testing.T) {
-	mock := newMockDynamoer()
-	store1, err := New(mock, WithTenantPrefix("tenant-a"))
-	require.NoError(t, err)
-	store2, err := New(mock, WithTenantPrefix("tenant-b"))
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	require.NoError(t, store1.Save(ctx, "agg-1", makeRecord(1, []byte("from-a"))))
-	require.NoError(t, store2.Save(ctx, "agg-1", makeRecord(1, []byte("from-b"))))
-
-	h1, err := store1.Load(ctx, "agg-1")
-	require.NoError(t, err)
-	require.Len(t, h1.Records, 1)
-	assert.Equal(t, []byte("from-a"), h1.Records[0].Data)
-
-	h2, err := store2.Load(ctx, "agg-1")
-	require.NoError(t, err)
-	require.Len(t, h2.Records, 1)
-	assert.Equal(t, []byte("from-b"), h2.Records[0].Data)
-}
-
-func TestTenantPrefix_AggregateStore(t *testing.T) {
-	mock := newMockDynamoer()
-	store1, err := New(mock, WithTenantPrefix("t1"))
-	require.NoError(t, err)
-	store2, err := New(mock, WithTenantPrefix("t2"))
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	require.NoError(t, store1.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "t1-data"}))
-	require.NoError(t, store2.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 2, Body: "t2-data"}))
 }
 
 func TestLoad_PaginatesAcrossPages(t *testing.T) {
@@ -632,7 +587,3 @@ func TestWithEventsTable(t *testing.T) {
 	assert.Equal(t, "my-events", store.eventsTable)
 }
 
-func TestWithAggregatesTable(t *testing.T) {
-	store, _ := newTestStore(t, WithAggregatesTable("my-aggs"))
-	assert.Equal(t, "my-aggs", store.aggregatesTable)
-}

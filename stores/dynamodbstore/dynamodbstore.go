@@ -20,8 +20,6 @@ import (
 type Dynamoer interface {
 	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
 	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
-	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
-	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
 }
 
 // DynamoDB attribute names are kept to single characters to minimize read/write
@@ -34,28 +32,24 @@ const (
 	attrData         = "d" // event/aggregate payload
 	attrTTL          = "t" // TTL epoch seconds (optional)
 
-	DefaultEventsTable     = "events"
-	DefaultAggregatesTable = "aggregates"
-	maxTransactItems       = 100
+	DefaultEventsTable = "events"
+	maxTransactItems   = 100
 )
 
 // DynamoDBStore implements the protosource Store, AggregateStore, and
 // SnapshotTailStore interfaces backed by DynamoDB.
 type DynamoDBStore struct {
-	client          Dynamoer
-	eventsTable     string
-	aggregatesTable string
-	opaqueStore     opaquedata.OpaqueStore // when set, SaveAggregate uses opaquedata single-table for AutoPKSK aggregates
-	tenantPrefix    string
-	ttl             time.Duration // when non-zero, sets TTL attribute on event writes
+	client      Dynamoer
+	eventsTable string
+	opaqueStore opaquedata.OpaqueStore // SaveAggregate requires this; aggregates are stored via opaquedata with GSI indexing
+	ttl         time.Duration          // when non-zero, sets TTL attribute on event writes
 }
 
 // New creates a new DynamoDBStore. The client must not be nil.
 func New(client Dynamoer, opts ...Option) (*DynamoDBStore, error) {
 	s := &DynamoDBStore{
-		client:          client,
-		eventsTable:     DefaultEventsTable,
-		aggregatesTable: DefaultAggregatesTable,
+		client:      client,
+		eventsTable: DefaultEventsTable,
 	}
 	for _, opt := range opts {
 		opt(s)
@@ -74,25 +68,10 @@ func WithEventsTable(name string) Option {
 	return func(s *DynamoDBStore) { s.eventsTable = name }
 }
 
-// WithAggregatesTable sets the DynamoDB table name used for aggregate state.
-func WithAggregatesTable(name string) Option {
-	return func(s *DynamoDBStore) { s.aggregatesTable = name }
-}
-
-// WithTenantPrefix prepends "prefix#" to all aggregate IDs for multi-tenant
-// table sharing.
-func WithTenantPrefix(prefix string) Option {
-	return func(s *DynamoDBStore) { s.tenantPrefix = prefix }
-}
-
-// WithOpaqueStore enables opaquedata single-table storage for aggregates that
-// implement AutoPKSK. When set, SaveAggregate uses the provided OpaqueStore to
-// persist the aggregate with full GSI indexing.
-//
-// The OpaqueStore adapter owns all storage-level concerns including tenant
-// isolation. If using WithTenantPrefix on this DynamoDBStore, configure the
-// same prefix on the OpaqueStore adapter (e.g. dynamo.WithTenantPrefix) so
-// that event and aggregate key spaces are consistently isolated.
+// WithOpaqueStore sets the OpaqueStore used by SaveAggregate to persist
+// materialized aggregates. The aggregates table uses pk/sk (String/String)
+// keys with up to 20 GSIs for query access patterns. All aggregates must
+// implement opaquedata.AutoPKSK to be materialized.
 func WithOpaqueStore(store opaquedata.OpaqueStore) Option {
 	return func(s *DynamoDBStore) { s.opaqueStore = store }
 }
@@ -126,8 +105,6 @@ func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ..
 		return nil
 	}
 
-	key := s.makeKey(aggregateID)
-
 	// Batch into groups of maxTransactItems.
 	for i := 0; i < len(records); i += maxTransactItems {
 		end := i + maxTransactItems
@@ -139,7 +116,7 @@ func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ..
 		items := make([]types.TransactWriteItem, len(batch))
 		for j, rec := range batch {
 			item := map[string]types.AttributeValue{
-				attrPartitionKey: &types.AttributeValueMemberS{Value: key},
+				attrPartitionKey: &types.AttributeValueMemberS{Value: aggregateID},
 				attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetVersion(), 10)},
 				attrData:         &types.AttributeValueMemberB{Value: rec.GetData()},
 			}
@@ -173,7 +150,6 @@ func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv
 		return nil, fmt.Errorf("dynamodbstore.Load: %w", err)
 	}
 
-	key := s.makeKey(aggregateID)
 	history := &historyv1.History{}
 
 	var exclusiveStartKey map[string]types.AttributeValue
@@ -184,7 +160,7 @@ func (s *DynamoDBStore) Load(ctx context.Context, aggregateID string) (*historyv
 			ScanIndexForward:       aws.Bool(true),
 			KeyConditionExpression: aws.String("a = :id"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":id": &types.AttributeValueMemberS{Value: key},
+				":id": &types.AttributeValueMemberS{Value: aggregateID},
 			},
 		}
 		if exclusiveStartKey != nil {
@@ -234,7 +210,6 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 		limit = maxInt32
 	}
 
-	key := s.makeKey(aggregateID)
 	history := &historyv1.History{}
 	remaining := n
 
@@ -252,7 +227,7 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 			Limit:                  aws.Int32(int32(pageLimit)),
 			KeyConditionExpression: aws.String("a = :id"),
 			ExpressionAttributeValues: map[string]types.AttributeValue{
-				":id": &types.AttributeValueMemberS{Value: key},
+				":id": &types.AttributeValueMemberS{Value: aggregateID},
 			},
 		}
 		if exclusiveStartKey != nil {
@@ -290,69 +265,29 @@ func (s *DynamoDBStore) LoadTail(ctx context.Context, aggregateID string, n int)
 	return history, nil
 }
 
-// SaveAggregate persists the materialized aggregate state. If an OpaqueStore
-// is configured and the aggregate implements opaquedata.AutoPKSK, the aggregate
-// is stored via opaquedata with full GSI indexing. Otherwise, it falls back to
-// proto.Marshal + PutItem to the aggregates table.
+// SaveAggregate persists the materialized aggregate state via the OpaqueStore.
+// The aggregate must implement opaquedata.AutoPKSK (generated from proto
+// annotations) and an OpaqueStore must be configured via WithOpaqueStore.
+// The aggregates table uses pk/sk keys with GSIs for query access patterns.
 func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregate proto.Message) error {
 	if err := ctx.Err(); err != nil {
 		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 	}
-
-	// Opaquedata path: aggregate implements AutoPKSK and OpaqueStore is configured.
-	if s.opaqueStore != nil {
-		if apk, ok := aggregate.(opaquedata.AutoPKSK); ok {
-			od, err := opaquedata.NewOpaqueDataFromProto(apk)
-			if err != nil {
-				return fmt.Errorf("dynamodbstore.SaveAggregate: opaquedata: %w", err)
-			}
-			if err := s.opaqueStore.Put(ctx, od); err != nil {
-				return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
-			}
-			return nil
-		}
+	if s.opaqueStore == nil {
+		return fmt.Errorf("dynamodbstore.SaveAggregate: no OpaqueStore configured (use WithOpaqueStore)")
 	}
-
-	// Fallback: marshal and store in the aggregates table.
-	type idGetter interface{ GetId() string }
-	ag, ok := aggregate.(idGetter)
+	apk, ok := aggregate.(opaquedata.AutoPKSK)
 	if !ok {
-		return fmt.Errorf("dynamodbstore.SaveAggregate: aggregate does not implement GetId()")
+		return fmt.Errorf("dynamodbstore.SaveAggregate: aggregate %T does not implement opaquedata.AutoPKSK", aggregate)
 	}
-
-	type versionGetter interface{ GetVersion() int64 }
-	var version int64
-	if vg, ok := aggregate.(versionGetter); ok {
-		version = vg.GetVersion()
-	}
-
-	data, err := proto.Marshal(aggregate)
+	od, err := opaquedata.NewOpaqueDataFromProto(apk)
 	if err != nil {
-		return fmt.Errorf("dynamodbstore.SaveAggregate: marshal: %w", err)
+		return fmt.Errorf("dynamodbstore.SaveAggregate: opaquedata: %w", err)
 	}
-
-	key := s.makeKey(ag.GetId())
-	_, err = s.client.PutItem(ctx, &dynamodb.PutItemInput{
-		TableName: &s.aggregatesTable,
-		Item: map[string]types.AttributeValue{
-			attrPartitionKey: &types.AttributeValueMemberS{Value: key},
-			attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(version, 10)},
-			attrData:         &types.AttributeValueMemberB{Value: data},
-		},
-	})
-	if err != nil {
+	if err := s.opaqueStore.Put(ctx, od); err != nil {
 		return fmt.Errorf("dynamodbstore.SaveAggregate: %w", err)
 	}
 	return nil
-}
-
-// makeKey returns the DynamoDB partition key for the given aggregate ID,
-// prepending the tenant prefix if configured.
-func (s *DynamoDBStore) makeKey(aggregateID string) string {
-	if s.tenantPrefix != "" {
-		return s.tenantPrefix + "#" + aggregateID
-	}
-	return aggregateID
 }
 
 // itemToRecord converts a DynamoDB item into a recordv1.Record.
