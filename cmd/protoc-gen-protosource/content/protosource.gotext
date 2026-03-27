@@ -260,6 +260,9 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
     {{ if $hasSnapshot -}}
     _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+        hook.AfterOn()
+    }
     b.Snapshot(a)
     {{ end -}}
     {{ end -}}

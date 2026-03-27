@@ -355,9 +355,9 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 			if err := aggregate.On(event); err != nil {
 				return version, nil // events saved; aggregate store is best-effort
 			}
-			if hook, ok := aggregate.(PostApplyHook); ok {
-				hook.AfterOn()
-			}
+		}
+		if hook, ok := aggregate.(PostApplyHook); ok {
+			hook.AfterOn()
 		}
 		if err := as.SaveAggregate(ctx, aggregate); err != nil {
 			r.logger.Warn("materialize failed",
@@ -469,9 +469,13 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 		if err != nil {
 			return nil, 0, fmt.Errorf("aggregate was unable to handle event type %T: %w", event, ErrUnhandledEvent)
 		}
-		if hook, ok := aggregate.(PostApplyHook); ok {
-			hook.AfterOn()
-		}
+	}
+
+	// Compute derived fields once after all events are replayed, not after
+	// each intermediate event. This avoids O(events × collection_size) cost
+	// for hooks that iterate over collections (e.g., computing totals).
+	if hook, ok := aggregate.(PostApplyHook); ok {
+		hook.AfterOn()
 	}
 
 	return aggregate, version, nil

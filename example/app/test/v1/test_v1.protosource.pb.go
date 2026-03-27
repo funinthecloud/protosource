@@ -268,9 +268,15 @@ func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Test)
 	b.Created(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	b.Unlocked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -306,6 +312,9 @@ func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Test)
 	b.Updated(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -341,6 +350,9 @@ func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	a := proto.Clone(aggregate).(*Test)
 	b.Locked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -376,6 +388,9 @@ func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Test)
 	b.Unlocked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }

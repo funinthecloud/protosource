@@ -393,6 +393,9 @@ func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Order)
 	b.Created(m.GetActor(), m.GetCustomerId(), m.GetCustomerName())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -428,6 +431,9 @@ func (m *AddItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Even
 	a := proto.Clone(aggregate).(*Order)
 	b.ItemAdded(m.GetActor(), m.GetItem())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -463,6 +469,9 @@ func (m *RemoveItem) EmitEvents(aggregate protosource.Aggregate) []protosource.E
 	a := proto.Clone(aggregate).(*Order)
 	b.ItemRemoved(m.GetActor(), m.GetItemId())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -498,6 +507,9 @@ func (m *AddTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Order)
 	b.TagAdded(m.GetActor(), m.GetTag())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -533,6 +545,9 @@ func (m *RemoveTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Ev
 	a := proto.Clone(aggregate).(*Order)
 	b.TagRemoved(m.GetActor(), m.GetKey())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -568,6 +583,9 @@ func (m *SetShipping) EmitEvents(aggregate protosource.Aggregate) []protosource.
 	a := proto.Clone(aggregate).(*Order)
 	b.ShippingSet(m.GetActor(), m.GetShippingAddress())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -603,6 +621,9 @@ func (m *Place) EmitEvents(aggregate protosource.Aggregate) []protosource.Event 
 	a := proto.Clone(aggregate).(*Order)
 	b.Placed(m.GetActor(), m.GetPlacedAt())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
@@ -638,6 +659,9 @@ func (m *Cancel) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Order)
 	b.Cancelled(m.GetActor(), m.GetReason())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
+		hook.AfterOn()
+	}
 	b.Snapshot(a)
 	return b.Events
 }
