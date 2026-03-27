@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"time"
 
@@ -52,6 +53,18 @@ type AggregateStore interface {
 	// that query the store directly. A LoadAggregate read path may be added in
 	// the future.
 	SaveAggregate(ctx context.Context, aggregate proto.Message) error
+}
+
+// Projector is an optional interface that aggregates implement when they have
+// projection messages defined in their proto file. The generated Projections()
+// method returns all projection views derived from the current aggregate state.
+// The Repository persists each projection via SaveAggregate after materializing
+// the aggregate itself. Like materialization, projection is best-effort.
+//
+// Each returned proto.Message must implement opaquedata.AutoPKSK (which is
+// guaranteed by the code generator for projection message types).
+type Projector interface {
+	Projections() []proto.Message
 }
 
 // SnapshotTailStore is an optional interface that stores can implement to
@@ -312,7 +325,28 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 				return version, nil // events saved; aggregate store is best-effort
 			}
 		}
-		_ = as.SaveAggregate(ctx, aggregate)
+		if err := as.SaveAggregate(ctx, aggregate); err != nil {
+			slog.WarnContext(ctx, "materialize failed",
+				"aggregate_id", command.GetId(),
+				"error", err,
+			)
+		}
+
+		// 9. Project (optional).
+		// If the aggregate implements Projector, persist each projection view.
+		// Projections share the same PK as the aggregate but have distinct SKs.
+		// Best-effort: projection failure does not affect the command result.
+		if p, ok := aggregate.(Projector); ok {
+			for _, proj := range p.Projections() {
+				if err := as.SaveAggregate(ctx, proj); err != nil {
+					slog.WarnContext(ctx, "projection failed",
+						"aggregate_id", command.GetId(),
+						"projection", fmt.Sprintf("%T", proj),
+						"error", err,
+					)
+				}
+			}
+		}
 	}
 
 	return version, nil

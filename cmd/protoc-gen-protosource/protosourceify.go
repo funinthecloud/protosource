@@ -67,8 +67,12 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueFieldNameLower":   opaqueFieldNameLower,
 		"opaqueKeySlotName":      opaqueKeySlotName,
 		"opaqueKeySlotGSINum":    opaqueKeySlotGSINum,
-		"opaqueKeySlotIsSK":      opaqueKeySlotIsSK,
-		"routePrefix":            p.routePrefix,
+		"opaqueKeySlotIsSK":          opaqueKeySlotIsSK,
+		"projectionSKValue":          p.projectionSKValue,
+		"projectionMatchingFields":   p.projectionMatchingFields,
+		"projectionsForFile":         p.projectionsForFile,
+		"aggregateForFile":           p.aggregateForFile,
+		"routePrefix":                p.routePrefix,
 		"lower":                  strings.ToLower,
 		"importPath":             p.importPath,
 		"cliCommandFields":       CLICommandFields,
@@ -622,9 +626,9 @@ func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
 }
 
 // hasOpaqueAnnotations returns true if the message should get AutoPKSK methods.
-// All aggregates get PK/SK automatically; non-aggregates need explicit field annotations.
+// Aggregates and projections get PK/SK automatically; others need explicit field annotations.
 func (p *ProtosourceModule) hasOpaqueAnnotations(m pgs.Message) bool {
-	if p.isAggregate(m) {
+	if p.isAggregate(m) || p.isProjection(m) {
 		return true
 	}
 	for _, f := range m.Fields() {
@@ -677,13 +681,17 @@ func (p *ProtosourceModule) opaqueKeyPrefix(m pgs.Message, f pgs.File) string {
 func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 	mappings := p.opaqueKeyMappings(m)
 
-	// Aggregates get PK/SK automatically — reject explicit PK/SK annotations.
-	if p.isAggregate(m) {
+	// Aggregates and projections get PK/SK automatically — reject explicit PK/SK annotations.
+	if p.isAggregate(m) || p.isProjection(m) {
+		kind := "aggregate"
+		if p.isProjection(m) {
+			kind = "projection"
+		}
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; ok {
-			return fmt.Errorf("message %s: aggregate PK is automatic (derived from package + id) — remove OPAQUE_KEY_TYPE_PK annotations", m.Name())
+			return fmt.Errorf("message %s: %s PK is automatic (derived from package + id) — remove OPAQUE_KEY_TYPE_PK annotations", m.Name(), kind)
 		}
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_SK]; ok {
-			return fmt.Errorf("message %s: aggregate SK is automatic (always \"AGG\") — remove OPAQUE_KEY_TYPE_SK annotations", m.Name())
+			return fmt.Errorf("message %s: %s SK is automatic (\"PROJ#%s\") — remove OPAQUE_KEY_TYPE_SK annotations", m.Name(), kind, m.Name())
 		}
 		if len(mappings) == 0 {
 			return nil
@@ -694,8 +702,8 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 		return nil
 	}
 
-	// Non-aggregates must have at least PK
-	if !p.isAggregate(m) {
+	// Non-aggregates/projections must have at least PK
+	if !p.isAggregate(m) && !p.isProjection(m) {
 		if _, ok := mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]; !ok {
 			return fmt.Errorf("message %s: opaque annotations present but no PK field defined", m.Name())
 		}
@@ -846,10 +854,10 @@ func (p *ProtosourceModule) opaqueGSISKFields(m pgs.Message, gsiNum int) []opaqu
 }
 
 // opaquePKFields returns the fields that compose the table PK.
-// For aggregates, PK is always derived from the id field (field 1).
-// For non-aggregates, PK comes from explicit OPAQUE_KEY_TYPE_PK annotations.
+// For aggregates and projections, PK is always derived from the id field.
+// For other messages, PK comes from explicit OPAQUE_KEY_TYPE_PK annotations.
 func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
-	if p.isAggregate(m) {
+	if p.isAggregate(m) || p.isProjection(m) {
 		for _, f := range m.Fields() {
 			if f.Name().String() == "id" {
 				return []opaqueFieldMapping{{Field: f, Order: 1}}
@@ -859,4 +867,54 @@ func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
 	}
 	mappings := p.opaqueKeyMappings(m)
 	return mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]
+}
+
+// aggregateForFile returns the aggregate message in the same file as the given message.
+func (p *ProtosourceModule) aggregateForFile(f pgs.File) pgs.Message {
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			return m
+		}
+	}
+	return nil
+}
+
+// projectionSKValue returns the SK value for a projection: "PROJ#MessageName".
+func (p *ProtosourceModule) projectionSKValue(m pgs.Message) string {
+	return "PROJ#" + m.Name().String()
+}
+
+// projectionMatchingFields returns the projection fields whose names match aggregate fields.
+// Used to generate the Project() method that copies fields from aggregate to projection.
+type projectionFieldPair struct {
+	ProjectionField pgs.Field
+	AggregateField  pgs.Field
+}
+
+func (p *ProtosourceModule) projectionMatchingFields(proj pgs.Message, agg pgs.Message) []projectionFieldPair {
+	aggFields := make(map[string]pgs.Field)
+	for _, f := range agg.Fields() {
+		aggFields[f.Name().String()] = f
+	}
+	var pairs []projectionFieldPair
+	for _, pf := range proj.Fields() {
+		if af, ok := aggFields[pf.Name().String()]; ok {
+			pairs = append(pairs, projectionFieldPair{
+				ProjectionField: pf,
+				AggregateField:  af,
+			})
+		}
+	}
+	return pairs
+}
+
+// projectionsForFile returns all projection messages in the file.
+func (p *ProtosourceModule) projectionsForFile(f pgs.File) []pgs.Message {
+	var projs []pgs.Message
+	for _, m := range f.Messages() {
+		if p.isProjection(m) {
+			projs = append(projs, m)
+		}
+	}
+	return projs
 }

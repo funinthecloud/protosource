@@ -131,7 +131,7 @@ func (aggregate *Test) On(event protosource.Event) error {
 
 // ── AutoPKSK methods for Test ──
 
-// PK is automatic for aggregates: package#type#id#<id_value>
+// PK is automatic: package#aggregate#id#<id_value>
 func (m *Test) PK() string {
 	if m == nil {
 		return ""
