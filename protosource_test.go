@@ -1229,6 +1229,118 @@ func TestApply_DerivedFieldsUpdateAfterRemove(t *testing.T) {
 	}
 }
 
+func TestApply_AddTagAppendsToTagsCollection(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "priority", Value: "rush"},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "source", Value: "web"},
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	if len(order.GetTags()) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(order.GetTags()))
+	}
+	if order.GetTags()[0].GetKey() != "priority" || order.GetTags()[0].GetValue() != "rush" {
+		t.Errorf("expected first tag priority=rush, got %s=%s", order.GetTags()[0].GetKey(), order.GetTags()[0].GetValue())
+	}
+	if order.GetTags()[1].GetKey() != "source" || order.GetTags()[1].GetValue() != "web" {
+		t.Errorf("expected second tag source=web, got %s=%s", order.GetTags()[1].GetKey(), order.GetTags()[1].GetValue())
+	}
+}
+
+func TestApply_RemoveTagFiltersTagsCollection(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "priority", Value: "rush"},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "source", Value: "web"},
+	})
+	mustApply(t, repo, &orderv1.RemoveTag{
+		Id: "order-1", Actor: "alice", Key: "priority",
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	if len(order.GetTags()) != 1 {
+		t.Fatalf("expected 1 tag after removal, got %d", len(order.GetTags()))
+	}
+	if order.GetTags()[0].GetKey() != "source" {
+		t.Errorf("expected remaining tag key 'source', got %q", order.GetTags()[0].GetKey())
+	}
+}
+
+func TestApply_MultipleCollectionsIndependent(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 1},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "priority", Value: "rush"},
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-2", Description: "Gadget", PriceCents: 500, Quantity: 2},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "channel", Value: "mobile"},
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	// Items and tags are independent collections.
+	if len(order.GetItems()) != 2 {
+		t.Errorf("expected 2 items, got %d", len(order.GetItems()))
+	}
+	if len(order.GetTags()) != 2 {
+		t.Errorf("expected 2 tags, got %d", len(order.GetTags()))
+	}
+	// Derived fields still correct (only from items, not tags).
+	if order.GetTotalCents() != 2000 {
+		t.Errorf("expected total_cents 2000, got %d", order.GetTotalCents())
+	}
+	if order.GetItemCount() != 2 {
+		t.Errorf("expected item_count 2, got %d", order.GetItemCount())
+	}
+}
+
 func TestApply_CollectionMaterialized(t *testing.T) {
 	store := &recordingStore{MemoryStore: memorystore.New(0)}
 	repo := newOrderRepo(store)

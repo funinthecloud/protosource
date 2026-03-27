@@ -45,6 +45,7 @@ message Order {
   string            shipping_address = 12;
   int64             placed_at        = 13;
   repeated LineItem items            = 14;
+  repeated Tag      tags             = 15;
 }
 
 // LineItem is a value type representing a single item in an order.
@@ -53,6 +54,12 @@ message LineItem {
   string description = 2;
   int64  price_cents = 3;
   int32  quantity    = 4;
+}
+
+// Tag is a key-value label on an order (e.g. "priority"="rush", "source"="web").
+message Tag {
+  string key   = 1;
+  string value = 2;
 }
 
 // ── Commands ──
@@ -91,6 +98,30 @@ message RemoveItem {
   string id      = 1;
   string actor   = 2;
   string item_id = 3;
+}
+
+message AddTag {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .command = {
+    produces_events: [ "TagAdded" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_DRAFT" ]
+  };
+  string id    = 1;
+  string actor = 2;
+  Tag    tag   = 3;
+}
+
+message RemoveTag {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .command = {
+    produces_events: [ "TagRemoved" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_DRAFT" ]
+  };
+  string id    = 1;
+  string actor = 2;
+  string key   = 3;
 }
 
 message SetShipping {
@@ -166,6 +197,30 @@ message ItemRemoved {
   int64  at      = 3;
   string actor   = 4;
   string item_id = 5;
+}
+
+message TagAdded {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .event = {
+    collection: { target: "tags", action: COLLECTION_ACTION_ADD }
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  Tag    tag     = 5;
+}
+
+message TagRemoved {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .event = {
+    collection: { target: "tags", action: COLLECTION_ACTION_REMOVE, key_field: "key" }
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string key     = 5;
 }
 
 message ShippingSet {

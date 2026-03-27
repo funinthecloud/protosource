@@ -82,6 +82,7 @@ func (aggregate *Order) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.ShippingAddress = snapshot.GetSnapshot().GetShippingAddress()
 	aggregate.PlacedAt = snapshot.GetSnapshot().GetPlacedAt()
 	aggregate.Items = snapshot.GetSnapshot().GetItems()
+	aggregate.Tags = snapshot.GetSnapshot().GetTags()
 	aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Order) {
@@ -133,6 +134,21 @@ func (aggregate *Order) On(event protosource.Event) error {
 				}
 			}
 			aggregate.Items = filtered
+		}
+	case *TagAdded:
+		aggregate.setModified(e)
+		aggregate.Tags = append(aggregate.Tags, e.GetTag())
+	case *TagRemoved:
+		aggregate.setModified(e)
+		{
+			key := e.GetKey()
+			filtered := make([]*Tag, 0, len(aggregate.Tags))
+			for _, item := range aggregate.Tags {
+				if item.GetKey() != key {
+					filtered = append(filtered, item)
+				}
+			}
+			aggregate.Tags = filtered
 		}
 	case *ShippingSet:
 		aggregate.setModified(e)
@@ -451,6 +467,76 @@ func (m *RemoveItem) EmitEvents(aggregate protosource.Aggregate) []protosource.E
 	return b.Events
 }
 
+func (m *AddTag) CommandName() string {
+	return "AddTag"
+}
+
+func (m *AddTag) ProtoValidate() error {
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
+}
+
+func (m *AddTag) ValidateVersion(version int64) error {
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
+}
+func (m *AddTag) Authorize(aggregate protosource.Aggregate) error {
+	a := aggregate.(*Order)
+	switch a.GetState() {
+	case State_STATE_DRAFT:
+		return nil
+	default:
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+	}
+}
+func (m *AddTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Order)
+	b.TagAdded(m.GetActor(), m.GetTag())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)
+	return b.Events
+}
+
+func (m *RemoveTag) CommandName() string {
+	return "RemoveTag"
+}
+
+func (m *RemoveTag) ProtoValidate() error {
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
+}
+
+func (m *RemoveTag) ValidateVersion(version int64) error {
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
+}
+func (m *RemoveTag) Authorize(aggregate protosource.Aggregate) error {
+	a := aggregate.(*Order)
+	switch a.GetState() {
+	case State_STATE_DRAFT:
+		return nil
+	default:
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+	}
+}
+func (m *RemoveTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Order)
+	b.TagRemoved(m.GetActor(), m.GetKey())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)
+	return b.Events
+}
+
 func (m *SetShipping) CommandName() string {
 	return "SetShipping"
 }
@@ -598,6 +684,38 @@ func (b *Builder) ItemRemoved(Actor string, ItemId string) {
 		Id:     b.id,
 		Actor:  Actor,
 		ItemId: ItemId,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
+}
+
+func (m *TagAdded) EventName() string {
+	return "TagAdded"
+}
+
+func (b *Builder) TagAdded(Actor string, Tag *Tag) {
+	event := &TagAdded{
+		Id:    b.id,
+		Actor: Actor,
+		Tag:   Tag,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
+}
+
+func (m *TagRemoved) EventName() string {
+	return "TagRemoved"
+}
+
+func (b *Builder) TagRemoved(Actor string, Key string) {
+	event := &TagRemoved{
+		Id:    b.id,
+		Actor: Actor,
+		Key:   Key,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),
