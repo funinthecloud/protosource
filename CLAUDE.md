@@ -143,5 +143,6 @@ git checkout -b <branch-name> origin/main
 
 ## TODO
 
-- [ ] Look deeper into multi-package projections and auto-generation possibilities
+- [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)
+- [ ] Multi-aggregate projections: projections that join/denormalize across multiple aggregate types (e.g. Order + Customer → OrderWithCustomerView). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)
