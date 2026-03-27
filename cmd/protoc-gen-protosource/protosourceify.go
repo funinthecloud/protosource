@@ -452,7 +452,7 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 // validateFileStructure enforces structural guardrails on the proto file:
 //   - Exactly one aggregate message
 //   - Aggregate must be the first message
-//   - At most one CREATION command
+//   - Exactly one CREATION command
 //   - Non-first events in a CREATION command must also be produced by a MUTATION command
 //   - At most one snapshot message
 //   - Projection messages must have an "id" field
@@ -483,8 +483,8 @@ func (p *ProtosourceModule) validateFileStructure(f pgs.File) error {
 			creationCmd = m
 		}
 	}
-	if creationCount > 1 {
-		return fmt.Errorf("file %s: exactly one CREATION command per file, found %d", f.Name(), creationCount)
+	if creationCount != 1 {
+		return fmt.Errorf("file %s: exactly one CREATION command required, found %d", f.Name(), creationCount)
 	}
 
 	// Non-first events in a CREATION command must also be produced by a MUTATION command.
