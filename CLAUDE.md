@@ -63,6 +63,20 @@ The plugin logic is in `protosourceify.go`; templates are in `content/`.
 
 Steps 1-3 and 6 are generated. For custom authorization, implement `Authorize` on the command type. For custom evaluation, implement `Evaluate`. See `docs/pipeline.md` for details.
 
+## DynamoDB Table Design
+
+Two tables: **events** (`a`/`v` String/Number) and **aggregates** (`pk`/`sk` String/String + 20 GSIs).
+The aggregates table IS the opaquedata single-table — there is no separate opaque table.
+All materialized aggregates must implement `AutoPKSK`; there is no fallback storage path.
+
+### SK Convention
+- `"AGG"` — the materialized aggregate itself
+- `"NA"` — unused GSI slots only (not for main table SK)
+- `"PROJ#<Name>"` — reserved for future projection rows
+
+### GSIs
+Always create all 20 GSI pairs (`gsi1pk`/`gsi1sk` through `gsi20pk`/`gsi20sk`). Empty GSIs cost nothing with PAY_PER_REQUEST billing.
+
 ## Proto Conventions
 
 Domain protos import `funinthecloud/protosource/options/v1/options_v1.proto` and use these annotations:
