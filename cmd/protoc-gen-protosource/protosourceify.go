@@ -463,6 +463,16 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 		}
 	}
 
+	// Collect domain fields (everything except id, version, at, actor).
+	var domainFields []pgs.Field
+	for _, ef := range evt.Fields() {
+		switch ef.Name().String() {
+		case "id", "version", "at", "actor":
+			continue
+		}
+		domainFields = append(domainFields, ef)
+	}
+
 	switch cm.GetAction() {
 	case optionsv1.CollectionAction_COLLECTION_ACTION_ADD:
 		// Event must have exactly one embedded field matching the element type.
@@ -480,6 +490,12 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 		if matchCount > 1 {
 			return fmt.Errorf("event %s: collection ADD requires exactly one field of type %s, but found %d",
 				evt.Name(), elemMsg.Name(), matchCount)
+		}
+		// Collection events must not have extra domain fields — an event either
+		// does collection work or scalar field copying, not both.
+		if len(domainFields) != 1 {
+			return fmt.Errorf("event %s: collection ADD must have exactly one domain field (the element), but has %d",
+				evt.Name(), len(domainFields))
 		}
 
 	case optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE:
@@ -517,6 +533,21 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 			return fmt.Errorf("event %s: collection REMOVE key_field %q type mismatch — element %s has %s, event has %s",
 				evt.Name(), cm.GetKeyField(), elemMsg.Name(),
 				elemKeyField.Type().ProtoType(), evtKeyField.Type().ProtoType())
+		}
+		// Key fields must be scalar (not repeated, map, message, or enum) —
+		// the generated != comparison only works on comparable scalar types.
+		if elemKeyField.Type().IsRepeated() || elemKeyField.Type().IsMap() || elemKeyField.Type().IsEmbed() || elemKeyField.Type().IsEnum() {
+			return fmt.Errorf("event %s: collection REMOVE key_field %q on element %s must be a scalar type, got %s",
+				evt.Name(), cm.GetKeyField(), elemMsg.Name(), elemKeyField.Type().ProtoType())
+		}
+		if evtKeyField.Type().IsRepeated() || evtKeyField.Type().IsMap() || evtKeyField.Type().IsEmbed() || evtKeyField.Type().IsEnum() {
+			return fmt.Errorf("event %s: collection REMOVE field %q must be a scalar type, got %s",
+				evt.Name(), cm.GetKeyField(), evtKeyField.Type().ProtoType())
+		}
+		// Collection events must not have extra domain fields.
+		if len(domainFields) != 1 {
+			return fmt.Errorf("event %s: collection REMOVE must have exactly one domain field (the key), but has %d",
+				evt.Name(), len(domainFields))
 		}
 
 	default:

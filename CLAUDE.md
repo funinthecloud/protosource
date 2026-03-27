@@ -180,7 +180,7 @@ func (o *Order) AfterOn() {
 }
 ```
 
-`AfterOn()` is called once after all events are replayed (not per-event) and once before materialization/snapshotting. **`AfterOn` is a reserved method name** — do not use it as a command or event message name.
+`AfterOn()` is called: (1) once after all events are replayed during Load, (2) once after all new events are applied during materialization in Apply, and (3) in generated `EmitEvents` on the cloned aggregate before snapshot emission (only when a snapshot will actually be created). **`AfterOn` is a reserved method name** — do not use it as a command or event message name.
 
 ### Field Contracts
 

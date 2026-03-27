@@ -109,9 +109,15 @@ type Aggregate interface {
 }
 
 // PostApplyHook is an optional interface that aggregates can implement to
-// compute derived fields after events are applied. Called after each On() call
-// during both Load (event replay) and Apply (materialization). This is the
-// extension point for computing values from collections (totals, counts, etc.).
+// compute derived fields after events are applied. Invocation points:
+//   - Load (event replay): called once after all events are replayed.
+//   - Apply (materialization): called once after all new events are applied,
+//     before the aggregate is persisted.
+//   - Generated EmitEvents: called on the cloned aggregate before snapshotting,
+//     only when a snapshot will actually be emitted (version on interval).
+//
+// This is the extension point for computing values from collections
+// (totals, counts, etc.).
 type PostApplyHook interface {
 	AfterOn()
 }

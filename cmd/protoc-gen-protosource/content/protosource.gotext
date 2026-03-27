@@ -111,6 +111,9 @@ func (aggregate *{{$aggregate}}) RestoreSnapshot(snapshot *Snapshot) {
 }
 func (b *Builder) Snapshot(aggregate *{{$aggregate}}) {
     if b.version % int64({{ $everyN }}) == 0 {
+        if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+            hook.AfterOn()
+        }
         event := &Snapshot{
             Id:       b.id,
             Snapshot: proto.Clone(aggregate).(*{{$aggregate}}),
@@ -260,10 +263,7 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
     {{ if $hasSnapshot -}}
     _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    if hook, ok := protosource.Aggregate(a).(protosource.PostApplyHook); ok {
-        hook.AfterOn()
-    }
-    b.Snapshot(a)
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
     {{ end -}}
     {{ end -}}
     return b.Events
