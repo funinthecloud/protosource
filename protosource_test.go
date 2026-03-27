@@ -522,8 +522,8 @@ func TestApply_ProjectionFailureIsBestEffort(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected Apply to succeed despite store failure, got: %v", err)
 	}
-	if version != 2 {
-		t.Errorf("expected version 2, got %d", version)
+	if version != 1 {
+		t.Errorf("expected version 1, got %d", version)
 	}
 
 	// Logger should have captured warnings for both materialize and projection failures.

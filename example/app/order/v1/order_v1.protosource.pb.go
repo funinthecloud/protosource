@@ -117,8 +117,6 @@ func (aggregate *Order) On(event protosource.Event) error {
 		aggregate.setModified(e)
 		aggregate.CustomerId = e.GetCustomerId()
 		aggregate.CustomerName = e.GetCustomerName()
-	case *Drafted:
-		aggregate.setModified(e)
 		aggregate.State = State_STATE_DRAFT
 	case *ItemAdded:
 		aggregate.setModified(e)
@@ -366,9 +364,6 @@ func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	b.Created(m.GetActor(), m.GetCustomerId(), m.GetCustomerName())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)
-	b.Drafted(m.GetActor())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
 	return b.Events
 }
 
@@ -522,21 +517,6 @@ func (b *Builder) Created(Actor string, CustomerId string, CustomerName string) 
 		Actor:        Actor,
 		CustomerId:   CustomerId,
 		CustomerName: CustomerName,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
-}
-
-func (m *Drafted) EventName() string {
-	return "Drafted"
-}
-
-func (b *Builder) Drafted(Actor string) {
-	event := &Drafted{
-		Id:    b.id,
-		Actor: Actor,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),

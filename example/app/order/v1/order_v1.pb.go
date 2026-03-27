@@ -631,74 +631,6 @@ func (x *Created) GetCustomerName() string {
 	return ""
 }
 
-type Drafted struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	At            int64                  `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
-	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *Drafted) Reset() {
-	*x = Drafted{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Drafted) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Drafted) ProtoMessage() {}
-
-func (x *Drafted) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Drafted.ProtoReflect.Descriptor instead.
-func (*Drafted) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *Drafted) GetId() string {
-	if x != nil {
-		return x.Id
-	}
-	return ""
-}
-
-func (x *Drafted) GetVersion() int64 {
-	if x != nil {
-		return x.Version
-	}
-	return 0
-}
-
-func (x *Drafted) GetAt() int64 {
-	if x != nil {
-		return x.At
-	}
-	return 0
-}
-
-func (x *Drafted) GetActor() string {
-	if x != nil {
-		return x.Actor
-	}
-	return ""
-}
-
 type ItemAdded struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -714,7 +646,7 @@ type ItemAdded struct {
 
 func (x *ItemAdded) Reset() {
 	*x = ItemAdded{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -726,7 +658,7 @@ func (x *ItemAdded) String() string {
 func (*ItemAdded) ProtoMessage() {}
 
 func (x *ItemAdded) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -739,7 +671,7 @@ func (x *ItemAdded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemAdded.ProtoReflect.Descriptor instead.
 func (*ItemAdded) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{8}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ItemAdded) GetId() string {
@@ -804,7 +736,7 @@ type ShippingSet struct {
 
 func (x *ShippingSet) Reset() {
 	*x = ShippingSet{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -816,7 +748,7 @@ func (x *ShippingSet) String() string {
 func (*ShippingSet) ProtoMessage() {}
 
 func (x *ShippingSet) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -829,7 +761,7 @@ func (x *ShippingSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShippingSet.ProtoReflect.Descriptor instead.
 func (*ShippingSet) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{9}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ShippingSet) GetId() string {
@@ -880,7 +812,7 @@ type Placed struct {
 
 func (x *Placed) Reset() {
 	*x = Placed{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -892,7 +824,7 @@ func (x *Placed) String() string {
 func (*Placed) ProtoMessage() {}
 
 func (x *Placed) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -905,7 +837,7 @@ func (x *Placed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Placed.ProtoReflect.Descriptor instead.
 func (*Placed) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{10}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Placed) GetId() string {
@@ -956,7 +888,7 @@ type Cancelled struct {
 
 func (x *Cancelled) Reset() {
 	*x = Cancelled{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -968,7 +900,7 @@ func (x *Cancelled) String() string {
 func (*Cancelled) ProtoMessage() {}
 
 func (x *Cancelled) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -981,7 +913,7 @@ func (x *Cancelled) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cancelled.ProtoReflect.Descriptor instead.
 func (*Cancelled) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{11}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Cancelled) GetId() string {
@@ -1039,7 +971,7 @@ type OrderSummary struct {
 
 func (x *OrderSummary) Reset() {
 	*x = OrderSummary{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1051,7 +983,7 @@ func (x *OrderSummary) String() string {
 func (*OrderSummary) ProtoMessage() {}
 
 func (x *OrderSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1064,7 +996,7 @@ func (x *OrderSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderSummary.ProtoReflect.Descriptor instead.
 func (*OrderSummary) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{12}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *OrderSummary) GetId() string {
@@ -1136,7 +1068,7 @@ type Snapshot struct {
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[13]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1148,7 +1080,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[13]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1161,7 +1093,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{13}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Snapshot) GetId() string {
@@ -1224,16 +1156,15 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\n" +
 	"item_count\x18\v \x01(\x05R\titemCount\x12)\n" +
 	"\x10shipping_address\x18\f \x01(\tR\x0fshippingAddress\x12\x1b\n" +
-	"\tplaced_at\x18\r \x01(\x03R\bplacedAt:\x06ʬ\x1d\x02\x1a\x00\"\x90\x01\n" +
+	"\tplaced_at\x18\r \x01(\x03R\bplacedAt:\x06ʬ\x1d\x02\x1a\x00\"\x87\x01\n" +
 	"\x06Create\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x1f\n" +
 	"\vcustomer_id\x18\x03 \x01(\tR\n" +
 	"customerId\x12#\n" +
-	"\rcustomer_name\x18\x04 \x01(\tR\fcustomerName:\x1aʬ\x1d\x16\n" +
-	"\x14\n" +
-	"\aCreated\n" +
-	"\aDrafted\x10\x01\"\xb0\x01\n" +
+	"\rcustomer_name\x18\x04 \x01(\tR\fcustomerName:\x11ʬ\x1d\r\n" +
+	"\v\n" +
+	"\aCreated\x10\x01\"\xb0\x01\n" +
 	"\aAddItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12 \n" +
@@ -1261,7 +1192,7 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x06reason\x18\x03 \x01(\tR\x06reason::ʬ\x1d6\n" +
 	"4\n" +
 	"\tCancelled\x10\x02\x1a\vSTATE_DRAFT\x1a\fSTATE_PLACED\x1a\n" +
-	"STATE_PAID\"\xa7\x01\n" +
+	"STATE_PAID\"\xb4\x01\n" +
 	"\aCreated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
@@ -1269,12 +1200,7 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x1f\n" +
 	"\vcustomer_id\x18\x05 \x01(\tR\n" +
 	"customerId\x12#\n" +
-	"\rcustomer_name\x18\x06 \x01(\tR\fcustomerName:\x06ʬ\x1d\x02\x12\x00\"n\n" +
-	"\aDrafted\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
-	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
-	"\x05actor\x18\x04 \x01(\tR\x05actor:\x13ʬ\x1d\x0f\x12\r\x12\vSTATE_DRAFT\"\xc2\x01\n" +
+	"\rcustomer_name\x18\x06 \x01(\tR\fcustomerName:\x13ʬ\x1d\x0f\x12\r\x12\vSTATE_DRAFT\"\xc2\x01\n" +
 	"\tItemAdded\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
@@ -1350,7 +1276,7 @@ func file_example_app_order_v1_order_v1_proto_rawDescGZIP() []byte {
 }
 
 var file_example_app_order_v1_order_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_example_app_order_v1_order_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_example_app_order_v1_order_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_example_app_order_v1_order_v1_proto_goTypes = []any{
 	(State)(0),           // 0: example.app.order.v1.State
 	(*Order)(nil),        // 1: example.app.order.v1.Order
@@ -1360,13 +1286,12 @@ var file_example_app_order_v1_order_v1_proto_goTypes = []any{
 	(*Place)(nil),        // 5: example.app.order.v1.Place
 	(*Cancel)(nil),       // 6: example.app.order.v1.Cancel
 	(*Created)(nil),      // 7: example.app.order.v1.Created
-	(*Drafted)(nil),      // 8: example.app.order.v1.Drafted
-	(*ItemAdded)(nil),    // 9: example.app.order.v1.ItemAdded
-	(*ShippingSet)(nil),  // 10: example.app.order.v1.ShippingSet
-	(*Placed)(nil),       // 11: example.app.order.v1.Placed
-	(*Cancelled)(nil),    // 12: example.app.order.v1.Cancelled
-	(*OrderSummary)(nil), // 13: example.app.order.v1.OrderSummary
-	(*Snapshot)(nil),     // 14: example.app.order.v1.Snapshot
+	(*ItemAdded)(nil),    // 8: example.app.order.v1.ItemAdded
+	(*ShippingSet)(nil),  // 9: example.app.order.v1.ShippingSet
+	(*Placed)(nil),       // 10: example.app.order.v1.Placed
+	(*Cancelled)(nil),    // 11: example.app.order.v1.Cancelled
+	(*OrderSummary)(nil), // 12: example.app.order.v1.OrderSummary
+	(*Snapshot)(nil),     // 13: example.app.order.v1.Snapshot
 }
 var file_example_app_order_v1_order_v1_proto_depIdxs = []int32{
 	0, // 0: example.app.order.v1.Order.state:type_name -> example.app.order.v1.State
@@ -1390,7 +1315,7 @@ func file_example_app_order_v1_order_v1_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_example_app_order_v1_order_v1_proto_rawDesc), len(file_example_app_order_v1_order_v1_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   14,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

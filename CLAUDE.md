@@ -106,7 +106,18 @@ message Snapshot {
 }
 ```
 
-The **two-event pattern** for initial state: CREATION commands emit a domain event (Created) plus a state-transition event (Unlocked), so every state — including the initial one — is an explicit event in the stream. The `sets_state` annotation on event messages generates state assignments in the `On` method.
+### Command/Event Guidelines
+
+**One command, one event** is the recommended pattern. The `Created` event should use `sets_state` to set the initial state directly:
+```protobuf
+message Created {
+  option (...).event = { sets_state: "STATE_DRAFT" };
+}
+```
+
+**Multi-event commands** (`produces_events: ["Created", "Unlocked"]`) are valid when the second event is also a standalone command. For example, `Unlock` is a real command that independently produces the `Unlocked` event — the `Create` command reuses it to set initial state. Don't create events that exist solely to set initial state on creation (e.g., a `Drafted` event that no command produces independently).
+
+The `sets_state` annotation on event messages generates state assignments in the `On` method.
 
 The `On` method is **fully generated**. Event fields are mechanically copied to matching aggregate fields.
 
