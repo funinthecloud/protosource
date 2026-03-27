@@ -108,6 +108,14 @@ type Aggregate interface {
 	GetVersion() int64
 }
 
+// PostApplyHook is an optional interface that aggregates can implement to
+// compute derived fields after events are applied. Called after each On() call
+// during both Load (event replay) and Apply (materialization). This is the
+// extension point for computing values from collections (totals, counts, etc.).
+type PostApplyHook interface {
+	AfterOn()
+}
+
 // Commander represents a command that specifies a desired change to an aggregate.
 // It includes not only the action but also all necessary data required for that change.
 //
@@ -347,6 +355,9 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 			if err := aggregate.On(event); err != nil {
 				return version, nil // events saved; aggregate store is best-effort
 			}
+			if hook, ok := aggregate.(PostApplyHook); ok {
+				hook.AfterOn()
+			}
 		}
 		if err := as.SaveAggregate(ctx, aggregate); err != nil {
 			r.logger.Warn("materialize failed",
@@ -457,6 +468,9 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 		err = aggregate.On(event)
 		if err != nil {
 			return nil, 0, fmt.Errorf("aggregate was unable to handle event type %T: %w", event, ErrUnhandledEvent)
+		}
+		if hook, ok := aggregate.(PostApplyHook); ok {
+			hook.AfterOn()
 		}
 	}
 

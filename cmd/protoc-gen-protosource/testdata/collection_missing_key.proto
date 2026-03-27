@@ -1,0 +1,53 @@
+syntax = "proto3";
+
+package test.collection_missing_key;
+
+option go_package = "github.com/funinthecloud/protosource/test/collection_missing_key;collectionmissingkeypb";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+message Basket {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {};
+  string          id        = 1;
+  int64           version   = 2;
+  int64           create_at = 3;
+  string          create_by = 4;
+  int64           modify_at = 5;
+  string          modify_by = 6;
+  repeated Widget widgets   = 7;
+}
+
+message Widget {
+  string widget_id = 1;
+}
+
+message Create {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: ["Created"]
+    lifecycle: COMMAND_LIFECYCLE_CREATION
+  };
+  string id    = 1;
+  string actor = 2;
+}
+
+message Created {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {};
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+}
+
+// REMOVE without key_field — should fail validation.
+message WidgetRemoved {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+    collection: { target: "widgets", action: COLLECTION_ACTION_REMOVE }
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string some_id = 5;
+}

@@ -81,6 +81,7 @@ func (aggregate *Order) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.ItemCount = snapshot.GetSnapshot().GetItemCount()
 	aggregate.ShippingAddress = snapshot.GetSnapshot().GetShippingAddress()
 	aggregate.PlacedAt = snapshot.GetSnapshot().GetPlacedAt()
+	aggregate.Items = snapshot.GetSnapshot().GetItems()
 	aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Order) {
@@ -120,6 +121,19 @@ func (aggregate *Order) On(event protosource.Event) error {
 		aggregate.State = State_STATE_DRAFT
 	case *ItemAdded:
 		aggregate.setModified(e)
+		aggregate.Items = append(aggregate.Items, e.GetItem())
+	case *ItemRemoved:
+		aggregate.setModified(e)
+		{
+			key := e.GetItemId()
+			filtered := make([]*LineItem, 0, len(aggregate.Items))
+			for _, item := range aggregate.Items {
+				if item.GetItemId() != key {
+					filtered = append(filtered, item)
+				}
+			}
+			aggregate.Items = filtered
+		}
 	case *ShippingSet:
 		aggregate.setModified(e)
 		aggregate.ShippingAddress = e.GetShippingAddress()
@@ -396,7 +410,42 @@ func (m *AddItem) Authorize(aggregate protosource.Aggregate) error {
 func (m *AddItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := proto.Clone(aggregate).(*Order)
-	b.ItemAdded(m.GetActor(), m.GetDescription(), m.GetPriceCents(), m.GetQuantity())
+	b.ItemAdded(m.GetActor(), m.GetItem())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)
+	return b.Events
+}
+
+func (m *RemoveItem) CommandName() string {
+	return "RemoveItem"
+}
+
+func (m *RemoveItem) ProtoValidate() error {
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
+}
+
+func (m *RemoveItem) ValidateVersion(version int64) error {
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
+}
+func (m *RemoveItem) Authorize(aggregate protosource.Aggregate) error {
+	a := aggregate.(*Order)
+	switch a.GetState() {
+	case State_STATE_DRAFT:
+		return nil
+	default:
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+	}
+}
+func (m *RemoveItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Order)
+	b.ItemRemoved(m.GetActor(), m.GetItemId())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)
 	return b.Events
@@ -528,13 +577,27 @@ func (m *ItemAdded) EventName() string {
 	return "ItemAdded"
 }
 
-func (b *Builder) ItemAdded(Actor string, Description string, PriceCents int64, Quantity int32) {
+func (b *Builder) ItemAdded(Actor string, Item *LineItem) {
 	event := &ItemAdded{
-		Id:          b.id,
-		Actor:       Actor,
-		Description: Description,
-		PriceCents:  PriceCents,
-		Quantity:    Quantity,
+		Id:    b.id,
+		Actor: Actor,
+		Item:  Item,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
+}
+
+func (m *ItemRemoved) EventName() string {
+	return "ItemRemoved"
+}
+
+func (b *Builder) ItemRemoved(Actor string, ItemId string) {
+	event := &ItemRemoved{
+		Id:     b.id,
+		Actor:  Actor,
+		ItemId: ItemId,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),

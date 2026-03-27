@@ -31,6 +31,8 @@ func (h *Handlers) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("POST", "example/app/order/v1/additem", h.HandleAddItem)
 
+	router.Handle("POST", "example/app/order/v1/removeitem", h.HandleRemoveItem)
+
 	router.Handle("POST", "example/app/order/v1/setshipping", h.HandleSetShipping)
 
 	router.Handle("POST", "example/app/order/v1/place", h.HandlePlace)
@@ -82,6 +84,36 @@ func (h *Handlers) HandleAddItem(ctx context.Context, request protosource.Reques
 	}
 
 	cmd := &AddItem{}
+	if err := unmarshalCommand(request, cmd); err != nil {
+		return protosource.Response{
+			StatusCode: http.StatusBadRequest,
+			Body:       `{"error":"invalid request body"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}
+	}
+
+	// Override actor from auth context to prevent spoofing.
+	cmd.Actor = request.Actor
+
+	version, err := h.repo.Apply(ctx, cmd)
+	if err != nil {
+		return commandErrorResponse(err)
+	}
+
+	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
+}
+
+// HandleRemoveItem processes a RemoveItem command.
+func (h *Handlers) HandleRemoveItem(ctx context.Context, request protosource.Request) protosource.Response {
+	if request.Actor == "" {
+		return protosource.Response{
+			StatusCode: http.StatusUnauthorized,
+			Body:       `{"error":"unauthorized: no actor identity found"}`,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+		}
+	}
+
+	cmd := &RemoveItem{}
 	if err := unmarshalCommand(request, cmd); err != nil {
 		return protosource.Response{
 			StatusCode: http.StatusBadRequest,

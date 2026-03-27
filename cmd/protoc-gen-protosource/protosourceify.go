@@ -56,8 +56,17 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"stateEnumName":          p.stateEnumName,
 		"snapshotEveryN":         p.snapshotEveryN,
 		"eventMessage":           p.eventMessage,
-		"eventSetsState":         p.eventSetsState,
-		"hasOpaqueAnnotations":   p.hasOpaqueAnnotations,
+		"eventSetsState":              p.eventSetsState,
+		"eventCollectionMapping":      p.eventCollectionMapping,
+		"eventCollectionAction":       p.eventCollectionAction,
+		"eventCollectionTarget":       p.eventCollectionTarget,
+		"eventCollectionKeyField":     p.eventCollectionKeyField,
+		"eventCollectionSourceField":  p.eventCollectionSourceField,
+		"collectionElementTypeName":   p.collectionElementTypeName,
+		"collectionKeyFieldGoName":    p.collectionKeyFieldGoName,
+		"aggregateFieldGoName":        p.aggregateFieldGoName,
+		"eventFieldGoName":            p.eventFieldGoName,
+		"hasOpaqueAnnotations":        p.hasOpaqueAnnotations,
 		"opaqueKeyMappings":      p.opaqueKeyMappings,
 		"opaqueKeyPrefix":        p.opaqueKeyPrefix,
 		"opaqueAllKeySlots":      opaqueAllKeySlots,
@@ -273,6 +282,225 @@ func (p *ProtosourceModule) eventSetsState(m pgs.Message) string {
 		return ""
 	}
 	return opts.GetEvent().GetSetsState()
+}
+
+// eventCollectionMapping returns the CollectionMapping annotation for an event,
+// or nil if the event does not modify a collection.
+func (p *ProtosourceModule) eventCollectionMapping(m pgs.Message) *optionsv1.CollectionMapping {
+	opts := p.messageOptions(m)
+	if opts == nil || opts.GetEvent() == nil {
+		return nil
+	}
+	cm := opts.GetEvent().GetCollection()
+	if cm == nil || cm.GetTarget() == "" {
+		return nil
+	}
+	return cm
+}
+
+// eventCollectionSourceField finds the event field whose embedded message type
+// matches the element type of the target repeated field on the aggregate.
+// Returns nil if no matching field is found.
+func (p *ProtosourceModule) eventCollectionSourceField(evt pgs.Message, agg pgs.Message) pgs.Field {
+	cm := p.eventCollectionMapping(evt)
+	if cm == nil {
+		return nil
+	}
+	// Find the aggregate's repeated field.
+	var targetField pgs.Field
+	for _, f := range agg.Fields() {
+		if f.Name().String() == cm.GetTarget() {
+			targetField = f
+			break
+		}
+	}
+	if targetField == nil || !targetField.Type().IsRepeated() || !targetField.Type().Element().IsEmbed() {
+		return nil
+	}
+	elemFQN := targetField.Type().Element().Embed().FullyQualifiedName()
+
+	// Find the event field whose message type matches.
+	for _, ef := range evt.Fields() {
+		if ef.Type().IsEmbed() && ef.Type().Embed().FullyQualifiedName() == elemFQN {
+			return ef
+		}
+	}
+	return nil
+}
+
+// collectionElementTypeName returns the Go type name of the element of a
+// repeated message field on the aggregate.
+func (p *ProtosourceModule) collectionElementTypeName(target string, agg pgs.Message) string {
+	for _, f := range agg.Fields() {
+		if f.Name().String() == target && f.Type().IsRepeated() && f.Type().Element().IsEmbed() {
+			return p.ctx.Name(f.Type().Element().Embed()).String()
+		}
+	}
+	return ""
+}
+
+// collectionKeyFieldGoName returns the Go (PascalCase) name of the key_field
+// on the collection element message.
+func (p *ProtosourceModule) collectionKeyFieldGoName(keyField string, target string, agg pgs.Message) string {
+	for _, f := range agg.Fields() {
+		if f.Name().String() == target && f.Type().IsRepeated() && f.Type().Element().IsEmbed() {
+			for _, ef := range f.Type().Element().Embed().Fields() {
+				if ef.Name().String() == keyField {
+					return p.ctx.Name(ef).String()
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// aggregateFieldGoName returns the Go (PascalCase) name of a field on a message,
+// looked up by its proto name. Used in templates where we have a string field name.
+func (p *ProtosourceModule) aggregateFieldGoName(protoName string, msg pgs.Message) string {
+	for _, f := range msg.Fields() {
+		if f.Name().String() == protoName {
+			return p.ctx.Name(f).String()
+		}
+	}
+	return ""
+}
+
+// eventFieldGoName returns the Go (PascalCase) name of a field on an event message,
+// looked up by its proto name.
+func (p *ProtosourceModule) eventFieldGoName(protoName string, evt pgs.Message) string {
+	for _, f := range evt.Fields() {
+		if f.Name().String() == protoName {
+			return p.ctx.Name(f).String()
+		}
+	}
+	return ""
+}
+
+// eventCollectionAction returns "ADD", "REMOVE", or "" for an event's collection annotation.
+func (p *ProtosourceModule) eventCollectionAction(m pgs.Message) string {
+	cm := p.eventCollectionMapping(m)
+	if cm == nil {
+		return ""
+	}
+	switch cm.GetAction() {
+	case optionsv1.CollectionAction_COLLECTION_ACTION_ADD:
+		return "ADD"
+	case optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE:
+		return "REMOVE"
+	default:
+		return ""
+	}
+}
+
+// eventCollectionTarget returns the target field name from the collection annotation.
+func (p *ProtosourceModule) eventCollectionTarget(m pgs.Message) string {
+	cm := p.eventCollectionMapping(m)
+	if cm == nil {
+		return ""
+	}
+	return cm.GetTarget()
+}
+
+// eventCollectionKeyField returns the key_field from the collection annotation.
+func (p *ProtosourceModule) eventCollectionKeyField(m pgs.Message) string {
+	cm := p.eventCollectionMapping(m)
+	if cm == nil {
+		return ""
+	}
+	return cm.GetKeyField()
+}
+
+// validateCollectionMapping validates the collection annotation on an event message.
+func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.Message) error {
+	cm := p.eventCollectionMapping(evt)
+	if cm == nil {
+		return nil
+	}
+
+	// Target field must exist on aggregate.
+	var targetField pgs.Field
+	for _, f := range agg.Fields() {
+		if f.Name().String() == cm.GetTarget() {
+			targetField = f
+			break
+		}
+	}
+	if targetField == nil {
+		return fmt.Errorf("event %s: collection target %q not found on aggregate %s",
+			evt.Name(), cm.GetTarget(), agg.Name())
+	}
+
+	// Target must be a repeated message field.
+	if !targetField.Type().IsRepeated() {
+		return fmt.Errorf("event %s: collection target %q on aggregate %s is not a repeated field",
+			evt.Name(), cm.GetTarget(), agg.Name())
+	}
+	if !targetField.Type().Element().IsEmbed() {
+		return fmt.Errorf("event %s: collection target %q on aggregate %s is not a repeated message field",
+			evt.Name(), cm.GetTarget(), agg.Name())
+	}
+
+	elemMsg := targetField.Type().Element().Embed()
+
+	switch cm.GetAction() {
+	case optionsv1.CollectionAction_COLLECTION_ACTION_ADD:
+		// Event must have exactly one embedded field matching the element type.
+		srcField := p.eventCollectionSourceField(evt, agg)
+		if srcField == nil {
+			return fmt.Errorf("event %s: collection ADD requires a field of type %s, but none found",
+				evt.Name(), elemMsg.Name())
+		}
+
+	case optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE:
+		// key_field is required.
+		if cm.GetKeyField() == "" {
+			return fmt.Errorf("event %s: collection REMOVE requires key_field to be set",
+				evt.Name())
+		}
+		// key_field must exist on the element message.
+		var elemHasKey bool
+		for _, ef := range elemMsg.Fields() {
+			if ef.Name().String() == cm.GetKeyField() {
+				elemHasKey = true
+				break
+			}
+		}
+		if !elemHasKey {
+			return fmt.Errorf("event %s: collection REMOVE key_field %q not found on element %s",
+				evt.Name(), cm.GetKeyField(), elemMsg.Name())
+		}
+		// Event must have a field with the same name as key_field.
+		var evtHasKey bool
+		for _, ef := range evt.Fields() {
+			if ef.Name().String() == cm.GetKeyField() {
+				evtHasKey = true
+				break
+			}
+		}
+		if !evtHasKey {
+			return fmt.Errorf("event %s: collection REMOVE requires a field named %q matching the key_field",
+				evt.Name(), cm.GetKeyField())
+		}
+
+	default:
+		return fmt.Errorf("event %s: collection action must be ADD or REMOVE", evt.Name())
+	}
+
+	return nil
+}
+
+// fileSupportsCLI returns true if all commands in the file have only scalar
+// fields (no repeated, map, message, or enum). Files with complex command
+// fields skip CLI generation instead of failing.
+func (p *ProtosourceModule) fileSupportsCLI(f pgs.File) bool {
+	for _, m := range f.Messages() {
+		if p.isCommand(m) {
+			if err := validateCLICommandFields(m); err != nil {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // eventMessage looks up a message by name within the same file.
@@ -648,6 +876,8 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 
 	p.enumValueIndex = buildEnumValueIndex(f)
 
+	agg := p.aggregateForFile(f)
+
 	for _, m := range f.Messages() {
 		if p.isCommand(m) {
 			if err := validateFields(m, commandFields); err != nil {
@@ -662,10 +892,6 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 				p.Fail(err.Error())
 				return
 			}
-			if err := validateCLICommandFields(m); err != nil {
-				p.Fail(err.Error())
-				return
-			}
 		}
 		if p.isEvent(m) {
 			if err := validateFields(m, eventFields); err != nil {
@@ -675,6 +901,12 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 			if err := p.validateSetsState(m); err != nil {
 				p.Fail(err.Error())
 				return
+			}
+			if agg != nil {
+				if err := p.validateCollectionMapping(m, agg); err != nil {
+					p.Fail(err.Error())
+					return
+				}
 			}
 		}
 	}
@@ -691,7 +923,7 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 	}
 
 	// Validate projection fields match aggregate fields by name and type.
-	if agg := p.aggregateForFile(f); agg != nil {
+	if agg != nil {
 		for _, proj := range p.projectionsForFile(f) {
 			if err := p.validateProjectionFields(proj, agg); err != nil {
 				p.Fail(err.Error())
@@ -707,7 +939,12 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		}
 	}
 
+	supportsCLI := p.fileSupportsCLI(f)
 	for _, v := range p.tpls {
+		// Skip CLI generation for files with complex command fields.
+		if v.Name() == "cli.gotext" && !supportsCLI {
+			continue
+		}
 		outPath := p.outputPathForTemplate(f, v)
 		p.AddGeneratorTemplateFile(outPath, v, f)
 	}
@@ -1035,6 +1272,11 @@ func (p *ProtosourceModule) validateProjectionFields(proj pgs.Message, agg pgs.M
 		if pf.Type().ProtoType() != af.Type().ProtoType() {
 			errs = append(errs, fmt.Sprintf("field %q: type mismatch — projection has %s, aggregate %s has %s",
 				pf.Name(), pf.Type().ProtoType(), agg.Name(), af.Type().ProtoType()))
+			continue
+		}
+		if pf.Type().IsRepeated() != af.Type().IsRepeated() {
+			errs = append(errs, fmt.Sprintf("field %q: repeated mismatch — projection repeated=%v, aggregate %s repeated=%v",
+				pf.Name(), pf.Type().IsRepeated(), agg.Name(), af.Type().IsRepeated()))
 			continue
 		}
 		// For message/enum types, verify the underlying type name matches.

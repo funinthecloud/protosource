@@ -114,6 +114,30 @@ message CommandOptions {
 // The plugin validates these fields exist with the correct types at
 // generation time.
 
+// CollectionAction describes what an event does to a repeated field on the
+// aggregate.
+enum CollectionAction {
+  COLLECTION_ACTION_UNSPECIFIED = 0;
+  COLLECTION_ACTION_ADD         = 1;  // append element to the repeated field
+  COLLECTION_ACTION_REMOVE      = 2;  // remove element by key field
+}
+
+// CollectionMapping declares that an event modifies a collection (repeated
+// message field) on the aggregate rather than copying scalar fields.
+message CollectionMapping {
+  // The name of the repeated field on the aggregate (e.g. "items").
+  string target = 1;
+
+  // What this event does to the collection.
+  CollectionAction action = 2;
+
+  // For REMOVE: the field name on the collection element used as the key
+  // (e.g. "item_id"). The event must have a field with the same name whose
+  // value identifies which element to remove.
+  // For ADD: optional. If set, used for deduplication (idempotent add).
+  string key_field = 3;
+}
+
 message EventOptions {
   // The aggregate type that owns this event's stream. e.g. "Order"
   string aggregate_type = 1;
@@ -123,6 +147,11 @@ message EventOptions {
   // name, e.g. "STATE_LOCKED". The plugin validates that the value exists in
   // the same proto file at generation time.
   string sets_state = 2;
+
+  // If set, this event modifies a collection on the aggregate instead of
+  // copying scalar fields. An event either does collection work or scalar
+  // field copying — not both.
+  CollectionMapping collection = 3;
 }
 
 // Usage:

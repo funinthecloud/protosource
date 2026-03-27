@@ -141,11 +141,20 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
     switch e := event.(type) {
 {{ range $evt := $.AllMessages -}}
 {{ if isEvent $evt -}}
+{{ $ca := eventCollectionAction $evt -}}
 {{ if isCreationEvent $evt $ }}    case *{{ $evt.Name }}:
         aggregate.setCreated(e)
         aggregate.setModified(e)
+{{ if $ca -}}
+{{ if eq $ca "ADD" -}}
+{{ $srcField := eventCollectionSourceField $evt $message -}}
+{{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
+        aggregate.{{ $targetGoName }} = append(aggregate.{{ $targetGoName }}, e.Get{{ name $srcField }}())
+{{ end -}}
+{{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
 {{ if not (eq (printf "%s" $field.Name) "actor") }}{{ if aggregateHasField $field $message }}        aggregate.{{ name $field }} = e.Get{{ name $field }}()
+{{ end -}}
 {{ end -}}
 {{ end -}}
 {{ end -}}
@@ -154,8 +163,29 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ end -}}
 {{ else }}    case *{{ $evt.Name }}:
         aggregate.setModified(e)
+{{ if eq $ca "ADD" -}}
+{{ $srcField := eventCollectionSourceField $evt $message -}}
+{{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
+        aggregate.{{ $targetGoName }} = append(aggregate.{{ $targetGoName }}, e.Get{{ name $srcField }}())
+{{ else if eq $ca "REMOVE" -}}
+{{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
+{{ $keyEvtGoName := eventFieldGoName (eventCollectionKeyField $evt) $evt -}}
+{{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
+{{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
+        {
+            key := e.Get{{ $keyEvtGoName }}()
+            filtered := make([]*{{ $elemType }}, 0, len(aggregate.{{ $targetGoName }}))
+            for _, item := range aggregate.{{ $targetGoName }} {
+                if item.Get{{ $keyGoName }}() != key {
+                    filtered = append(filtered, item)
+                }
+            }
+            aggregate.{{ $targetGoName }} = filtered
+        }
+{{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
 {{ if not (eq (printf "%s" $field.Name) "actor") }}{{ if aggregateHasField $field $message }}        aggregate.{{ name $field }} = e.Get{{ name $field }}()
+{{ end -}}
 {{ end -}}
 {{ end -}}
 {{ end -}}
