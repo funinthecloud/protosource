@@ -452,7 +452,7 @@ func (p *ProtosourceModule) validateProducesEvents(cmd pgs.Message, f pgs.File) 
 // validateFileStructure enforces structural guardrails on the proto file:
 //   - Exactly one aggregate message
 //   - Aggregate must be the first message
-//   - Exactly one CREATION command
+//   - At most one CREATION command
 //   - Non-first events in a CREATION command must also be produced by a MUTATION command
 //   - At most one snapshot message
 //   - Projection messages must have an "id" field

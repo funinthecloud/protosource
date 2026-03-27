@@ -18,6 +18,16 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// mustApply is a test helper that calls Apply and fails the test if it errors.
+func mustApply(t *testing.T, repo *protosource.Repository, cmd protosource.Commander) int64 {
+	t.Helper()
+	v, err := repo.Apply(context.Background(), cmd)
+	if err != nil {
+		t.Fatalf("Apply(%T) failed: %v", cmd, err)
+	}
+	return v
+}
+
 // newTestRepo creates a Repository wired to the test domain with memorystore and protobinary serializer.
 func newTestRepo() *protosource.Repository {
 	return protosource.New(
@@ -118,8 +128,8 @@ func TestApply_UpdateRejectedWhenLocked(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
-	_, _ = repo.Apply(ctx, &testv1.Lock{Id: "id-1", Actor: "actor"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})
 
 	_, err := repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "nope"})
 	if !errors.Is(err, protosource.ErrUnauthorized) {
@@ -131,7 +141,7 @@ func TestApply_UpdateAllowedWhenUnlocked(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
 
 	// Create=v1,v2; Updated(v3)→Snapshot(v4)
 	version, err := repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "updated"})
@@ -147,9 +157,9 @@ func TestApply_LockThenUnlockThenUpdate(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})   // v1,v2
-	_, _ = repo.Apply(ctx, &testv1.Lock{Id: "id-1", Actor: "actor"})                     // Locked(v3)→Snap(v4)
-	_, _ = repo.Apply(ctx, &testv1.Unlock{Id: "id-1", Actor: "actor"})                   // Unlocked(v5)
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})   // v1,v2
+	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})                     // Locked(v3)→Snap(v4)
+	mustApply(t, repo, &testv1.Unlock{Id: "id-1", Actor: "actor"})                   // Unlocked(v5)
 
 	// After unlock, update should succeed: Updated(v6)→Snap(v7)
 	version, err := repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "updated"})
@@ -165,8 +175,8 @@ func TestApply_LockAlreadyLocked(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
-	_, _ = repo.Apply(ctx, &testv1.Lock{Id: "id-1", Actor: "actor"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})
 
 	_, err := repo.Apply(ctx, &testv1.Lock{Id: "id-1", Actor: "actor"})
 	if !errors.Is(err, protosource.ErrUnauthorized) {
@@ -178,7 +188,7 @@ func TestApply_UnlockWhenNotLocked(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
 
 	_, err := repo.Apply(ctx, &testv1.Unlock{Id: "id-1", Actor: "actor"})
 	if !errors.Is(err, protosource.ErrUnauthorized) {
@@ -259,9 +269,9 @@ func TestLoad_AfterMultipleUpdates(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})  // v1,v2
-	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"})  // Updated(v3)→Snap(v4)
-	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v3"})  // Updated(v5)
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})  // v1,v2
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"})  // Updated(v3)→Snap(v4)
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v3"})  // Updated(v5)
 
 	agg, err := repo.Load(ctx, "id-1")
 	if err != nil {
@@ -281,8 +291,8 @@ func TestLoad_IndependentAggregates(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "agg-1", Actor: "actor", Body: "first"})
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "agg-2", Actor: "actor", Body: "second"})
+	mustApply(t, repo, &testv1.Create{Id: "agg-1", Actor: "actor", Body: "first"})
+	mustApply(t, repo, &testv1.Create{Id: "agg-2", Actor: "actor", Body: "second"})
 
 	agg1, _ := repo.Load(ctx, "agg-1")
 	agg2, _ := repo.Load(ctx, "agg-2")
@@ -367,8 +377,8 @@ func TestApply_MaterializedAggregateUpdatesOnMutation(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})
-	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"})
 
 	agg, err := repo.Load(ctx, "id-1")
 	if err != nil {
@@ -387,8 +397,8 @@ func TestApply_MaterializedAggregateReflectsStateTransitions(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
-	_, _ = repo.Apply(ctx, &testv1.Lock{Id: "id-1", Actor: "actor"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})
 
 	agg, err := repo.Load(ctx, "id-1")
 	if err != nil {
@@ -484,14 +494,13 @@ func TestApply_ProjectionsSavedAfterMaterialize(t *testing.T) {
 func TestApply_ProjectionUpdatedOnMutation(t *testing.T) {
 	store := &recordingStore{MemoryStore: memorystore.New(0)}
 	repo := newOrderRepo(store)
-	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &orderv1.Create{
+	mustApply(t, repo, &orderv1.Create{
 		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
 	})
 	store.saved = nil // reset to only track the Place mutation
 
-	_, _ = repo.Apply(ctx, &orderv1.Place{
+	mustApply(t, repo, &orderv1.Place{
 		Id: "order-1", Actor: "alice", PlacedAt: 1711468800,
 	})
 
@@ -540,9 +549,8 @@ func TestApply_NoProjectionsForAggregateWithoutProjector(t *testing.T) {
 		store,
 		protobinaryserializer.NewSerializer(),
 	)
-	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
 
 	// Only the aggregate should be saved, no projections.
 	if len(store.saved) != 1 {
@@ -985,9 +993,9 @@ func TestSnapshot_LoadReconstructsFromSnapshot(t *testing.T) {
 	)
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})
-	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"}) // v3 → snapshot(v4)
-	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v3"}) // v5 (after snapshot)
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"}) // v3 → snapshot(v4)
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v3"}) // v5 (after snapshot)
 
 	agg, err := repo.Load(ctx, "id-1")
 	if err != nil {
@@ -1012,8 +1020,8 @@ func TestHistory_ReturnsFullEventStream(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	_, _ = repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
-	_, _ = repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "updated"})
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "updated"})
 
 	history, err := repo.History(ctx, "id-1")
 	if err != nil {
