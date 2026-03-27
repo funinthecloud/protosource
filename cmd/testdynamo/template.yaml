@@ -1,0 +1,272 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: TestDynamo - protosource test aggregate backed by DynamoDB
+
+Globals:
+  Function:
+    Timeout: 10
+    MemorySize: 128
+    Runtime: provided.al2023
+    Architectures:
+      - arm64
+
+Parameters:
+  EventsTableName:
+    Type: String
+    Default: events
+  AggregatesTableName:
+    Type: String
+    Default: aggregates
+
+Resources:
+  # Events table: partition key "a" (aggregate ID), sort key "v" (version number).
+  EventsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref EventsTableName
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: a
+          KeyType: HASH
+        - AttributeName: v
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: a
+          AttributeType: S
+        - AttributeName: v
+          AttributeType: N
+
+  # Aggregates table: opaquedata single-table design with pk/sk and 20 GSIs.
+  # Materialized aggregates are stored here via AutoPKSK + OpaqueStore.
+  AggregatesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref AggregatesTableName
+      BillingMode: PAY_PER_REQUEST
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+        - AttributeName: gsi2pk
+          AttributeType: S
+        - AttributeName: gsi2sk
+          AttributeType: S
+        - AttributeName: gsi3pk
+          AttributeType: S
+        - AttributeName: gsi3sk
+          AttributeType: S
+        - AttributeName: gsi4pk
+          AttributeType: S
+        - AttributeName: gsi4sk
+          AttributeType: S
+        - AttributeName: gsi5pk
+          AttributeType: S
+        - AttributeName: gsi5sk
+          AttributeType: S
+        - AttributeName: gsi6pk
+          AttributeType: S
+        - AttributeName: gsi6sk
+          AttributeType: S
+        - AttributeName: gsi7pk
+          AttributeType: S
+        - AttributeName: gsi7sk
+          AttributeType: S
+        - AttributeName: gsi8pk
+          AttributeType: S
+        - AttributeName: gsi8sk
+          AttributeType: S
+        - AttributeName: gsi9pk
+          AttributeType: S
+        - AttributeName: gsi9sk
+          AttributeType: S
+        - AttributeName: gsi10pk
+          AttributeType: S
+        - AttributeName: gsi10sk
+          AttributeType: S
+        - AttributeName: gsi11pk
+          AttributeType: S
+        - AttributeName: gsi11sk
+          AttributeType: S
+        - AttributeName: gsi12pk
+          AttributeType: S
+        - AttributeName: gsi12sk
+          AttributeType: S
+        - AttributeName: gsi13pk
+          AttributeType: S
+        - AttributeName: gsi13sk
+          AttributeType: S
+        - AttributeName: gsi14pk
+          AttributeType: S
+        - AttributeName: gsi14sk
+          AttributeType: S
+        - AttributeName: gsi15pk
+          AttributeType: S
+        - AttributeName: gsi15sk
+          AttributeType: S
+        - AttributeName: gsi16pk
+          AttributeType: S
+        - AttributeName: gsi16sk
+          AttributeType: S
+        - AttributeName: gsi17pk
+          AttributeType: S
+        - AttributeName: gsi17sk
+          AttributeType: S
+        - AttributeName: gsi18pk
+          AttributeType: S
+        - AttributeName: gsi18sk
+          AttributeType: S
+        - AttributeName: gsi19pk
+          AttributeType: S
+        - AttributeName: gsi19sk
+          AttributeType: S
+        - AttributeName: gsi20pk
+          AttributeType: S
+        - AttributeName: gsi20sk
+          AttributeType: S
+      GlobalSecondaryIndexes:
+        - IndexName: gsi1pk-gsi1sk-index
+          KeySchema:
+            - {AttributeName: gsi1pk, KeyType: HASH}
+            - {AttributeName: gsi1sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi2pk-gsi2sk-index
+          KeySchema:
+            - {AttributeName: gsi2pk, KeyType: HASH}
+            - {AttributeName: gsi2sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi3pk-gsi3sk-index
+          KeySchema:
+            - {AttributeName: gsi3pk, KeyType: HASH}
+            - {AttributeName: gsi3sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi4pk-gsi4sk-index
+          KeySchema:
+            - {AttributeName: gsi4pk, KeyType: HASH}
+            - {AttributeName: gsi4sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi5pk-gsi5sk-index
+          KeySchema:
+            - {AttributeName: gsi5pk, KeyType: HASH}
+            - {AttributeName: gsi5sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi6pk-gsi6sk-index
+          KeySchema:
+            - {AttributeName: gsi6pk, KeyType: HASH}
+            - {AttributeName: gsi6sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi7pk-gsi7sk-index
+          KeySchema:
+            - {AttributeName: gsi7pk, KeyType: HASH}
+            - {AttributeName: gsi7sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi8pk-gsi8sk-index
+          KeySchema:
+            - {AttributeName: gsi8pk, KeyType: HASH}
+            - {AttributeName: gsi8sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi9pk-gsi9sk-index
+          KeySchema:
+            - {AttributeName: gsi9pk, KeyType: HASH}
+            - {AttributeName: gsi9sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi10pk-gsi10sk-index
+          KeySchema:
+            - {AttributeName: gsi10pk, KeyType: HASH}
+            - {AttributeName: gsi10sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi11pk-gsi11sk-index
+          KeySchema:
+            - {AttributeName: gsi11pk, KeyType: HASH}
+            - {AttributeName: gsi11sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi12pk-gsi12sk-index
+          KeySchema:
+            - {AttributeName: gsi12pk, KeyType: HASH}
+            - {AttributeName: gsi12sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi13pk-gsi13sk-index
+          KeySchema:
+            - {AttributeName: gsi13pk, KeyType: HASH}
+            - {AttributeName: gsi13sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi14pk-gsi14sk-index
+          KeySchema:
+            - {AttributeName: gsi14pk, KeyType: HASH}
+            - {AttributeName: gsi14sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi15pk-gsi15sk-index
+          KeySchema:
+            - {AttributeName: gsi15pk, KeyType: HASH}
+            - {AttributeName: gsi15sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi16pk-gsi16sk-index
+          KeySchema:
+            - {AttributeName: gsi16pk, KeyType: HASH}
+            - {AttributeName: gsi16sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi17pk-gsi17sk-index
+          KeySchema:
+            - {AttributeName: gsi17pk, KeyType: HASH}
+            - {AttributeName: gsi17sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi18pk-gsi18sk-index
+          KeySchema:
+            - {AttributeName: gsi18pk, KeyType: HASH}
+            - {AttributeName: gsi18sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi19pk-gsi19sk-index
+          KeySchema:
+            - {AttributeName: gsi19pk, KeyType: HASH}
+            - {AttributeName: gsi19sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+        - IndexName: gsi20pk-gsi20sk-index
+          KeySchema:
+            - {AttributeName: gsi20pk, KeyType: HASH}
+            - {AttributeName: gsi20sk, KeyType: RANGE}
+          Projection: {ProjectionType: ALL}
+
+  TestDynamoFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: go1.x
+    Properties:
+      CodeUri: .
+      Handler: bootstrap
+      Environment:
+        Variables:
+          EVENTS_TABLE: !Ref EventsTableName
+          AGGREGATES_TABLE: !Ref AggregatesTableName
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref EventsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref AggregatesTable
+      Events:
+        Commands:
+          Type: Api
+          Properties:
+            Path: /test/{proxy+}
+            Method: ANY
+        Get:
+          Type: Api
+          Properties:
+            Path: /test/{id}
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/
+  FunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt TestDynamoFunction.Arn

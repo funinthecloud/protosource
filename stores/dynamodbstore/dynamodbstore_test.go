@@ -12,6 +12,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -229,6 +231,40 @@ func (m *mockDynamoer) GetItem(ctx context.Context, input *dynamodb.GetItemInput
 func strPtr(s string) *string { return &s }
 
 // ---------------------------------------------------------------------------
+// Mock OpaqueStore
+// ---------------------------------------------------------------------------
+
+type mockOpaqueStore struct {
+	mu    sync.Mutex
+	items map[string]*opaquedatav1.OpaqueData // pk|sk -> OpaqueData
+}
+
+func (m *mockOpaqueStore) Put(_ context.Context, od *opaquedatav1.OpaqueData) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.items == nil {
+		m.items = make(map[string]*opaquedatav1.OpaqueData)
+	}
+	m.items[od.GetPk()+"|"+od.GetSk()] = od
+	return nil
+}
+
+func (m *mockOpaqueStore) Get(_ context.Context, pk, sk string) (*opaquedatav1.OpaqueData, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if od, ok := m.items[pk+"|"+sk]; ok {
+		return od, nil
+	}
+	return nil, fmt.Errorf("not found")
+}
+
+func (m *mockOpaqueStore) Delete(_ context.Context, _, _ string) error { return nil }
+
+func (m *mockOpaqueStore) Query(_ context.Context, _, _, _ string, _ *opaquedata.SortCondition, _ ...opaquedata.QueryOption) ([]*opaquedatav1.OpaqueData, error) {
+	return nil, nil
+}
+
+// ---------------------------------------------------------------------------
 // Test helpers
 // ---------------------------------------------------------------------------
 
@@ -352,20 +388,26 @@ func TestRecordsReturnInVersionOrder(t *testing.T) {
 // AggregateStore basics
 // ---------------------------------------------------------------------------
 
-func TestSaveAggregate_Basic(t *testing.T) {
+func TestSaveAggregate_NoOpaqueStore(t *testing.T) {
 	store, _ := newTestStore(t)
 	ctx := context.Background()
 
 	err := store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
-	require.NoError(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no OpaqueStore configured")
 }
 
-func TestSaveAggregate_Overwrites(t *testing.T) {
-	store, _ := newTestStore(t)
+func TestSaveAggregate_NotAutoPKSK(t *testing.T) {
+	mock := newMockDynamoer()
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithOpaqueStore(opaqueStore))
+	require.NoError(t, err)
 	ctx := context.Background()
 
-	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "v1"}))
-	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 2, Body: "v2"}))
+	// testv1.Test does not implement AutoPKSK
+	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not implement opaquedata.AutoPKSK")
 }
 
 // ---------------------------------------------------------------------------
@@ -467,15 +509,21 @@ func TestRecordDataSurvivesRoundTrip(t *testing.T) {
 	assert.Equal(t, data, h.Records[0].Data)
 }
 
-func TestEventsAndAggregateAreIndependent(t *testing.T) {
-	store, _ := newTestStore(t)
+func TestSaveAggregate_DoesNotAffectEvents(t *testing.T) {
+	mock := newMockDynamoer()
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithOpaqueStore(opaqueStore))
+	require.NoError(t, err)
 	ctx := context.Background()
 
 	require.NoError(t, store.Save(ctx, "agg-1", makeRecord(1, []byte("event"))))
-	require.NoError(t, store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate"}))
 
-	h, err := store.Load(ctx, "agg-1")
-	require.NoError(t, err)
+	// SaveAggregate fails for testv1.Test (no AutoPKSK), but events are unaffected.
+	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "aggregate"})
+	require.Error(t, err)
+
+	h, loadErr := store.Load(ctx, "agg-1")
+	require.NoError(t, loadErr)
 	require.Len(t, h.Records, 1)
 	assert.Equal(t, []byte("event"), h.Records[0].Data)
 }
@@ -516,17 +564,17 @@ func TestTenantPrefix_NamespacesAggregates(t *testing.T) {
 	assert.Equal(t, []byte("from-b"), h2.Records[0].Data)
 }
 
-func TestTenantPrefix_AggregateStore(t *testing.T) {
+func TestSaveAggregate_RequiresAutoPKSK_WithTenantPrefix(t *testing.T) {
 	mock := newMockDynamoer()
-	store1, err := New(mock, WithTenantPrefix("t1"))
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithTenantPrefix("t1"), WithOpaqueStore(opaqueStore))
 	require.NoError(t, err)
-	store2, err := New(mock, WithTenantPrefix("t2"))
-	require.NoError(t, err)
-
 	ctx := context.Background()
 
-	require.NoError(t, store1.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "t1-data"}))
-	require.NoError(t, store2.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 2, Body: "t2-data"}))
+	// testv1.Test does not implement AutoPKSK, even with OpaqueStore configured.
+	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 1, Body: "t1-data"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not implement opaquedata.AutoPKSK")
 }
 
 func TestLoad_PaginatesAcrossPages(t *testing.T) {
@@ -632,7 +680,3 @@ func TestWithEventsTable(t *testing.T) {
 	assert.Equal(t, "my-events", store.eventsTable)
 }
 
-func TestWithAggregatesTable(t *testing.T) {
-	store, _ := newTestStore(t, WithAggregatesTable("my-aggs"))
-	assert.Equal(t, "my-aggs", store.aggregatesTable)
-}
