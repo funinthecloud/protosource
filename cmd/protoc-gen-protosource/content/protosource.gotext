@@ -154,10 +154,12 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
 {{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
 {{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
-        if aggregate.{{ $targetGoName }} == nil {
-            aggregate.{{ $targetGoName }} = make(map[string]*{{ $elemType }})
+        if elem := e.Get{{ name $srcField }}(); elem != nil {
+            if aggregate.{{ $targetGoName }} == nil {
+                aggregate.{{ $targetGoName }} = make(map[string]*{{ $elemType }})
+            }
+            aggregate.{{ $targetGoName }}[elem.Get{{ $keyGoName }}()] = elem
         }
-        aggregate.{{ $targetGoName }}[e.Get{{ name $srcField }}().Get{{ $keyGoName }}()] = e.Get{{ name $srcField }}()
 {{ end -}}
 {{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
@@ -176,10 +178,12 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
 {{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
 {{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
-        if aggregate.{{ $targetGoName }} == nil {
-            aggregate.{{ $targetGoName }} = make(map[string]*{{ $elemType }})
+        if elem := e.Get{{ name $srcField }}(); elem != nil {
+            if aggregate.{{ $targetGoName }} == nil {
+                aggregate.{{ $targetGoName }} = make(map[string]*{{ $elemType }})
+            }
+            aggregate.{{ $targetGoName }}[elem.Get{{ $keyGoName }}()] = elem
         }
-        aggregate.{{ $targetGoName }}[e.Get{{ name $srcField }}().Get{{ $keyGoName }}()] = e.Get{{ name $srcField }}()
 {{ else if eq $ca "REMOVE" -}}
 {{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
 {{ $keyEvtGoName := eventFieldGoName (eventCollectionKeyField $evt) $evt -}}

@@ -125,19 +125,23 @@ func (aggregate *Order) On(event protosource.Event) error {
 		aggregate.State = State_STATE_DRAFT
 	case *ItemAdded:
 		aggregate.setModified(e)
-		if aggregate.Items == nil {
-			aggregate.Items = make(map[string]*LineItem)
+		if elem := e.GetItem(); elem != nil {
+			if aggregate.Items == nil {
+				aggregate.Items = make(map[string]*LineItem)
+			}
+			aggregate.Items[elem.GetItemId()] = elem
 		}
-		aggregate.Items[e.GetItem().GetItemId()] = e.GetItem()
 	case *ItemRemoved:
 		aggregate.setModified(e)
 		delete(aggregate.Items, e.GetItemId())
 	case *TagAdded:
 		aggregate.setModified(e)
-		if aggregate.Tags == nil {
-			aggregate.Tags = make(map[string]*Tag)
+		if elem := e.GetTag(); elem != nil {
+			if aggregate.Tags == nil {
+				aggregate.Tags = make(map[string]*Tag)
+			}
+			aggregate.Tags[elem.GetKey()] = elem
 		}
-		aggregate.Tags[e.GetTag().GetKey()] = e.GetTag()
 	case *TagRemoved:
 		aggregate.setModified(e)
 		delete(aggregate.Tags, e.GetKey())

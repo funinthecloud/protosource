@@ -476,6 +476,10 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 		return fmt.Errorf("event %s: key_field %q not found on element %s",
 			evt.Name(), cm.GetKeyField(), elemMsg.Name())
 	}
+	if elemKeyField.Type().IsRepeated() || elemKeyField.Type().IsMap() {
+		return fmt.Errorf("event %s: key_field %q on element %s must be a scalar string, not repeated/map",
+			evt.Name(), cm.GetKeyField(), elemMsg.Name())
+	}
 	if elemKeyField.Type().ProtoType() != pgs.StringT {
 		return fmt.Errorf("event %s: key_field %q on element %s must be a string, got %s",
 			evt.Name(), cm.GetKeyField(), elemMsg.Name(), elemKeyField.Type().ProtoType())
@@ -534,6 +538,10 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 		}
 		if evtKeyField == nil {
 			return fmt.Errorf("event %s: collection REMOVE requires a field named %q matching the key_field",
+				evt.Name(), cm.GetKeyField())
+		}
+		if evtKeyField.Type().IsRepeated() || evtKeyField.Type().IsMap() {
+			return fmt.Errorf("event %s: collection REMOVE field %q must be a scalar string, not repeated/map",
 				evt.Name(), cm.GetKeyField())
 		}
 		if evtKeyField.Type().ProtoType() != pgs.StringT {
