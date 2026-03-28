@@ -123,11 +123,11 @@ The `On` method is **fully generated**. For scalar fields, event fields are mech
 
 ### Collection Fields
 
-Aggregates can have `repeated` message fields (collections). Events declare their collection action via annotation:
+Aggregates use `map<string, Message>` fields for collections. The map key is a string field on the element message identified by `key_field`. Events declare their collection action via annotation:
 
 ```protobuf
 message LineItem {
-  string item_id     = 1;
+  string item_id     = 1;  // map key
   string description = 2;
   int64  price_cents = 3;
   int32  quantity    = 4;
@@ -136,15 +136,15 @@ message LineItem {
 message Order {
   option (...).aggregate = {};
   // ... scalar fields ...
-  repeated LineItem items = 14;
+  map<string, LineItem> items = 14;
 }
 
 message ItemAdded {
   option (...).event = {
-    collection: { target: "items", action: COLLECTION_ACTION_ADD }
+    collection: { target: "items", action: COLLECTION_ACTION_ADD, key_field: "item_id" }
   };
   // ... internal fields 1-4 ...
-  LineItem item = 5;  // embedded element to append
+  LineItem item = 5;  // element to insert (key extracted from item_id)
 }
 
 message ItemRemoved {
@@ -152,16 +152,22 @@ message ItemRemoved {
     collection: { target: "items", action: COLLECTION_ACTION_REMOVE, key_field: "item_id" }
   };
   // ... internal fields 1-4 ...
-  string item_id = 5;  // key identifying which element to remove
+  string item_id = 5;  // key identifying which element to delete
 }
 ```
 
+**Generated On():**
+- ADD: `aggregate.Items[e.GetItem().GetItemId()] = e.GetItem()` (O(1), idempotent — re-adding same key overwrites)
+- REMOVE: `delete(aggregate.Items, e.GetItemId())` (O(1))
+
 **Rules:**
-- An event either does collection work OR scalar field copying — not both
-- ADD events must have exactly one embedded field matching the collection element type
-- REMOVE events require `key_field` (a scalar field on the element type); the event must also have a field with the same name and type
+- Collection fields must be `map<string, Message>` — string keys only
+- `key_field` is required for both ADD and REMOVE; must name a string field on the element message
+- An event either does collection work OR scalar field copying — not both (exactly one domain field)
+- ADD events must have exactly one embedded field matching the map's value type
+- REMOVE events must have a string field matching `key_field`
 - REMOVE is not valid on creation events
-- Commands with collection events carry the embedded message type (e.g., `LineItem item = 3`), which means CLI generation is skipped for that file
+- Commands with collection events carry the embedded message type (e.g., `LineItem item = 3`), which means CLI generation produces a stub for that file
 - Multiple independent collections on one aggregate are supported (each with its own events)
 
 ### PostApplyHook (Derived Fields)
@@ -218,6 +224,6 @@ git checkout -b <branch-name> origin/main
 ## TODO
 
 - [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)
-- [x] Nested collections: `collection` annotation on events with ADD/REMOVE semantics, `PostApplyHook` for derived fields (PR #24)
+- [x] Nested collections: `map<string, Message>` fields with ADD/REMOVE via `collection` annotation, `PostApplyHook` for derived fields (PR #24, #25)
 - [ ] Multi-aggregate projections: projections that join/denormalize across multiple aggregate types (e.g. Order + Customer → OrderWithCustomerView). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)

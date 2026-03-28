@@ -1,12 +1,22 @@
 syntax = "proto3";
 
-package test.collection_missing_key;
+package test.projection_map_value_mismatch;
 
-option go_package = "github.com/funinthecloud/protosource/test/collection_missing_key;collectionmissingkeypb";
+option go_package = "github.com/funinthecloud/protosource/test/projection_map_value_mismatch;projmapvalmismatchpb";
 
 import "funinthecloud/protosource/options/v1/options_v1.proto";
 
 option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+message Widget {
+  string widget_id = 1;
+  string label     = 2;
+}
+
+message Gadget {
+  string gadget_id = 1;
+  string name      = 2;
+}
 
 message Basket {
   option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {};
@@ -19,8 +29,11 @@ message Basket {
   map<string, Widget> widgets   = 7;
 }
 
-message Widget {
-  string widget_id = 1;
+// Projection has map<string, Gadget> but aggregate has map<string, Widget>.
+message BasketView {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).projection = {};
+  string              id      = 1;
+  map<string, Gadget> widgets = 2;
 }
 
 message Create {
@@ -38,16 +51,4 @@ message Created {
   int64  version = 2;
   int64  at      = 3;
   string actor   = 4;
-}
-
-// ADD without key_field — should fail validation.
-message WidgetAdded {
-  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
-    collection: { target: "widgets", action: COLLECTION_ACTION_ADD }
-  };
-  string id      = 1;
-  int64  version = 2;
-  int64  at      = 3;
-  string actor   = 4;
-  Widget widget  = 5;
 }

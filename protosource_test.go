@@ -1122,11 +1122,15 @@ func TestApply_AddItemAppendsToCollection(t *testing.T) {
 	if len(order.GetItems()) != 2 {
 		t.Fatalf("expected 2 items, got %d", len(order.GetItems()))
 	}
-	if order.GetItems()[0].GetItemId() != "item-1" {
-		t.Errorf("expected first item id 'item-1', got %q", order.GetItems()[0].GetItemId())
+	if item1 := order.GetItems()["item-1"]; item1 == nil {
+		t.Error("expected item 'item-1' in map")
+	} else if item1.GetDescription() != "Widget" {
+		t.Errorf("expected item-1 description 'Widget', got %q", item1.GetDescription())
 	}
-	if order.GetItems()[1].GetDescription() != "Gadget" {
-		t.Errorf("expected second item description 'Gadget', got %q", order.GetItems()[1].GetDescription())
+	if item2 := order.GetItems()["item-2"]; item2 == nil {
+		t.Error("expected item 'item-2' in map")
+	} else if item2.GetDescription() != "Gadget" {
+		t.Errorf("expected item-2 description 'Gadget', got %q", item2.GetDescription())
 	}
 }
 
@@ -1158,8 +1162,11 @@ func TestApply_RemoveItemFiltersCollection(t *testing.T) {
 	if len(order.GetItems()) != 1 {
 		t.Fatalf("expected 1 item after removal, got %d", len(order.GetItems()))
 	}
-	if order.GetItems()[0].GetItemId() != "item-2" {
-		t.Errorf("expected remaining item id 'item-2', got %q", order.GetItems()[0].GetItemId())
+	if _, ok := order.GetItems()["item-1"]; ok {
+		t.Error("expected item-1 to be removed")
+	}
+	if _, ok := order.GetItems()["item-2"]; !ok {
+		t.Error("expected item-2 to still exist")
 	}
 }
 
@@ -1254,11 +1261,11 @@ func TestApply_AddTagAppendsToTagsCollection(t *testing.T) {
 	if len(order.GetTags()) != 2 {
 		t.Fatalf("expected 2 tags, got %d", len(order.GetTags()))
 	}
-	if order.GetTags()[0].GetKey() != "priority" || order.GetTags()[0].GetValue() != "rush" {
-		t.Errorf("expected first tag priority=rush, got %s=%s", order.GetTags()[0].GetKey(), order.GetTags()[0].GetValue())
+	if tag := order.GetTags()["priority"]; tag == nil || tag.GetValue() != "rush" {
+		t.Errorf("expected tag priority=rush, got %v", tag)
 	}
-	if order.GetTags()[1].GetKey() != "source" || order.GetTags()[1].GetValue() != "web" {
-		t.Errorf("expected second tag source=web, got %s=%s", order.GetTags()[1].GetKey(), order.GetTags()[1].GetValue())
+	if tag := order.GetTags()["source"]; tag == nil || tag.GetValue() != "web" {
+		t.Errorf("expected tag source=web, got %v", tag)
 	}
 }
 
@@ -1290,8 +1297,11 @@ func TestApply_RemoveTagFiltersTagsCollection(t *testing.T) {
 	if len(order.GetTags()) != 1 {
 		t.Fatalf("expected 1 tag after removal, got %d", len(order.GetTags()))
 	}
-	if order.GetTags()[0].GetKey() != "source" {
-		t.Errorf("expected remaining tag key 'source', got %q", order.GetTags()[0].GetKey())
+	if _, ok := order.GetTags()["priority"]; ok {
+		t.Error("expected tag 'priority' to be removed")
+	}
+	if _, ok := order.GetTags()["source"]; !ok {
+		t.Error("expected tag 'source' to still exist")
 	}
 }
 

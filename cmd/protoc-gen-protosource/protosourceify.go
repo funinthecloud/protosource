@@ -298,14 +298,14 @@ func (p *ProtosourceModule) eventCollectionMapping(m pgs.Message) *optionsv1.Col
 }
 
 // eventCollectionSourceField finds the event field whose embedded message type
-// matches the element type of the target repeated field on the aggregate.
+// matches the value type of the target map field on the aggregate.
 // Returns nil if no matching field is found.
 func (p *ProtosourceModule) eventCollectionSourceField(evt pgs.Message, agg pgs.Message) pgs.Field {
 	cm := p.eventCollectionMapping(evt)
 	if cm == nil {
 		return nil
 	}
-	// Find the aggregate's repeated field.
+	// Find the aggregate's map field.
 	var targetField pgs.Field
 	for _, f := range agg.Fields() {
 		if f.Name().String() == cm.GetTarget() {
@@ -313,7 +313,7 @@ func (p *ProtosourceModule) eventCollectionSourceField(evt pgs.Message, agg pgs.
 			break
 		}
 	}
-	if targetField == nil || !targetField.Type().IsRepeated() || !targetField.Type().Element().IsEmbed() {
+	if targetField == nil || !targetField.Type().IsMap() || !targetField.Type().Element().IsEmbed() {
 		return nil
 	}
 	elemFQN := targetField.Type().Element().Embed().FullyQualifiedName()
@@ -327,11 +327,11 @@ func (p *ProtosourceModule) eventCollectionSourceField(evt pgs.Message, agg pgs.
 	return nil
 }
 
-// collectionElementTypeName returns the Go type name of the element of a
-// repeated message field on the aggregate.
+// collectionElementTypeName returns the Go type name of the value type of a
+// map<string, Message> field on the aggregate.
 func (p *ProtosourceModule) collectionElementTypeName(target string, agg pgs.Message) string {
 	for _, f := range agg.Fields() {
-		if f.Name().String() == target && f.Type().IsRepeated() && f.Type().Element().IsEmbed() {
+		if f.Name().String() == target && f.Type().IsMap() && f.Type().Element().IsEmbed() {
 			return p.ctx.Name(f.Type().Element().Embed()).String()
 		}
 	}
@@ -342,7 +342,7 @@ func (p *ProtosourceModule) collectionElementTypeName(target string, agg pgs.Mes
 // on the collection element message.
 func (p *ProtosourceModule) collectionKeyFieldGoName(keyField string, target string, agg pgs.Message) string {
 	for _, f := range agg.Fields() {
-		if f.Name().String() == target && f.Type().IsRepeated() && f.Type().Element().IsEmbed() {
+		if f.Name().String() == target && f.Type().IsMap() && f.Type().Element().IsEmbed() {
 			for _, ef := range f.Type().Element().Embed().Fields() {
 				if ef.Name().String() == keyField {
 					return p.ctx.Name(ef).String()
@@ -410,6 +410,7 @@ func (p *ProtosourceModule) eventCollectionKeyField(m pgs.Message) string {
 }
 
 // validateCollectionMapping validates the collection annotation on an event message.
+// Collections use map<string, Message> fields on the aggregate.
 func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.Message, f pgs.File) error {
 	cm := p.eventCollectionMapping(evt)
 	if cm == nil {
@@ -428,6 +429,12 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 			evt.Name())
 	}
 
+	// key_field is required for both ADD and REMOVE.
+	if cm.GetKeyField() == "" {
+		return fmt.Errorf("event %s: collection annotation requires key_field to be set",
+			evt.Name())
+	}
+
 	// Target field must exist on aggregate.
 	var targetField pgs.Field
 	for _, af := range agg.Fields() {
@@ -441,17 +448,42 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 			evt.Name(), cm.GetTarget(), agg.Name())
 	}
 
-	// Target must be a repeated message field.
-	if !targetField.Type().IsRepeated() {
-		return fmt.Errorf("event %s: collection target %q on aggregate %s is not a repeated field",
+	// Target must be a map<string, Message> field.
+	if !targetField.Type().IsMap() {
+		return fmt.Errorf("event %s: collection target %q on aggregate %s must be a map field",
+			evt.Name(), cm.GetTarget(), agg.Name())
+	}
+	if targetField.Type().Key().ProtoType() != pgs.StringT {
+		return fmt.Errorf("event %s: collection target %q on aggregate %s must have string keys",
 			evt.Name(), cm.GetTarget(), agg.Name())
 	}
 	if !targetField.Type().Element().IsEmbed() {
-		return fmt.Errorf("event %s: collection target %q on aggregate %s is not a repeated message field",
+		return fmt.Errorf("event %s: collection target %q on aggregate %s must have message values",
 			evt.Name(), cm.GetTarget(), agg.Name())
 	}
 
 	elemMsg := targetField.Type().Element().Embed()
+
+	// key_field must exist on the element message and be a string.
+	var elemKeyField pgs.Field
+	for _, ef := range elemMsg.Fields() {
+		if ef.Name().String() == cm.GetKeyField() {
+			elemKeyField = ef
+			break
+		}
+	}
+	if elemKeyField == nil {
+		return fmt.Errorf("event %s: key_field %q not found on element %s",
+			evt.Name(), cm.GetKeyField(), elemMsg.Name())
+	}
+	if elemKeyField.Type().IsRepeated() || elemKeyField.Type().IsMap() {
+		return fmt.Errorf("event %s: key_field %q on element %s must be a scalar string, not repeated/map",
+			evt.Name(), cm.GetKeyField(), elemMsg.Name())
+	}
+	if elemKeyField.Type().ProtoType() != pgs.StringT {
+		return fmt.Errorf("event %s: key_field %q on element %s must be a string, got %s",
+			evt.Name(), cm.GetKeyField(), elemMsg.Name(), elemKeyField.Type().ProtoType())
+	}
 
 	// REMOVE is not valid on creation events — the collection is empty at creation time.
 	if cm.GetAction() == optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE {
@@ -489,32 +521,14 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 			return fmt.Errorf("event %s: collection ADD requires exactly one field of type %s, but found %d",
 				evt.Name(), elemMsg.Name(), matchCount)
 		}
-		// Collection events must not have extra domain fields — an event either
-		// does collection work or scalar field copying, not both.
+		// Collection events must not have extra domain fields.
 		if len(domainFields) != 1 {
 			return fmt.Errorf("event %s: collection ADD must have exactly one domain field (the element), but has %d",
 				evt.Name(), len(domainFields))
 		}
 
 	case optionsv1.CollectionAction_COLLECTION_ACTION_REMOVE:
-		// key_field is required.
-		if cm.GetKeyField() == "" {
-			return fmt.Errorf("event %s: collection REMOVE requires key_field to be set",
-				evt.Name())
-		}
-		// key_field must exist on the element message.
-		var elemKeyField pgs.Field
-		for _, ef := range elemMsg.Fields() {
-			if ef.Name().String() == cm.GetKeyField() {
-				elemKeyField = ef
-				break
-			}
-		}
-		if elemKeyField == nil {
-			return fmt.Errorf("event %s: collection REMOVE key_field %q not found on element %s",
-				evt.Name(), cm.GetKeyField(), elemMsg.Name())
-		}
-		// Event must have a field with the same name as key_field.
+		// Event must have a string field matching key_field.
 		var evtKeyField pgs.Field
 		for _, ef := range evt.Fields() {
 			if ef.Name().String() == cm.GetKeyField() {
@@ -526,21 +540,12 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 			return fmt.Errorf("event %s: collection REMOVE requires a field named %q matching the key_field",
 				evt.Name(), cm.GetKeyField())
 		}
-		// Key field types must match between element and event.
-		if elemKeyField.Type().ProtoType() != evtKeyField.Type().ProtoType() {
-			return fmt.Errorf("event %s: collection REMOVE key_field %q type mismatch — element %s has %s, event has %s",
-				evt.Name(), cm.GetKeyField(), elemMsg.Name(),
-				elemKeyField.Type().ProtoType(), evtKeyField.Type().ProtoType())
+		if evtKeyField.Type().IsRepeated() || evtKeyField.Type().IsMap() {
+			return fmt.Errorf("event %s: collection REMOVE field %q must be a scalar string, not repeated/map",
+				evt.Name(), cm.GetKeyField())
 		}
-		// Key fields must be Go-comparable scalars — the generated On() uses
-		// != to filter. Reject repeated, map, message, enum, and bytes
-		// (bytes maps to []byte in Go which is not comparable with !=).
-		if !isComparableKeyField(elemKeyField) {
-			return fmt.Errorf("event %s: collection REMOVE key_field %q on element %s must be a comparable scalar (not bytes, repeated, map, message, or enum), got %s",
-				evt.Name(), cm.GetKeyField(), elemMsg.Name(), elemKeyField.Type().ProtoType())
-		}
-		if !isComparableKeyField(evtKeyField) {
-			return fmt.Errorf("event %s: collection REMOVE field %q must be a comparable scalar (not bytes, repeated, map, message, or enum), got %s",
+		if evtKeyField.Type().ProtoType() != pgs.StringT {
+			return fmt.Errorf("event %s: collection REMOVE field %q must be a string, got %s",
 				evt.Name(), cm.GetKeyField(), evtKeyField.Type().ProtoType())
 		}
 		// Collection events must not have extra domain fields.
@@ -554,19 +559,6 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 	}
 
 	return nil
-}
-
-// isComparableKeyField returns true if the field is a scalar type that supports
-// Go's != operator. Rejects repeated, map, message, enum, and bytes ([]byte
-// is not comparable in Go).
-func isComparableKeyField(f pgs.Field) bool {
-	if f.Type().IsRepeated() || f.Type().IsMap() || f.Type().IsEmbed() || f.Type().IsEnum() {
-		return false
-	}
-	if f.Type().ProtoType() == pgs.BytesT {
-		return false
-	}
-	return true
 }
 
 // fileSupportsCLI returns true if all commands in the file have only scalar
@@ -1352,6 +1344,28 @@ func (p *ProtosourceModule) validateProjectionFields(proj pgs.Message, agg pgs.M
 		if pf.Type().IsRepeated() != af.Type().IsRepeated() {
 			errs = append(errs, fmt.Sprintf("field %q: repeated mismatch — projection repeated=%v, aggregate %s repeated=%v",
 				pf.Name(), pf.Type().IsRepeated(), agg.Name(), af.Type().IsRepeated()))
+			continue
+		}
+		if pf.Type().IsMap() != af.Type().IsMap() {
+			errs = append(errs, fmt.Sprintf("field %q: map mismatch — projection map=%v, aggregate %s map=%v",
+				pf.Name(), pf.Type().IsMap(), agg.Name(), af.Type().IsMap()))
+			continue
+		}
+		// For map types, verify key and value types match.
+		if pf.Type().IsMap() && af.Type().IsMap() {
+			if pf.Type().Key().ProtoType() != af.Type().Key().ProtoType() {
+				errs = append(errs, fmt.Sprintf("field %q: map key type mismatch — projection has %s, aggregate %s has %s",
+					pf.Name(), pf.Type().Key().ProtoType(), agg.Name(), af.Type().Key().ProtoType()))
+			}
+			if pf.Type().Element().ProtoType() != af.Type().Element().ProtoType() {
+				errs = append(errs, fmt.Sprintf("field %q: map value type mismatch — projection has %s, aggregate %s has %s",
+					pf.Name(), pf.Type().Element().ProtoType(), agg.Name(), af.Type().Element().ProtoType()))
+			} else if pf.Type().Element().IsEmbed() && af.Type().Element().IsEmbed() {
+				if pf.Type().Element().Embed().FullyQualifiedName() != af.Type().Element().Embed().FullyQualifiedName() {
+					errs = append(errs, fmt.Sprintf("field %q: map value message mismatch — projection has %s, aggregate has %s",
+						pf.Name(), pf.Type().Element().Embed().FullyQualifiedName(), af.Type().Element().Embed().FullyQualifiedName()))
+				}
+			}
 			continue
 		}
 		// For message/enum types, verify the underlying type name matches.

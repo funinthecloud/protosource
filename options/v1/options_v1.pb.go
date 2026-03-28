@@ -547,18 +547,21 @@ func (x *CommandOptions) GetAllowedStates() []string {
 	return nil
 }
 
-// CollectionMapping declares that an event modifies a collection (repeated
-// message field) on the aggregate rather than copying scalar fields.
+// CollectionMapping declares that an event modifies a collection (map field)
+// on the aggregate rather than copying scalar fields. Collections use
+// map<string, Message> on the aggregate — the map key is a string field on
+// the element message identified by key_field.
 type CollectionMapping struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The name of the repeated field on the aggregate (e.g. "items").
+	// The name of the map field on the aggregate (e.g. "items").
 	Target string `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	// What this event does to the collection.
 	Action CollectionAction `protobuf:"varint,2,opt,name=action,proto3,enum=funinthecloud.protosource.options.v1.CollectionAction" json:"action,omitempty"`
-	// For REMOVE: required. The field name on the collection element used as
-	// the key (e.g. "item_id"). The event must have a field with the same
-	// name and type whose value identifies which element to remove.
-	// For ADD: unused. Reserved for future idempotent-add behavior.
+	// Required for both ADD and REMOVE. The string field on the collection
+	// element used as the map key (e.g. "item_id"). For ADD, the key is
+	// extracted from the embedded element to insert into the map (re-adding
+	// the same key overwrites — idempotent). For REMOVE, the event must have
+	// a field with the same name whose value identifies which element to delete.
 	KeyField      string `protobuf:"bytes,3,opt,name=key_field,json=keyField,proto3" json:"key_field,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
