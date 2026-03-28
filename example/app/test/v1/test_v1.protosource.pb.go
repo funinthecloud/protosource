@@ -80,6 +80,9 @@ func (aggregate *Test) RestoreSnapshot(snapshot *Snapshot) {
 }
 func (b *Builder) Snapshot(aggregate *Test) {
 	if b.version%int64(3) == 0 {
+		if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+			hook.AfterOn()
+		}
 		event := &Snapshot{
 			Id:       b.id,
 			Snapshot: proto.Clone(aggregate).(*Test),
@@ -268,10 +271,10 @@ func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Test)
 	b.Created(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	b.Unlocked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
 }
 
@@ -306,7 +309,7 @@ func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Test)
 	b.Updated(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
 }
 
@@ -341,7 +344,7 @@ func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	a := proto.Clone(aggregate).(*Test)
 	b.Locked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
 }
 
@@ -376,7 +379,7 @@ func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Test)
 	b.Unlocked(m.GetActor())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
 }
 

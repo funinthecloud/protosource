@@ -108,6 +108,20 @@ type Aggregate interface {
 	GetVersion() int64
 }
 
+// PostApplyHook is an optional interface that aggregates can implement to
+// compute derived fields after events are applied. Invocation points:
+//   - Load (event replay): called once after all events are replayed.
+//   - Apply (materialization): called once after all new events are applied,
+//     before the aggregate is persisted.
+//   - Generated EmitEvents: called on the cloned aggregate before snapshotting,
+//     only when a snapshot will actually be emitted (version on interval).
+//
+// This is the extension point for computing values from collections
+// (totals, counts, etc.).
+type PostApplyHook interface {
+	AfterOn()
+}
+
 // Commander represents a command that specifies a desired change to an aggregate.
 // It includes not only the action but also all necessary data required for that change.
 //
@@ -348,6 +362,9 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 				return version, nil // events saved; aggregate store is best-effort
 			}
 		}
+		if hook, ok := aggregate.(PostApplyHook); ok {
+			hook.AfterOn()
+		}
 		if err := as.SaveAggregate(ctx, aggregate); err != nil {
 			r.logger.Warn("materialize failed",
 				"aggregate_id", command.GetId(),
@@ -458,6 +475,13 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 		if err != nil {
 			return nil, 0, fmt.Errorf("aggregate was unable to handle event type %T: %w", event, ErrUnhandledEvent)
 		}
+	}
+
+	// Compute derived fields once after all events are replayed, not after
+	// each intermediate event. This avoids O(events × collection_size) cost
+	// for hooks that iterate over collections (e.g., computing totals).
+	if hook, ok := aggregate.(PostApplyHook); ok {
+		hook.AfterOn()
 	}
 
 	return aggregate, version, nil

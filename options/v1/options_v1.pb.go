@@ -75,6 +75,57 @@ func (CommandLifecycle) EnumDescriptor() ([]byte, []int) {
 	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{0}
 }
 
+// CollectionAction describes what an event does to a repeated field on the
+// aggregate.
+type CollectionAction int32
+
+const (
+	CollectionAction_COLLECTION_ACTION_UNSPECIFIED CollectionAction = 0
+	CollectionAction_COLLECTION_ACTION_ADD         CollectionAction = 1 // append element to the repeated field
+	CollectionAction_COLLECTION_ACTION_REMOVE      CollectionAction = 2 // remove element by key field
+)
+
+// Enum value maps for CollectionAction.
+var (
+	CollectionAction_name = map[int32]string{
+		0: "COLLECTION_ACTION_UNSPECIFIED",
+		1: "COLLECTION_ACTION_ADD",
+		2: "COLLECTION_ACTION_REMOVE",
+	}
+	CollectionAction_value = map[string]int32{
+		"COLLECTION_ACTION_UNSPECIFIED": 0,
+		"COLLECTION_ACTION_ADD":         1,
+		"COLLECTION_ACTION_REMOVE":      2,
+	}
+)
+
+func (x CollectionAction) Enum() *CollectionAction {
+	p := new(CollectionAction)
+	*p = x
+	return p
+}
+
+func (x CollectionAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CollectionAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[1].Descriptor()
+}
+
+func (CollectionAction) Type() protoreflect.EnumType {
+	return &file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[1]
+}
+
+func (x CollectionAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CollectionAction.Descriptor instead.
+func (CollectionAction) EnumDescriptor() ([]byte, []int) {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{1}
+}
+
 // OpaqueKeyType identifies which DynamoDB key slot a field maps to.
 type OpaqueKeyType int32
 
@@ -229,11 +280,11 @@ func (x OpaqueKeyType) String() string {
 }
 
 func (OpaqueKeyType) Descriptor() protoreflect.EnumDescriptor {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[1].Descriptor()
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[2].Descriptor()
 }
 
 func (OpaqueKeyType) Type() protoreflect.EnumType {
-	return &file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[1]
+	return &file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes[2]
 }
 
 func (x OpaqueKeyType) Number() protoreflect.EnumNumber {
@@ -242,7 +293,7 @@ func (x OpaqueKeyType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use OpaqueKeyType.Descriptor instead.
 func (OpaqueKeyType) EnumDescriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{1}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{2}
 }
 
 type FileOptions struct {
@@ -496,6 +547,74 @@ func (x *CommandOptions) GetAllowedStates() []string {
 	return nil
 }
 
+// CollectionMapping declares that an event modifies a collection (repeated
+// message field) on the aggregate rather than copying scalar fields.
+type CollectionMapping struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The name of the repeated field on the aggregate (e.g. "items").
+	Target string `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	// What this event does to the collection.
+	Action CollectionAction `protobuf:"varint,2,opt,name=action,proto3,enum=funinthecloud.protosource.options.v1.CollectionAction" json:"action,omitempty"`
+	// For REMOVE: required. The field name on the collection element used as
+	// the key (e.g. "item_id"). The event must have a field with the same
+	// name and type whose value identifies which element to remove.
+	// For ADD: unused. Reserved for future idempotent-add behavior.
+	KeyField      string `protobuf:"bytes,3,opt,name=key_field,json=keyField,proto3" json:"key_field,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CollectionMapping) Reset() {
+	*x = CollectionMapping{}
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CollectionMapping) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CollectionMapping) ProtoMessage() {}
+
+func (x *CollectionMapping) ProtoReflect() protoreflect.Message {
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CollectionMapping.ProtoReflect.Descriptor instead.
+func (*CollectionMapping) Descriptor() ([]byte, []int) {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *CollectionMapping) GetTarget() string {
+	if x != nil {
+		return x.Target
+	}
+	return ""
+}
+
+func (x *CollectionMapping) GetAction() CollectionAction {
+	if x != nil {
+		return x.Action
+	}
+	return CollectionAction_COLLECTION_ACTION_UNSPECIFIED
+}
+
+func (x *CollectionMapping) GetKeyField() string {
+	if x != nil {
+		return x.KeyField
+	}
+	return ""
+}
+
 type EventOptions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The aggregate type that owns this event's stream. e.g. "Order"
@@ -504,14 +623,18 @@ type EventOptions struct {
 	// aggregate's State field when this event is applied. Use the full enum value
 	// name, e.g. "STATE_LOCKED". The plugin validates that the value exists in
 	// the same proto file at generation time.
-	SetsState     string `protobuf:"bytes,2,opt,name=sets_state,json=setsState,proto3" json:"sets_state,omitempty"`
+	SetsState string `protobuf:"bytes,2,opt,name=sets_state,json=setsState,proto3" json:"sets_state,omitempty"`
+	// If set, this event modifies a collection on the aggregate instead of
+	// copying scalar fields. An event either does collection work or scalar
+	// field copying — not both.
+	Collection    *CollectionMapping `protobuf:"bytes,3,opt,name=collection,proto3" json:"collection,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *EventOptions) Reset() {
 	*x = EventOptions{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[3]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -523,7 +646,7 @@ func (x *EventOptions) String() string {
 func (*EventOptions) ProtoMessage() {}
 
 func (x *EventOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[3]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -536,7 +659,7 @@ func (x *EventOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventOptions.ProtoReflect.Descriptor instead.
 func (*EventOptions) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{3}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *EventOptions) GetAggregateType() string {
@@ -553,6 +676,13 @@ func (x *EventOptions) GetSetsState() string {
 	return ""
 }
 
+func (x *EventOptions) GetCollection() *CollectionMapping {
+	if x != nil {
+		return x.Collection
+	}
+	return nil
+}
+
 type AggregateOptions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Prefix for the event stream ID. e.g. "order-" → stream ID = "order-{id}"
@@ -563,7 +693,7 @@ type AggregateOptions struct {
 
 func (x *AggregateOptions) Reset() {
 	*x = AggregateOptions{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[4]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -575,7 +705,7 @@ func (x *AggregateOptions) String() string {
 func (*AggregateOptions) ProtoMessage() {}
 
 func (x *AggregateOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[4]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -588,7 +718,7 @@ func (x *AggregateOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AggregateOptions.ProtoReflect.Descriptor instead.
 func (*AggregateOptions) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{4}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AggregateOptions) GetStreamPrefix() string {
@@ -608,7 +738,7 @@ type ProjectionOptions struct {
 
 func (x *ProjectionOptions) Reset() {
 	*x = ProjectionOptions{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[5]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -620,7 +750,7 @@ func (x *ProjectionOptions) String() string {
 func (*ProjectionOptions) ProtoMessage() {}
 
 func (x *ProjectionOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[5]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -633,7 +763,7 @@ func (x *ProjectionOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProjectionOptions.ProtoReflect.Descriptor instead.
 func (*ProjectionOptions) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{5}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ProjectionOptions) GetSourceAggregates() []string {
@@ -657,7 +787,7 @@ type SnapshotOptions struct {
 
 func (x *SnapshotOptions) Reset() {
 	*x = SnapshotOptions{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[6]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -669,7 +799,7 @@ func (x *SnapshotOptions) String() string {
 func (*SnapshotOptions) ProtoMessage() {}
 
 func (x *SnapshotOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[6]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -682,7 +812,7 @@ func (x *SnapshotOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SnapshotOptions.ProtoReflect.Descriptor instead.
 func (*SnapshotOptions) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{6}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *SnapshotOptions) GetEveryNEvents() uint32 {
@@ -708,7 +838,7 @@ type OpaqueFieldOptions struct {
 
 func (x *OpaqueFieldOptions) Reset() {
 	*x = OpaqueFieldOptions{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[7]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +850,7 @@ func (x *OpaqueFieldOptions) String() string {
 func (*OpaqueFieldOptions) ProtoMessage() {}
 
 func (x *OpaqueFieldOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[7]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +863,7 @@ func (x *OpaqueFieldOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpaqueFieldOptions.ProtoReflect.Descriptor instead.
 func (*OpaqueFieldOptions) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{7}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *OpaqueFieldOptions) GetAttributes() []*OpaqueKeyMapping {
@@ -753,7 +883,7 @@ type OpaqueKeyMapping struct {
 
 func (x *OpaqueKeyMapping) Reset() {
 	*x = OpaqueKeyMapping{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +895,7 @@ func (x *OpaqueKeyMapping) String() string {
 func (*OpaqueKeyMapping) ProtoMessage() {}
 
 func (x *OpaqueKeyMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +908,7 @@ func (x *OpaqueKeyMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpaqueKeyMapping.ProtoReflect.Descriptor instead.
 func (*OpaqueKeyMapping) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{8}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *OpaqueKeyMapping) GetType() OpaqueKeyType {
@@ -859,11 +989,18 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x0eCommandOptions\x12'\n" +
 	"\x0fproduces_events\x18\x01 \x03(\tR\x0eproducesEvents\x12T\n" +
 	"\tlifecycle\x18\x02 \x01(\x0e26.funinthecloud.protosource.options.v1.CommandLifecycleR\tlifecycle\x12%\n" +
-	"\x0eallowed_states\x18\x03 \x03(\tR\rallowedStates\"T\n" +
+	"\x0eallowed_states\x18\x03 \x03(\tR\rallowedStates\"\x98\x01\n" +
+	"\x11CollectionMapping\x12\x16\n" +
+	"\x06target\x18\x01 \x01(\tR\x06target\x12N\n" +
+	"\x06action\x18\x02 \x01(\x0e26.funinthecloud.protosource.options.v1.CollectionActionR\x06action\x12\x1b\n" +
+	"\tkey_field\x18\x03 \x01(\tR\bkeyField\"\xad\x01\n" +
 	"\fEventOptions\x12%\n" +
 	"\x0eaggregate_type\x18\x01 \x01(\tR\raggregateType\x12\x1d\n" +
 	"\n" +
-	"sets_state\x18\x02 \x01(\tR\tsetsState\"7\n" +
+	"sets_state\x18\x02 \x01(\tR\tsetsState\x12W\n" +
+	"\n" +
+	"collection\x18\x03 \x01(\v27.funinthecloud.protosource.options.v1.CollectionMappingR\n" +
+	"collection\"7\n" +
 	"\x10AggregateOptions\x12#\n" +
 	"\rstream_prefix\x18\x01 \x01(\tR\fstreamPrefix\"@\n" +
 	"\x11ProjectionOptions\x12+\n" +
@@ -881,7 +1018,11 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x10CommandLifecycle\x12!\n" +
 	"\x1dCOMMAND_LIFECYCLE_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aCOMMAND_LIFECYCLE_CREATION\x10\x01\x12\x1e\n" +
-	"\x1aCOMMAND_LIFECYCLE_MUTATION\x10\x02*\xd6\t\n" +
+	"\x1aCOMMAND_LIFECYCLE_MUTATION\x10\x02*n\n" +
+	"\x10CollectionAction\x12!\n" +
+	"\x1dCOLLECTION_ACTION_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15COLLECTION_ACTION_ADD\x10\x01\x12\x1c\n" +
+	"\x18COLLECTION_ACTION_REMOVE\x10\x02*\xd6\t\n" +
 	"\rOpaqueKeyType\x12\x1f\n" +
 	"\x1bOPAQUE_KEY_TYPE_UNSPECIFIED\x10\x00\x12\x16\n" +
 	"\x12OPAQUE_KEY_TYPE_PK\x10\x01\x12\x16\n" +
@@ -944,44 +1085,48 @@ func file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP() []
 	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescData
 }
 
-var file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_funinthecloud_protosource_options_v1_options_v1_proto_goTypes = []any{
 	(CommandLifecycle)(0),               // 0: funinthecloud.protosource.options.v1.CommandLifecycle
-	(OpaqueKeyType)(0),                  // 1: funinthecloud.protosource.options.v1.OpaqueKeyType
-	(*FileOptions)(nil),                 // 2: funinthecloud.protosource.options.v1.FileOptions
-	(*MessageOptions)(nil),              // 3: funinthecloud.protosource.options.v1.MessageOptions
-	(*CommandOptions)(nil),              // 4: funinthecloud.protosource.options.v1.CommandOptions
-	(*EventOptions)(nil),                // 5: funinthecloud.protosource.options.v1.EventOptions
-	(*AggregateOptions)(nil),            // 6: funinthecloud.protosource.options.v1.AggregateOptions
-	(*ProjectionOptions)(nil),           // 7: funinthecloud.protosource.options.v1.ProjectionOptions
-	(*SnapshotOptions)(nil),             // 8: funinthecloud.protosource.options.v1.SnapshotOptions
-	(*OpaqueFieldOptions)(nil),          // 9: funinthecloud.protosource.options.v1.OpaqueFieldOptions
-	(*OpaqueKeyMapping)(nil),            // 10: funinthecloud.protosource.options.v1.OpaqueKeyMapping
-	(*descriptorpb.FileOptions)(nil),    // 11: google.protobuf.FileOptions
-	(*descriptorpb.MessageOptions)(nil), // 12: google.protobuf.MessageOptions
-	(*descriptorpb.FieldOptions)(nil),   // 13: google.protobuf.FieldOptions
+	(CollectionAction)(0),               // 1: funinthecloud.protosource.options.v1.CollectionAction
+	(OpaqueKeyType)(0),                  // 2: funinthecloud.protosource.options.v1.OpaqueKeyType
+	(*FileOptions)(nil),                 // 3: funinthecloud.protosource.options.v1.FileOptions
+	(*MessageOptions)(nil),              // 4: funinthecloud.protosource.options.v1.MessageOptions
+	(*CommandOptions)(nil),              // 5: funinthecloud.protosource.options.v1.CommandOptions
+	(*CollectionMapping)(nil),           // 6: funinthecloud.protosource.options.v1.CollectionMapping
+	(*EventOptions)(nil),                // 7: funinthecloud.protosource.options.v1.EventOptions
+	(*AggregateOptions)(nil),            // 8: funinthecloud.protosource.options.v1.AggregateOptions
+	(*ProjectionOptions)(nil),           // 9: funinthecloud.protosource.options.v1.ProjectionOptions
+	(*SnapshotOptions)(nil),             // 10: funinthecloud.protosource.options.v1.SnapshotOptions
+	(*OpaqueFieldOptions)(nil),          // 11: funinthecloud.protosource.options.v1.OpaqueFieldOptions
+	(*OpaqueKeyMapping)(nil),            // 12: funinthecloud.protosource.options.v1.OpaqueKeyMapping
+	(*descriptorpb.FileOptions)(nil),    // 13: google.protobuf.FileOptions
+	(*descriptorpb.MessageOptions)(nil), // 14: google.protobuf.MessageOptions
+	(*descriptorpb.FieldOptions)(nil),   // 15: google.protobuf.FieldOptions
 }
 var file_funinthecloud_protosource_options_v1_options_v1_proto_depIdxs = []int32{
-	4,  // 0: funinthecloud.protosource.options.v1.MessageOptions.command:type_name -> funinthecloud.protosource.options.v1.CommandOptions
-	5,  // 1: funinthecloud.protosource.options.v1.MessageOptions.event:type_name -> funinthecloud.protosource.options.v1.EventOptions
-	6,  // 2: funinthecloud.protosource.options.v1.MessageOptions.aggregate:type_name -> funinthecloud.protosource.options.v1.AggregateOptions
-	7,  // 3: funinthecloud.protosource.options.v1.MessageOptions.projection:type_name -> funinthecloud.protosource.options.v1.ProjectionOptions
-	8,  // 4: funinthecloud.protosource.options.v1.MessageOptions.snapshot:type_name -> funinthecloud.protosource.options.v1.SnapshotOptions
+	5,  // 0: funinthecloud.protosource.options.v1.MessageOptions.command:type_name -> funinthecloud.protosource.options.v1.CommandOptions
+	7,  // 1: funinthecloud.protosource.options.v1.MessageOptions.event:type_name -> funinthecloud.protosource.options.v1.EventOptions
+	8,  // 2: funinthecloud.protosource.options.v1.MessageOptions.aggregate:type_name -> funinthecloud.protosource.options.v1.AggregateOptions
+	9,  // 3: funinthecloud.protosource.options.v1.MessageOptions.projection:type_name -> funinthecloud.protosource.options.v1.ProjectionOptions
+	10, // 4: funinthecloud.protosource.options.v1.MessageOptions.snapshot:type_name -> funinthecloud.protosource.options.v1.SnapshotOptions
 	0,  // 5: funinthecloud.protosource.options.v1.CommandOptions.lifecycle:type_name -> funinthecloud.protosource.options.v1.CommandLifecycle
-	10, // 6: funinthecloud.protosource.options.v1.OpaqueFieldOptions.attributes:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyMapping
-	1,  // 7: funinthecloud.protosource.options.v1.OpaqueKeyMapping.type:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyType
-	11, // 8: funinthecloud.protosource.options.v1.protosource_file:extendee -> google.protobuf.FileOptions
-	12, // 9: funinthecloud.protosource.options.v1.protosource_message_type:extendee -> google.protobuf.MessageOptions
-	13, // 10: funinthecloud.protosource.options.v1.protosource_opaque_field:extendee -> google.protobuf.FieldOptions
-	2,  // 11: funinthecloud.protosource.options.v1.protosource_file:type_name -> funinthecloud.protosource.options.v1.FileOptions
-	3,  // 12: funinthecloud.protosource.options.v1.protosource_message_type:type_name -> funinthecloud.protosource.options.v1.MessageOptions
-	9,  // 13: funinthecloud.protosource.options.v1.protosource_opaque_field:type_name -> funinthecloud.protosource.options.v1.OpaqueFieldOptions
-	14, // [14:14] is the sub-list for method output_type
-	14, // [14:14] is the sub-list for method input_type
-	11, // [11:14] is the sub-list for extension type_name
-	8,  // [8:11] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	1,  // 6: funinthecloud.protosource.options.v1.CollectionMapping.action:type_name -> funinthecloud.protosource.options.v1.CollectionAction
+	6,  // 7: funinthecloud.protosource.options.v1.EventOptions.collection:type_name -> funinthecloud.protosource.options.v1.CollectionMapping
+	12, // 8: funinthecloud.protosource.options.v1.OpaqueFieldOptions.attributes:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyMapping
+	2,  // 9: funinthecloud.protosource.options.v1.OpaqueKeyMapping.type:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyType
+	13, // 10: funinthecloud.protosource.options.v1.protosource_file:extendee -> google.protobuf.FileOptions
+	14, // 11: funinthecloud.protosource.options.v1.protosource_message_type:extendee -> google.protobuf.MessageOptions
+	15, // 12: funinthecloud.protosource.options.v1.protosource_opaque_field:extendee -> google.protobuf.FieldOptions
+	3,  // 13: funinthecloud.protosource.options.v1.protosource_file:type_name -> funinthecloud.protosource.options.v1.FileOptions
+	4,  // 14: funinthecloud.protosource.options.v1.protosource_message_type:type_name -> funinthecloud.protosource.options.v1.MessageOptions
+	11, // 15: funinthecloud.protosource.options.v1.protosource_opaque_field:type_name -> funinthecloud.protosource.options.v1.OpaqueFieldOptions
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	13, // [13:16] is the sub-list for extension type_name
+	10, // [10:13] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_funinthecloud_protosource_options_v1_options_v1_proto_init() }
@@ -1001,8 +1146,8 @@ func file_funinthecloud_protosource_options_v1_options_v1_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc), len(file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   9,
+			NumEnums:      3,
+			NumMessages:   10,
 			NumExtensions: 3,
 			NumServices:   0,
 		},

@@ -1093,3 +1093,280 @@ func TestNew_NilSerializer(t *testing.T) {
 	}()
 	protosource.New(&testv1.Test{}, memorystore.New(0), nil)
 }
+
+// --- Collection tests ---
+
+func TestApply_AddItemAppendsToCollection(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 2},
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-2", Description: "Gadget", PriceCents: 500, Quantity: 1},
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	if len(order.GetItems()) != 2 {
+		t.Fatalf("expected 2 items, got %d", len(order.GetItems()))
+	}
+	if order.GetItems()[0].GetItemId() != "item-1" {
+		t.Errorf("expected first item id 'item-1', got %q", order.GetItems()[0].GetItemId())
+	}
+	if order.GetItems()[1].GetDescription() != "Gadget" {
+		t.Errorf("expected second item description 'Gadget', got %q", order.GetItems()[1].GetDescription())
+	}
+}
+
+func TestApply_RemoveItemFiltersCollection(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 2},
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-2", Description: "Gadget", PriceCents: 500, Quantity: 1},
+	})
+	mustApply(t, repo, &orderv1.RemoveItem{
+		Id: "order-1", Actor: "alice", ItemId: "item-1",
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	if len(order.GetItems()) != 1 {
+		t.Fatalf("expected 1 item after removal, got %d", len(order.GetItems()))
+	}
+	if order.GetItems()[0].GetItemId() != "item-2" {
+		t.Errorf("expected remaining item id 'item-2', got %q", order.GetItems()[0].GetItemId())
+	}
+}
+
+func TestApply_PostApplyHookComputesDerivedFields(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 2},
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-2", Description: "Gadget", PriceCents: 500, Quantity: 3},
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	// Derived via AfterOn: total_cents = (1000*2) + (500*3) = 3500
+	if order.GetTotalCents() != 3500 {
+		t.Errorf("expected total_cents 3500, got %d", order.GetTotalCents())
+	}
+	// Derived via AfterOn: item_count = 2
+	if order.GetItemCount() != 2 {
+		t.Errorf("expected item_count 2, got %d", order.GetItemCount())
+	}
+}
+
+func TestApply_DerivedFieldsUpdateAfterRemove(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 2},
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-2", Description: "Gadget", PriceCents: 500, Quantity: 3},
+	})
+	mustApply(t, repo, &orderv1.RemoveItem{
+		Id: "order-1", Actor: "alice", ItemId: "item-1",
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	// After removing item-1: total_cents = 500*3 = 1500, item_count = 1
+	if order.GetTotalCents() != 1500 {
+		t.Errorf("expected total_cents 1500, got %d", order.GetTotalCents())
+	}
+	if order.GetItemCount() != 1 {
+		t.Errorf("expected item_count 1, got %d", order.GetItemCount())
+	}
+}
+
+func TestApply_AddTagAppendsToTagsCollection(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "priority", Value: "rush"},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "source", Value: "web"},
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	if len(order.GetTags()) != 2 {
+		t.Fatalf("expected 2 tags, got %d", len(order.GetTags()))
+	}
+	if order.GetTags()[0].GetKey() != "priority" || order.GetTags()[0].GetValue() != "rush" {
+		t.Errorf("expected first tag priority=rush, got %s=%s", order.GetTags()[0].GetKey(), order.GetTags()[0].GetValue())
+	}
+	if order.GetTags()[1].GetKey() != "source" || order.GetTags()[1].GetValue() != "web" {
+		t.Errorf("expected second tag source=web, got %s=%s", order.GetTags()[1].GetKey(), order.GetTags()[1].GetValue())
+	}
+}
+
+func TestApply_RemoveTagFiltersTagsCollection(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "priority", Value: "rush"},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "source", Value: "web"},
+	})
+	mustApply(t, repo, &orderv1.RemoveTag{
+		Id: "order-1", Actor: "alice", Key: "priority",
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	if len(order.GetTags()) != 1 {
+		t.Fatalf("expected 1 tag after removal, got %d", len(order.GetTags()))
+	}
+	if order.GetTags()[0].GetKey() != "source" {
+		t.Errorf("expected remaining tag key 'source', got %q", order.GetTags()[0].GetKey())
+	}
+}
+
+func TestApply_MultipleCollectionsIndependent(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 1},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "priority", Value: "rush"},
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-2", Description: "Gadget", PriceCents: 500, Quantity: 2},
+	})
+	mustApply(t, repo, &orderv1.AddTag{
+		Id: "order-1", Actor: "alice",
+		Tag: &orderv1.Tag{Key: "channel", Value: "mobile"},
+	})
+
+	agg, err := repo.Load(context.Background(), "order-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+	order := agg.(*orderv1.Order)
+
+	// Items and tags are independent collections.
+	if len(order.GetItems()) != 2 {
+		t.Errorf("expected 2 items, got %d", len(order.GetItems()))
+	}
+	if len(order.GetTags()) != 2 {
+		t.Errorf("expected 2 tags, got %d", len(order.GetTags()))
+	}
+	// Derived fields still correct (only from items, not tags).
+	if order.GetTotalCents() != 2000 {
+		t.Errorf("expected total_cents 2000, got %d", order.GetTotalCents())
+	}
+	if order.GetItemCount() != 2 {
+		t.Errorf("expected item_count 2, got %d", order.GetItemCount())
+	}
+}
+
+func TestApply_CollectionMaterialized(t *testing.T) {
+	store := &recordingStore{MemoryStore: memorystore.New(0)}
+	repo := newOrderRepo(store)
+
+	mustApply(t, repo, &orderv1.Create{
+		Id: "order-1", Actor: "alice", CustomerId: "cust-1", CustomerName: "Alice",
+	})
+	mustApply(t, repo, &orderv1.AddItem{
+		Id: "order-1", Actor: "alice",
+		Item: &orderv1.LineItem{ItemId: "item-1", Description: "Widget", PriceCents: 1000, Quantity: 2},
+	})
+
+	// Find the materialized Order in the recorded saves.
+	var materializedOrder *orderv1.Order
+	for _, saved := range store.saved {
+		if o, ok := saved.(*orderv1.Order); ok {
+			materializedOrder = o
+		}
+	}
+	if materializedOrder == nil {
+		t.Fatal("no materialized Order found in saved aggregates")
+	}
+	if len(materializedOrder.GetItems()) != 1 {
+		t.Fatalf("expected 1 item in materialized order, got %d", len(materializedOrder.GetItems()))
+	}
+	if materializedOrder.GetTotalCents() != 2000 {
+		t.Errorf("expected materialized total_cents 2000, got %d", materializedOrder.GetTotalCents())
+	}
+}

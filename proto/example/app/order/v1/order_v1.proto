@@ -37,13 +37,29 @@ message Order {
       [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
         attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ]
       }];
-  string create_by        = 7;
-  int64  modify_at        = 8;
-  string modify_by        = 9;
-  int64  total_cents      = 10;
-  int32  item_count       = 11;
-  string shipping_address = 12;
-  int64  placed_at        = 13;
+  string            create_by        = 7;
+  int64             modify_at        = 8;
+  string            modify_by        = 9;
+  int64             total_cents      = 10;
+  int32             item_count       = 11;
+  string            shipping_address = 12;
+  int64             placed_at        = 13;
+  repeated LineItem items            = 14;
+  repeated Tag      tags             = 15;
+}
+
+// LineItem is a value type representing a single item in an order.
+message LineItem {
+  string item_id     = 1;
+  string description = 2;
+  int64  price_cents = 3;
+  int32  quantity    = 4;
+}
+
+// Tag is a key-value label on an order (e.g. "priority"="rush", "source"="web").
+message Tag {
+  string key   = 1;
+  string value = 2;
 }
 
 // ── Commands ──
@@ -67,11 +83,45 @@ message AddItem {
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
   };
-  string id          = 1;
-  string actor       = 2;
-  string description = 3;
-  int64  price_cents = 4;
-  int32  quantity    = 5;
+  string   id    = 1;
+  string   actor = 2;
+  LineItem item  = 3;
+}
+
+message RemoveItem {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .command = {
+    produces_events: [ "ItemRemoved" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_DRAFT" ]
+  };
+  string id      = 1;
+  string actor   = 2;
+  string item_id = 3;
+}
+
+message AddTag {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .command = {
+    produces_events: [ "TagAdded" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_DRAFT" ]
+  };
+  string id    = 1;
+  string actor = 2;
+  Tag    tag   = 3;
+}
+
+message RemoveTag {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .command = {
+    produces_events: [ "TagRemoved" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+    allowed_states: [ "STATE_DRAFT" ]
+  };
+  string id    = 1;
+  string actor = 2;
+  string key   = 3;
 }
 
 message SetShipping {
@@ -128,14 +178,49 @@ message Created {
 message ItemAdded {
   option (funinthecloud.protosource.options.v1.protosource_message_type)
       .event = {
+    collection: { target: "items", action: COLLECTION_ACTION_ADD }
   };
-  string id          = 1;
-  int64  version     = 2;
-  int64  at          = 3;
-  string actor       = 4;
-  string description = 5;
-  int64  price_cents = 6;
-  int32  quantity    = 7;
+  string   id      = 1;
+  int64    version = 2;
+  int64    at      = 3;
+  string   actor   = 4;
+  LineItem item    = 5;
+}
+
+message ItemRemoved {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .event = {
+    collection: { target: "items", action: COLLECTION_ACTION_REMOVE, key_field: "item_id" }
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string item_id = 5;
+}
+
+message TagAdded {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .event = {
+    collection: { target: "tags", action: COLLECTION_ACTION_ADD }
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  Tag    tag     = 5;
+}
+
+message TagRemoved {
+  option (funinthecloud.protosource.options.v1.protosource_message_type)
+      .event = {
+    collection: { target: "tags", action: COLLECTION_ACTION_REMOVE, key_field: "key" }
+  };
+  string id      = 1;
+  int64  version = 2;
+  int64  at      = 3;
+  string actor   = 4;
+  string key     = 5;
 }
 
 message ShippingSet {

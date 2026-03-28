@@ -111,6 +111,9 @@ func (aggregate *{{$aggregate}}) RestoreSnapshot(snapshot *Snapshot) {
 }
 func (b *Builder) Snapshot(aggregate *{{$aggregate}}) {
     if b.version % int64({{ $everyN }}) == 0 {
+        if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+            hook.AfterOn()
+        }
         event := &Snapshot{
             Id:       b.id,
             Snapshot: proto.Clone(aggregate).(*{{$aggregate}}),
@@ -141,11 +144,20 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
     switch e := event.(type) {
 {{ range $evt := $.AllMessages -}}
 {{ if isEvent $evt -}}
+{{ $ca := eventCollectionAction $evt -}}
 {{ if isCreationEvent $evt $ }}    case *{{ $evt.Name }}:
         aggregate.setCreated(e)
         aggregate.setModified(e)
+{{ if $ca -}}
+{{ if eq $ca "ADD" -}}
+{{ $srcField := eventCollectionSourceField $evt $message -}}
+{{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
+        aggregate.{{ $targetGoName }} = append(aggregate.{{ $targetGoName }}, e.Get{{ name $srcField }}())
+{{ end -}}
+{{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
 {{ if not (eq (printf "%s" $field.Name) "actor") }}{{ if aggregateHasField $field $message }}        aggregate.{{ name $field }} = e.Get{{ name $field }}()
+{{ end -}}
 {{ end -}}
 {{ end -}}
 {{ end -}}
@@ -154,8 +166,29 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ end -}}
 {{ else }}    case *{{ $evt.Name }}:
         aggregate.setModified(e)
+{{ if eq $ca "ADD" -}}
+{{ $srcField := eventCollectionSourceField $evt $message -}}
+{{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
+        aggregate.{{ $targetGoName }} = append(aggregate.{{ $targetGoName }}, e.Get{{ name $srcField }}())
+{{ else if eq $ca "REMOVE" -}}
+{{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
+{{ $keyEvtGoName := eventFieldGoName (eventCollectionKeyField $evt) $evt -}}
+{{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
+{{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
+        {
+            key := e.Get{{ $keyEvtGoName }}()
+            filtered := make([]*{{ $elemType }}, 0, len(aggregate.{{ $targetGoName }}))
+            for _, item := range aggregate.{{ $targetGoName }} {
+                if item.Get{{ $keyGoName }}() != key {
+                    filtered = append(filtered, item)
+                }
+            }
+            aggregate.{{ $targetGoName }} = filtered
+        }
+{{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
 {{ if not (eq (printf "%s" $field.Name) "actor") }}{{ if aggregateHasField $field $message }}        aggregate.{{ name $field }} = e.Get{{ name $field }}()
+{{ end -}}
 {{ end -}}
 {{ end -}}
 {{ end -}}
@@ -230,7 +263,7 @@ func (m *{{ $message.Name }}) EmitEvents(aggregate protosource.Aggregate) []prot
     b.{{ $eventName }}({{ range $field := $evt.Fields | excludeInternal }} m.Get{{ name $field }}(), {{ end }})
     {{ if $hasSnapshot -}}
     _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    b.Snapshot(a)
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
     {{ end -}}
     {{ end -}}
     return b.Events

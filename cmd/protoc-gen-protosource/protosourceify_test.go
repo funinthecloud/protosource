@@ -418,5 +418,118 @@ func TestCLIParseExpr_String(t *testing.T) {
 	}
 }
 
+// ── Collection validation tests ──
+
+func TestValidateCollectionMapping_ValidAdd(t *testing.T) {
+	f := loadTestProto(t, "collection_valid.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	if agg == nil {
+		t.Fatal("aggregate Basket not found")
+	}
+
+	evt := findMessage(f, "WidgetAdded")
+	if evt == nil {
+		t.Fatal("event WidgetAdded not found")
+	}
+
+	if err := p.validateCollectionMapping(evt, agg, f); err != nil {
+		t.Errorf("validateCollectionMapping(WidgetAdded) unexpected error: %v", err)
+	}
+}
+
+func TestValidateCollectionMapping_ValidRemove(t *testing.T) {
+	f := loadTestProto(t, "collection_valid.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	if agg == nil {
+		t.Fatal("aggregate Basket not found")
+	}
+
+	evt := findMessage(f, "WidgetRemoved")
+	if evt == nil {
+		t.Fatal("event WidgetRemoved not found")
+	}
+
+	if err := p.validateCollectionMapping(evt, agg, f); err != nil {
+		t.Errorf("validateCollectionMapping(WidgetRemoved) unexpected error: %v", err)
+	}
+}
+
+func TestValidateCollectionMapping_NoCollection(t *testing.T) {
+	f := loadTestProto(t, "collection_valid.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	evt := findMessage(f, "Created")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+
+	// Events without collection annotations should pass validation.
+	if err := p.validateCollectionMapping(evt, agg, f); err != nil {
+		t.Errorf("validateCollectionMapping(Created) unexpected error: %v", err)
+	}
+}
+
+func TestValidateCollectionMapping_BadTarget(t *testing.T) {
+	f := loadTestProto(t, "collection_bad_target.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	evt := findMessage(f, "WidgetAdded")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+
+	err := p.validateCollectionMapping(evt, agg, f)
+	if err == nil {
+		t.Fatal("expected error for bad target, got nil")
+	}
+	if !strings.Contains(err.Error(), "widgets") {
+		t.Errorf("error should mention target field 'widgets', got: %v", err)
+	}
+}
+
+func TestValidateCollectionMapping_MissingKeyField(t *testing.T) {
+	f := loadTestProto(t, "collection_missing_key.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	evt := findMessage(f, "WidgetRemoved")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+
+	err := p.validateCollectionMapping(evt, agg, f)
+	if err == nil {
+		t.Fatal("expected error for missing key_field, got nil")
+	}
+	if !strings.Contains(err.Error(), "key_field") {
+		t.Errorf("error should mention key_field, got: %v", err)
+	}
+}
+
+func TestFileSupportsCLI_WithMessageField(t *testing.T) {
+	// The order proto now has AddItem with a message field — CLI should not be supported.
+	f := loadTestProto(t, "collection_valid.proto")
+	p := newModule()
+
+	if p.fileSupportsCLI(f) {
+		t.Error("expected fileSupportsCLI to return false for file with message-typed command field")
+	}
+}
+
+func TestFileSupportsCLI_AllScalar(t *testing.T) {
+	f := loadTestProto(t, "valid.proto")
+	p := newModule()
+
+	if !p.fileSupportsCLI(f) {
+		t.Error("expected fileSupportsCLI to return true for file with only scalar command fields")
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType

@@ -59,9 +59,9 @@ The plugin logic is in `protosourceify.go`; templates are in `content/`.
 5. **CommandEvaluator** — optional custom business logic (return `ErrSkip` for silent no-op)
 6. **EventEmitter** — emit events (generated from `produces_events`)
 7. **Persist** — save events to store
-8. **Materialize** _(optional)_ — if store implements `AggregateStore`, persist materialized aggregate (write-only, best-effort)
+8. **Materialize** _(optional)_ — if store implements `AggregateStore`, apply events via `On`, run `PostApplyHook.AfterOn()` if implemented, persist materialized aggregate (write-only, best-effort)
 
-Steps 1-3 and 6 are generated. For custom authorization, implement `Authorize` on the command type. For custom evaluation, implement `Evaluate`. See `docs/pipeline.md` for details.
+Steps 1-3 and 6 are generated. For custom authorization, implement `Authorize` on the command type. For custom evaluation, implement `Evaluate`. For derived fields from collections, implement `AfterOn` on the aggregate (see PostApplyHook below). See `docs/pipeline.md` for details.
 
 ## DynamoDB Table Design
 
@@ -119,7 +119,70 @@ message Created {
 
 The `sets_state` annotation on event messages generates state assignments in the `On` method.
 
-The `On` method is **fully generated**. Event fields are mechanically copied to matching aggregate fields.
+The `On` method is **fully generated**. For scalar fields, event fields are mechanically copied to matching aggregate fields. For collections, events use a `collection` annotation (see below).
+
+### Collection Fields
+
+Aggregates can have `repeated` message fields (collections). Events declare their collection action via annotation:
+
+```protobuf
+message LineItem {
+  string item_id     = 1;
+  string description = 2;
+  int64  price_cents = 3;
+  int32  quantity    = 4;
+}
+
+message Order {
+  option (...).aggregate = {};
+  // ... scalar fields ...
+  repeated LineItem items = 14;
+}
+
+message ItemAdded {
+  option (...).event = {
+    collection: { target: "items", action: COLLECTION_ACTION_ADD }
+  };
+  // ... internal fields 1-4 ...
+  LineItem item = 5;  // embedded element to append
+}
+
+message ItemRemoved {
+  option (...).event = {
+    collection: { target: "items", action: COLLECTION_ACTION_REMOVE, key_field: "item_id" }
+  };
+  // ... internal fields 1-4 ...
+  string item_id = 5;  // key identifying which element to remove
+}
+```
+
+**Rules:**
+- An event either does collection work OR scalar field copying — not both
+- ADD events must have exactly one embedded field matching the collection element type
+- REMOVE events require `key_field` (a scalar field on the element type); the event must also have a field with the same name and type
+- REMOVE is not valid on creation events
+- Commands with collection events carry the embedded message type (e.g., `LineItem item = 3`), which means CLI generation is skipped for that file
+- Multiple independent collections on one aggregate are supported (each with its own events)
+
+### PostApplyHook (Derived Fields)
+
+For computed/derived fields (totals, counts, etc.), implement `AfterOn()` on the aggregate in a hand-written file:
+
+```go
+// order_derived.go
+func (o *Order) AfterOn() {
+    o.ItemCount = int32(len(o.Items))
+    var total int64
+    for _, item := range o.Items {
+        total += item.GetPriceCents() * int64(item.GetQuantity())
+    }
+    o.TotalCents = total
+}
+```
+
+`AfterOn()` is called: (1) once after all events are replayed during Load, (2) once after all new events are applied during materialization in Apply, and (3) in generated `EmitEvents` on the cloned aggregate before snapshot emission (only when a snapshot will actually be created). **`AfterOn` is a reserved method name** — do not use it as a command or event message name.
+
+### Field Contracts
 
 Command messages must have `id` (field 1, string) and `actor` (field 2, string).
 Event messages must have `id` (field 1), `version` (field 2, int64), `at` (field 3, int64), `actor` (field 4, string). Domain fields start at 5.
@@ -155,5 +218,6 @@ git checkout -b <branch-name> origin/main
 ## TODO
 
 - [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)
+- [x] Nested collections: `collection` annotation on events with ADD/REMOVE semantics, `PostApplyHook` for derived fields (PR #24)
 - [ ] Multi-aggregate projections: projections that join/denormalize across multiple aggregate types (e.g. Order + Customer → OrderWithCustomerView). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)

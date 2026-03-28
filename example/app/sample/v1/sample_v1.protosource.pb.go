@@ -79,6 +79,9 @@ func (aggregate *Sample) RestoreSnapshot(snapshot *Snapshot) {
 }
 func (b *Builder) Snapshot(aggregate *Sample) {
 	if b.version%int64(50) == 0 {
+		if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+			hook.AfterOn()
+		}
 		event := &Snapshot{
 			Id:       b.id,
 			Snapshot: proto.Clone(aggregate).(*Sample),
@@ -325,7 +328,7 @@ func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Sample)
 	b.Created(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
 }
 
@@ -351,7 +354,7 @@ func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event
 	a := proto.Clone(aggregate).(*Sample)
 	b.Updated(m.GetActor(), m.GetBody())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
 }
 
