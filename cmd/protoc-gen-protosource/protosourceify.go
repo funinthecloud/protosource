@@ -1343,6 +1343,23 @@ func (p *ProtosourceModule) validateProjectionFields(proj pgs.Message, agg pgs.M
 				pf.Name(), pf.Type().IsMap(), agg.Name(), af.Type().IsMap()))
 			continue
 		}
+		// For map types, verify key and value types match.
+		if pf.Type().IsMap() && af.Type().IsMap() {
+			if pf.Type().Key().ProtoType() != af.Type().Key().ProtoType() {
+				errs = append(errs, fmt.Sprintf("field %q: map key type mismatch — projection has %s, aggregate %s has %s",
+					pf.Name(), pf.Type().Key().ProtoType(), agg.Name(), af.Type().Key().ProtoType()))
+			}
+			if pf.Type().Element().ProtoType() != af.Type().Element().ProtoType() {
+				errs = append(errs, fmt.Sprintf("field %q: map value type mismatch — projection has %s, aggregate %s has %s",
+					pf.Name(), pf.Type().Element().ProtoType(), agg.Name(), af.Type().Element().ProtoType()))
+			} else if pf.Type().Element().IsEmbed() && af.Type().Element().IsEmbed() {
+				if pf.Type().Element().Embed().FullyQualifiedName() != af.Type().Element().Embed().FullyQualifiedName() {
+					errs = append(errs, fmt.Sprintf("field %q: map value message mismatch — projection has %s, aggregate has %s",
+						pf.Name(), pf.Type().Element().Embed().FullyQualifiedName(), af.Type().Element().Embed().FullyQualifiedName()))
+				}
+			}
+			continue
+		}
 		// For message/enum types, verify the underlying type name matches.
 		if pf.Type().IsEmbed() && af.Type().IsEmbed() {
 			if pf.Type().Embed().FullyQualifiedName() != af.Type().Embed().FullyQualifiedName() {

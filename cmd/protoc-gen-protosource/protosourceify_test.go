@@ -531,5 +531,41 @@ func TestFileSupportsCLI_AllScalar(t *testing.T) {
 	}
 }
 
+// ── Projection map validation tests ──
+
+func TestValidateProjectionFields_MapValid(t *testing.T) {
+	f := loadTestProto(t, "projection_map_valid.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	proj := findMessage(f, "BasketSummary")
+	if agg == nil || proj == nil {
+		t.Fatal("messages not found")
+	}
+
+	if err := p.validateProjectionFields(proj, agg); err != nil {
+		t.Errorf("validateProjectionFields unexpected error: %v", err)
+	}
+}
+
+func TestValidateProjectionFields_MapValueMessageMismatch(t *testing.T) {
+	f := loadTestProto(t, "projection_map_value_mismatch.proto")
+	p := newModule()
+
+	agg := findMessage(f, "Basket")
+	proj := findMessage(f, "BasketView")
+	if agg == nil || proj == nil {
+		t.Fatal("messages not found")
+	}
+
+	err := p.validateProjectionFields(proj, agg)
+	if err == nil {
+		t.Fatal("expected error for map value message mismatch, got nil")
+	}
+	if !strings.Contains(err.Error(), "map value message mismatch") {
+		t.Errorf("error should mention map value message mismatch, got: %v", err)
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType
