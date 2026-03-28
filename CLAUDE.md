@@ -30,6 +30,8 @@ The framework's central types:
 - **`Store`** — persistence interface (`Save`/`Load`). Optional `AggregateStore` for materialized views, `SnapshotTailStore` for optimized snapshot loading.
 - **`Serializer`** — marshals events to/from `Record` protos.
 - **`Aggregate`**, **`Commander`**, **`Event`** — domain interfaces implemented by generated code.
+- **`PostApplyHook`** — optional interface (`AfterOn()`) for derived field computation after event replay/materialization.
+- **`Projector`** — optional interface (`Projections()`) for materialized projection views, generated for aggregates with projection messages.
 - **`Request`/`Response`/`HandlerFunc`** — provider-agnostic HTTP abstractions for generated handlers.
 
 ### Code Generation (`cmd/protoc-gen-protosource/`)
@@ -38,7 +40,7 @@ The buf plugin reads proto annotations and generates four files per domain packa
 - `*.protosource.pb.go` — aggregate `On` method, command builders, event emission, version validation, authorization, snapshot support (from `protosource.gotext`)
 - `*.protosource.lambda.pb.go` — per-command HTTP handlers, Get, and History endpoints (from `lambda.gotext`)
 - `*.protosource.wire.pb.go` — Wire dependency injection provider sets (from `wire.gotext`)
-- `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`)
+- `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); generates a no-op stub when commands have non-scalar fields
 
 The plugin logic is in `protosourceify.go`; templates are in `content/`.
 
