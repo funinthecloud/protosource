@@ -86,6 +86,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"importPath":             p.importPath,
 		"cliCommandFields":       CLICommandFields,
 		"cliParseExpr":           cliParseExpr,
+		"fileSupportsCLI":        p.fileSupportsCLI,
 		"add":                    func(a, b int) int { return a + b },
 	}
 }
@@ -286,23 +287,14 @@ func (p *ProtosourceModule) eventSetsState(m pgs.Message) string {
 
 // eventCollectionMapping returns the CollectionMapping annotation for an event,
 // or nil if the event does not have a collection annotation at all.
-// Note: a non-nil return does NOT mean the mapping is valid — call
-// validateCollectionMapping to check for required fields like target.
+// A non-nil return means the annotation is present (possibly misconfigured) —
+// call validateCollectionMapping to check required fields like target and action.
 func (p *ProtosourceModule) eventCollectionMapping(m pgs.Message) *optionsv1.CollectionMapping {
 	opts := p.messageOptions(m)
 	if opts == nil || opts.GetEvent() == nil {
 		return nil
 	}
-	cm := opts.GetEvent().GetCollection()
-	if cm == nil {
-		return nil
-	}
-	// A CollectionMapping with all zero values is indistinguishable from
-	// "not set" in proto3. Treat it as absent.
-	if cm.GetTarget() == "" && cm.GetAction() == optionsv1.CollectionAction_COLLECTION_ACTION_UNSPECIFIED && cm.GetKeyField() == "" {
-		return nil
-	}
-	return cm
+	return opts.GetEvent().GetCollection()
 }
 
 // eventCollectionSourceField finds the event field whose embedded message type
@@ -427,6 +419,12 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 	// Target is required whenever a collection annotation is present.
 	if cm.GetTarget() == "" {
 		return fmt.Errorf("event %s: collection annotation present but target is empty",
+			evt.Name())
+	}
+
+	// Action is required.
+	if cm.GetAction() == optionsv1.CollectionAction_COLLECTION_ACTION_UNSPECIFIED {
+		return fmt.Errorf("event %s: collection annotation present but action is unspecified (must be ADD or REMOVE)",
 			evt.Name())
 	}
 
@@ -1007,12 +1005,7 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		}
 	}
 
-	supportsCLI := p.fileSupportsCLI(f)
 	for _, v := range p.tpls {
-		// Skip CLI generation for files with complex command fields.
-		if v.Name() == "cli.gotext" && !supportsCLI {
-			continue
-		}
 		outPath := p.outputPathForTemplate(f, v)
 		p.AddGeneratorTemplateFile(outPath, v, f)
 	}
