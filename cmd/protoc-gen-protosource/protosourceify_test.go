@@ -498,7 +498,7 @@ func TestValidateCollectionMapping_MissingKeyField(t *testing.T) {
 	p := newModule()
 
 	agg := findMessage(f, "Basket")
-	evt := findMessage(f, "WidgetRemoved")
+	evt := findMessage(f, "WidgetAdded")
 	if agg == nil || evt == nil {
 		t.Fatal("messages not found")
 	}

@@ -125,34 +125,22 @@ func (aggregate *Order) On(event protosource.Event) error {
 		aggregate.State = State_STATE_DRAFT
 	case *ItemAdded:
 		aggregate.setModified(e)
-		aggregate.Items = append(aggregate.Items, e.GetItem())
+		if aggregate.Items == nil {
+			aggregate.Items = make(map[string]*LineItem)
+		}
+		aggregate.Items[e.GetItem().GetItemId()] = e.GetItem()
 	case *ItemRemoved:
 		aggregate.setModified(e)
-		{
-			key := e.GetItemId()
-			filtered := make([]*LineItem, 0, len(aggregate.Items))
-			for _, item := range aggregate.Items {
-				if item.GetItemId() != key {
-					filtered = append(filtered, item)
-				}
-			}
-			aggregate.Items = filtered
-		}
+		delete(aggregate.Items, e.GetItemId())
 	case *TagAdded:
 		aggregate.setModified(e)
-		aggregate.Tags = append(aggregate.Tags, e.GetTag())
+		if aggregate.Tags == nil {
+			aggregate.Tags = make(map[string]*Tag)
+		}
+		aggregate.Tags[e.GetTag().GetKey()] = e.GetTag()
 	case *TagRemoved:
 		aggregate.setModified(e)
-		{
-			key := e.GetKey()
-			filtered := make([]*Tag, 0, len(aggregate.Tags))
-			for _, item := range aggregate.Tags {
-				if item.GetKey() != key {
-					filtered = append(filtered, item)
-				}
-			}
-			aggregate.Tags = filtered
-		}
+		delete(aggregate.Tags, e.GetKey())
 	case *ShippingSet:
 		aggregate.setModified(e)
 		aggregate.ShippingAddress = e.GetShippingAddress()

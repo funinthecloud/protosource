@@ -42,7 +42,7 @@ message Created {
 // This event targets "widgets" but no such field exists on the aggregate.
 message WidgetAdded {
   option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
-    collection: { target: "widgets", action: COLLECTION_ACTION_ADD }
+    collection: { target: "widgets", action: COLLECTION_ACTION_ADD, key_field: "widget_id" }
   };
   string id      = 1;
   int64  version = 2;

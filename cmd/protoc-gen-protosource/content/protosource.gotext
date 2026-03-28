@@ -152,7 +152,12 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ if eq $ca "ADD" -}}
 {{ $srcField := eventCollectionSourceField $evt $message -}}
 {{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
-        aggregate.{{ $targetGoName }} = append(aggregate.{{ $targetGoName }}, e.Get{{ name $srcField }}())
+{{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
+{{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
+        if aggregate.{{ $targetGoName }} == nil {
+            aggregate.{{ $targetGoName }} = make(map[string]*{{ $elemType }})
+        }
+        aggregate.{{ $targetGoName }}[e.Get{{ name $srcField }}().Get{{ $keyGoName }}()] = e.Get{{ name $srcField }}()
 {{ end -}}
 {{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
@@ -169,22 +174,16 @@ func (aggregate *{{$aggregate}}) On(event protosource.Event) error {
 {{ if eq $ca "ADD" -}}
 {{ $srcField := eventCollectionSourceField $evt $message -}}
 {{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
-        aggregate.{{ $targetGoName }} = append(aggregate.{{ $targetGoName }}, e.Get{{ name $srcField }}())
+{{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
+{{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
+        if aggregate.{{ $targetGoName }} == nil {
+            aggregate.{{ $targetGoName }} = make(map[string]*{{ $elemType }})
+        }
+        aggregate.{{ $targetGoName }}[e.Get{{ name $srcField }}().Get{{ $keyGoName }}()] = e.Get{{ name $srcField }}()
 {{ else if eq $ca "REMOVE" -}}
 {{ $targetGoName := aggregateFieldGoName (eventCollectionTarget $evt) $message -}}
 {{ $keyEvtGoName := eventFieldGoName (eventCollectionKeyField $evt) $evt -}}
-{{ $elemType := collectionElementTypeName (eventCollectionTarget $evt) $message -}}
-{{ $keyGoName := collectionKeyFieldGoName (eventCollectionKeyField $evt) (eventCollectionTarget $evt) $message -}}
-        {
-            key := e.Get{{ $keyEvtGoName }}()
-            filtered := make([]*{{ $elemType }}, 0, len(aggregate.{{ $targetGoName }}))
-            for _, item := range aggregate.{{ $targetGoName }} {
-                if item.Get{{ $keyGoName }}() != key {
-                    filtered = append(filtered, item)
-                }
-            }
-            aggregate.{{ $targetGoName }} = filtered
-        }
+        delete(aggregate.{{ $targetGoName }}, e.Get{{ $keyEvtGoName }}())
 {{ else -}}
 {{ range $field := $evt.Fields | excludeInternal -}}
 {{ if not (eq (printf "%s" $field.Name) "actor") }}{{ if aggregateHasField $field $message }}        aggregate.{{ name $field }} = e.Get{{ name $field }}()

@@ -15,19 +15,19 @@ enum State {
 
 message Basket {
   option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {};
-  string          id        = 1;
-  int64           version   = 2;
-  int64           create_at = 3;
-  string          create_by = 4;
-  int64           modify_at = 5;
-  string          modify_by = 6;
-  State           state     = 7;
-  repeated Widget widgets   = 8;
+  string                id        = 1;
+  int64                 version   = 2;
+  int64                 create_at = 3;
+  string                create_by = 4;
+  int64                 modify_at = 5;
+  string                modify_by = 6;
+  State                 state     = 7;
+  map<string, Widget>   widgets   = 8;
 }
 
 message Widget {
-  string widget_id   = 1;
-  string label       = 2;
+  string widget_id    = 1;
+  string label        = 2;
   int64  weight_grams = 3;
 }
 
@@ -74,7 +74,7 @@ message Created {
 
 message WidgetAdded {
   option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
-    collection: { target: "widgets", action: COLLECTION_ACTION_ADD }
+    collection: { target: "widgets", action: COLLECTION_ACTION_ADD, key_field: "widget_id" }
   };
   string id      = 1;
   int64  version = 2;

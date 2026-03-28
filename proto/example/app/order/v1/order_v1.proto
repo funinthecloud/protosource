@@ -37,15 +37,15 @@ message Order {
       [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
         attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ]
       }];
-  string            create_by        = 7;
-  int64             modify_at        = 8;
-  string            modify_by        = 9;
-  int64             total_cents      = 10;
-  int32             item_count       = 11;
-  string            shipping_address = 12;
-  int64             placed_at        = 13;
-  repeated LineItem items            = 14;
-  repeated Tag      tags             = 15;
+  string                create_by        = 7;
+  int64                 modify_at        = 8;
+  string                modify_by        = 9;
+  int64                 total_cents      = 10;
+  int32                 item_count       = 11;
+  string                shipping_address = 12;
+  int64                 placed_at        = 13;
+  map<string, LineItem> items            = 14;
+  map<string, Tag>      tags             = 15;
 }
 
 // LineItem is a value type representing a single item in an order.
@@ -178,7 +178,7 @@ message Created {
 message ItemAdded {
   option (funinthecloud.protosource.options.v1.protosource_message_type)
       .event = {
-    collection: { target: "items", action: COLLECTION_ACTION_ADD }
+    collection: { target: "items", action: COLLECTION_ACTION_ADD, key_field: "item_id" }
   };
   string   id      = 1;
   int64    version = 2;
@@ -202,7 +202,7 @@ message ItemRemoved {
 message TagAdded {
   option (funinthecloud.protosource.options.v1.protosource_message_type)
       .event = {
-    collection: { target: "tags", action: COLLECTION_ACTION_ADD }
+    collection: { target: "tags", action: COLLECTION_ACTION_ADD, key_field: "key" }
   };
   string id      = 1;
   int64  version = 2;

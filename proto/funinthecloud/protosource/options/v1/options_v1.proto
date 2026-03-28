@@ -122,19 +122,22 @@ enum CollectionAction {
   COLLECTION_ACTION_REMOVE      = 2;  // remove element by key field
 }
 
-// CollectionMapping declares that an event modifies a collection (repeated
-// message field) on the aggregate rather than copying scalar fields.
+// CollectionMapping declares that an event modifies a collection (map field)
+// on the aggregate rather than copying scalar fields. Collections use
+// map<string, Message> on the aggregate — the map key is a string field on
+// the element message identified by key_field.
 message CollectionMapping {
-  // The name of the repeated field on the aggregate (e.g. "items").
+  // The name of the map field on the aggregate (e.g. "items").
   string target = 1;
 
   // What this event does to the collection.
   CollectionAction action = 2;
 
-  // For REMOVE: required. The field name on the collection element used as
-  // the key (e.g. "item_id"). The event must have a field with the same
-  // name and type whose value identifies which element to remove.
-  // For ADD: unused. Reserved for future idempotent-add behavior.
+  // Required for both ADD and REMOVE. The string field on the collection
+  // element used as the map key (e.g. "item_id"). For ADD, the key is
+  // extracted from the embedded element to insert into the map (re-adding
+  // the same key overwrites — idempotent). For REMOVE, the event must have
+  // a field with the same name whose value identifies which element to delete.
   string key_field = 3;
 }
 

@@ -98,8 +98,8 @@ type Order struct {
 	ItemCount       int32                  `protobuf:"varint,11,opt,name=item_count,json=itemCount,proto3" json:"item_count,omitempty"`
 	ShippingAddress string                 `protobuf:"bytes,12,opt,name=shipping_address,json=shippingAddress,proto3" json:"shipping_address,omitempty"`
 	PlacedAt        int64                  `protobuf:"varint,13,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
-	Items           []*LineItem            `protobuf:"bytes,14,rep,name=items,proto3" json:"items,omitempty"`
-	Tags            []*Tag                 `protobuf:"bytes,15,rep,name=tags,proto3" json:"tags,omitempty"`
+	Items           map[string]*LineItem   `protobuf:"bytes,14,rep,name=items,proto3" json:"items,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Tags            map[string]*Tag        `protobuf:"bytes,15,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -225,14 +225,14 @@ func (x *Order) GetPlacedAt() int64 {
 	return 0
 }
 
-func (x *Order) GetItems() []*LineItem {
+func (x *Order) GetItems() map[string]*LineItem {
 	if x != nil {
 		return x.Items
 	}
 	return nil
 }
 
-func (x *Order) GetTags() []*Tag {
+func (x *Order) GetTags() map[string]*Tag {
 	if x != nil {
 		return x.Tags
 	}
@@ -1649,7 +1649,7 @@ var File_example_app_order_v1_order_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\n" +
-	"#example/app/order/v1/order_v1.proto\x12\x14example.app.order.v1\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xa9\x04\n" +
+	"#example/app/order/v1/order_v1.proto\x12\x14example.app.order.v1\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xeb\x05\n" +
 	"\x05Order\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x121\n" +
@@ -1670,9 +1670,16 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\n" +
 	"item_count\x18\v \x01(\x05R\titemCount\x12)\n" +
 	"\x10shipping_address\x18\f \x01(\tR\x0fshippingAddress\x12\x1b\n" +
-	"\tplaced_at\x18\r \x01(\x03R\bplacedAt\x124\n" +
-	"\x05items\x18\x0e \x03(\v2\x1e.example.app.order.v1.LineItemR\x05items\x12-\n" +
-	"\x04tags\x18\x0f \x03(\v2\x19.example.app.order.v1.TagR\x04tags:\x06ʬ\x1d\x02\x1a\x00\"\x82\x01\n" +
+	"\tplaced_at\x18\r \x01(\x03R\bplacedAt\x12<\n" +
+	"\x05items\x18\x0e \x03(\v2&.example.app.order.v1.Order.ItemsEntryR\x05items\x129\n" +
+	"\x04tags\x18\x0f \x03(\v2%.example.app.order.v1.Order.TagsEntryR\x04tags\x1aX\n" +
+	"\n" +
+	"ItemsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
+	"\x05value\x18\x02 \x01(\v2\x1e.example.app.order.v1.LineItemR\x05value:\x028\x01\x1aR\n" +
+	"\tTagsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12/\n" +
+	"\x05value\x18\x02 \x01(\v2\x19.example.app.order.v1.TagR\x05value:\x028\x01:\x06ʬ\x1d\x02\x1a\x00\"\x82\x01\n" +
 	"\bLineItem\x12\x17\n" +
 	"\aitem_id\x18\x01 \x01(\tR\x06itemId\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12\x1f\n" +
@@ -1742,29 +1749,28 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x1f\n" +
 	"\vcustomer_id\x18\x05 \x01(\tR\n" +
 	"customerId\x12#\n" +
-	"\rcustomer_name\x18\x06 \x01(\tR\fcustomerName:\x13ʬ\x1d\x0f\x12\r\x12\vSTATE_DRAFT\"\xa2\x01\n" +
+	"\rcustomer_name\x18\x06 \x01(\tR\fcustomerName:\x13ʬ\x1d\x0f\x12\r\x12\vSTATE_DRAFT\"\xab\x01\n" +
 	"\tItemAdded\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x122\n" +
-	"\x04item\x18\x05 \x01(\v2\x1e.example.app.order.v1.LineItemR\x04item:\x11ʬ\x1d\r\x12\v\x1a\t\n" +
-	"\x05items\x10\x01\"\x92\x01\n" +
+	"\x04item\x18\x05 \x01(\v2\x1e.example.app.order.v1.LineItemR\x04item:\x1aʬ\x1d\x16\x12\x14\x1a\x12\n" +
+	"\x05items\x10\x01\x1a\aitem_id\"\x92\x01\n" +
 	"\vItemRemoved\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x17\n" +
 	"\aitem_id\x18\x05 \x01(\tR\x06itemId:\x1aʬ\x1d\x16\x12\x14\x1a\x12\n" +
-	"\x05items\x10\x02\x1a\aitem_id\"\x99\x01\n" +
+	"\x05items\x10\x02\x1a\aitem_id\"\x9e\x01\n" +
 	"\bTagAdded\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12+\n" +
-	"\x03tag\x18\x05 \x01(\v2\x19.example.app.order.v1.TagR\x03tag:\x10ʬ\x1d\f\x12\n" +
-	"\x1a\b\n" +
-	"\x04tags\x10\x01\"\x85\x01\n" +
+	"\x03tag\x18\x05 \x01(\v2\x19.example.app.order.v1.TagR\x03tag:\x15ʬ\x1d\x11\x12\x0f\x1a\r\n" +
+	"\x04tags\x10\x01\x1a\x03key\"\x85\x01\n" +
 	"\n" +
 	"TagRemoved\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
@@ -1839,7 +1845,7 @@ func file_example_app_order_v1_order_v1_proto_rawDescGZIP() []byte {
 }
 
 var file_example_app_order_v1_order_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_example_app_order_v1_order_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
+var file_example_app_order_v1_order_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_example_app_order_v1_order_v1_proto_goTypes = []any{
 	(State)(0),           // 0: example.app.order.v1.State
 	(*Order)(nil),        // 1: example.app.order.v1.Order
@@ -1863,22 +1869,26 @@ var file_example_app_order_v1_order_v1_proto_goTypes = []any{
 	(*Cancelled)(nil),    // 19: example.app.order.v1.Cancelled
 	(*OrderSummary)(nil), // 20: example.app.order.v1.OrderSummary
 	(*Snapshot)(nil),     // 21: example.app.order.v1.Snapshot
+	nil,                  // 22: example.app.order.v1.Order.ItemsEntry
+	nil,                  // 23: example.app.order.v1.Order.TagsEntry
 }
 var file_example_app_order_v1_order_v1_proto_depIdxs = []int32{
-	0, // 0: example.app.order.v1.Order.state:type_name -> example.app.order.v1.State
-	2, // 1: example.app.order.v1.Order.items:type_name -> example.app.order.v1.LineItem
-	3, // 2: example.app.order.v1.Order.tags:type_name -> example.app.order.v1.Tag
-	2, // 3: example.app.order.v1.AddItem.item:type_name -> example.app.order.v1.LineItem
-	3, // 4: example.app.order.v1.AddTag.tag:type_name -> example.app.order.v1.Tag
-	2, // 5: example.app.order.v1.ItemAdded.item:type_name -> example.app.order.v1.LineItem
-	3, // 6: example.app.order.v1.TagAdded.tag:type_name -> example.app.order.v1.Tag
-	0, // 7: example.app.order.v1.OrderSummary.state:type_name -> example.app.order.v1.State
-	1, // 8: example.app.order.v1.Snapshot.snapshot:type_name -> example.app.order.v1.Order
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	0,  // 0: example.app.order.v1.Order.state:type_name -> example.app.order.v1.State
+	22, // 1: example.app.order.v1.Order.items:type_name -> example.app.order.v1.Order.ItemsEntry
+	23, // 2: example.app.order.v1.Order.tags:type_name -> example.app.order.v1.Order.TagsEntry
+	2,  // 3: example.app.order.v1.AddItem.item:type_name -> example.app.order.v1.LineItem
+	3,  // 4: example.app.order.v1.AddTag.tag:type_name -> example.app.order.v1.Tag
+	2,  // 5: example.app.order.v1.ItemAdded.item:type_name -> example.app.order.v1.LineItem
+	3,  // 6: example.app.order.v1.TagAdded.tag:type_name -> example.app.order.v1.Tag
+	0,  // 7: example.app.order.v1.OrderSummary.state:type_name -> example.app.order.v1.State
+	1,  // 8: example.app.order.v1.Snapshot.snapshot:type_name -> example.app.order.v1.Order
+	2,  // 9: example.app.order.v1.Order.ItemsEntry.value:type_name -> example.app.order.v1.LineItem
+	3,  // 10: example.app.order.v1.Order.TagsEntry.value:type_name -> example.app.order.v1.Tag
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_example_app_order_v1_order_v1_proto_init() }
@@ -1892,7 +1902,7 @@ func file_example_app_order_v1_order_v1_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_example_app_order_v1_order_v1_proto_rawDesc), len(file_example_app_order_v1_order_v1_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   21,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
