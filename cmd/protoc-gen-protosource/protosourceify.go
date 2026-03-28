@@ -532,14 +532,15 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 				evt.Name(), cm.GetKeyField(), elemMsg.Name(),
 				elemKeyField.Type().ProtoType(), evtKeyField.Type().ProtoType())
 		}
-		// Key fields must be scalar (not repeated, map, message, or enum) —
-		// the generated != comparison only works on comparable scalar types.
-		if elemKeyField.Type().IsRepeated() || elemKeyField.Type().IsMap() || elemKeyField.Type().IsEmbed() || elemKeyField.Type().IsEnum() {
-			return fmt.Errorf("event %s: collection REMOVE key_field %q on element %s must be a scalar type, got %s",
+		// Key fields must be Go-comparable scalars — the generated On() uses
+		// != to filter. Reject repeated, map, message, enum, and bytes
+		// (bytes maps to []byte in Go which is not comparable with !=).
+		if !isComparableKeyField(elemKeyField) {
+			return fmt.Errorf("event %s: collection REMOVE key_field %q on element %s must be a comparable scalar (not bytes, repeated, map, message, or enum), got %s",
 				evt.Name(), cm.GetKeyField(), elemMsg.Name(), elemKeyField.Type().ProtoType())
 		}
-		if evtKeyField.Type().IsRepeated() || evtKeyField.Type().IsMap() || evtKeyField.Type().IsEmbed() || evtKeyField.Type().IsEnum() {
-			return fmt.Errorf("event %s: collection REMOVE field %q must be a scalar type, got %s",
+		if !isComparableKeyField(evtKeyField) {
+			return fmt.Errorf("event %s: collection REMOVE field %q must be a comparable scalar (not bytes, repeated, map, message, or enum), got %s",
 				evt.Name(), cm.GetKeyField(), evtKeyField.Type().ProtoType())
 		}
 		// Collection events must not have extra domain fields.
@@ -553,6 +554,19 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 	}
 
 	return nil
+}
+
+// isComparableKeyField returns true if the field is a scalar type that supports
+// Go's != operator. Rejects repeated, map, message, enum, and bytes ([]byte
+// is not comparable in Go).
+func isComparableKeyField(f pgs.Field) bool {
+	if f.Type().IsRepeated() || f.Type().IsMap() || f.Type().IsEmbed() || f.Type().IsEnum() {
+		return false
+	}
+	if f.Type().ProtoType() == pgs.BytesT {
+		return false
+	}
+	return true
 }
 
 // fileSupportsCLI returns true if all commands in the file have only scalar
