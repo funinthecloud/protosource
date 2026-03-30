@@ -421,7 +421,7 @@ func (r *Repository) Save(ctx context.Context, events ...Event) error {
 	}
 
 	if ttler, ok := r.new().(EventTTLer); ok && ttler.EventTTLSeconds() > 0 {
-		expiry := time.Now().Add(time.Duration(ttler.EventTTLSeconds()) * time.Second).Unix()
+		expiry := time.Now().Unix() + ttler.EventTTLSeconds()
 		for _, record := range h.GetRecords() {
 			record.Ttl = expiry
 		}

@@ -575,6 +575,7 @@ func TestRecordTTL_TakesPrecedenceOverStoreTTL(t *testing.T) {
 	require.NoError(t, store.Save(ctx, "agg-1", rec))
 
 	table := mock.tables[DefaultEventsTable]
+	require.NotEmpty(t, table, "expected items in table after Save")
 	for _, item := range table {
 		ttlVal, ok := item["t"].(*types.AttributeValueMemberN)
 		require.True(t, ok, "TTL attribute should be present")
@@ -592,6 +593,7 @@ func TestRecordTTL_UsedWhenNoStoreTTL(t *testing.T) {
 	require.NoError(t, store.Save(ctx, "agg-1", rec))
 
 	table := mock.tables[DefaultEventsTable]
+	require.NotEmpty(t, table, "expected items in table after Save")
 	for _, item := range table {
 		ttlVal, ok := item["t"].(*types.AttributeValueMemberN)
 		require.True(t, ok, "TTL attribute should be present")
