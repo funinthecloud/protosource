@@ -165,8 +165,8 @@ func TestTTL_SetsCorrectEpoch(t *testing.T) {
 	require.NoError(t, err)
 	after := time.Now().Add(1 * time.Hour).Unix()
 
-	assert.GreaterOrEqual(t, od.GetTtl(), before)
-	assert.LessOrEqual(t, od.GetTtl(), after)
+	assert.GreaterOrEqual(t, od.GetT(), before)
+	assert.LessOrEqual(t, od.GetT(), after)
 }
 
 func TestTTL_NoTTL(t *testing.T) {
@@ -174,5 +174,5 @@ func TestTTL_NoTTL(t *testing.T) {
 
 	od, err := NewOpaqueDataFromProto(msg)
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), od.GetTtl())
+	assert.Equal(t, int64(0), od.GetT())
 }

@@ -88,7 +88,7 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 
 	exprNames := map[string]string{
 		"#pk":  pkAttr,
-		"#ttl": "ttl",
+		"#t": "t",
 	}
 	exprValues := map[string]types.AttributeValue{
 		":pk":   &types.AttributeValueMemberS{Value: pkValue},
@@ -123,7 +123,7 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 		}
 	}
 
-	filterExpr := "attribute_not_exists(#ttl) OR #ttl = :zero OR #ttl > :now"
+	filterExpr := "attribute_not_exists(#t) OR #t = :zero OR #t > :now"
 
 	input := &dynamodb.QueryInput{
 		TableName:                 &s.tableName,
@@ -222,8 +222,8 @@ func GetItem(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 	if body := od.GetBody(); len(body) > 0 {
 		item["body"] = &types.AttributeValueMemberB{Value: body}
 	}
-	if ttl := od.GetTtl(); ttl != 0 {
-		item["ttl"] = &types.AttributeValueMemberN{Value: strconv.FormatInt(ttl, 10)}
+	if ttl := od.GetT(); ttl != 0 {
+		item["t"] = &types.AttributeValueMemberN{Value: strconv.FormatInt(ttl, 10)}
 	}
 	if v := od.GetVersion(); v != 0 {
 		item["version"] = &types.AttributeValueMemberN{Value: strconv.FormatInt(v, 10)}

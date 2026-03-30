@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -14,9 +15,10 @@ import (
 const usage = `Usage: testdynamo-setup <command>
 
 Commands:
-  create    Create the DynamoDB tables (events + aggregates)
-  delete    Delete the DynamoDB tables
-  status    Check if the tables exist and show their status
+  create              Create the DynamoDB tables (events + aggregates)
+  delete              Delete the DynamoDB tables (requires disable-protection first)
+  disable-protection  Disable deletion protection on both tables
+  status              Check table status, TTL, PITR, and deletion protection
 
 Environment variables:
   EVENTS_TABLE       Events table name        (default: events)
@@ -52,9 +54,17 @@ func main() {
 	case "create":
 		createEventsTable(ctx, client, eventsTable)
 		createAggregatesTable(ctx, client, aggregatesTable)
+		waitForActive(ctx, client, eventsTable, aggregatesTable)
+		enablePITR(ctx, client, eventsTable)
+		enablePITR(ctx, client, aggregatesTable)
+		enableTTL(ctx, client, aggregatesTable, "t")
 	case "delete":
 		for _, table := range []string{eventsTable, aggregatesTable} {
 			deleteTable(ctx, client, table)
+		}
+	case "disable-protection":
+		for _, table := range []string{eventsTable, aggregatesTable} {
+			disableProtection(ctx, client, table)
 		}
 	case "status":
 		for _, table := range []string{eventsTable, aggregatesTable} {
@@ -78,13 +88,14 @@ func createEventsTable(ctx context.Context, client *dynamodb.Client, tableName s
 			{AttributeName: aws.String("a"), AttributeType: types.ScalarAttributeTypeS},
 			{AttributeName: aws.String("v"), AttributeType: types.ScalarAttributeTypeN},
 		},
-		BillingMode: types.BillingModePayPerRequest,
+		BillingMode:               types.BillingModePayPerRequest,
+		DeletionProtectionEnabled: aws.Bool(true),
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s: error: %v\n", tableName, err)
 		return
 	}
-	fmt.Printf("  %s: created (a/v)\n", tableName)
+	fmt.Printf("  %s: created (a/v, deletion protection enabled)\n", tableName)
 }
 
 // createAggregatesTable creates the aggregates table with pk/sk (S/S)
@@ -122,15 +133,74 @@ func createAggregatesTable(ctx context.Context, client *dynamodb.Client, tableNa
 			{AttributeName: aws.String("pk"), KeyType: types.KeyTypeHash},
 			{AttributeName: aws.String("sk"), KeyType: types.KeyTypeRange},
 		},
-		AttributeDefinitions:   attrDefs,
-		BillingMode:            types.BillingModePayPerRequest,
-		GlobalSecondaryIndexes: gsis,
+		AttributeDefinitions:      attrDefs,
+		BillingMode:               types.BillingModePayPerRequest,
+		GlobalSecondaryIndexes:    gsis,
+		DeletionProtectionEnabled: aws.Bool(true),
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "  %s: error: %v\n", tableName, err)
 		return
 	}
-	fmt.Printf("  %s: created (pk/sk + %d GSIs)\n", tableName, gsiCount)
+	fmt.Printf("  %s: created (pk/sk + %d GSIs, deletion protection enabled)\n", tableName, gsiCount)
+}
+
+// waitForActive polls until all tables are ACTIVE.
+func waitForActive(ctx context.Context, client *dynamodb.Client, tables ...string) {
+	waiter := dynamodb.NewTableExistsWaiter(client)
+	for _, table := range tables {
+		fmt.Printf("  %s: waiting for ACTIVE...\n", table)
+		err := waiter.Wait(ctx, &dynamodb.DescribeTableInput{
+			TableName: &table,
+		}, 2*time.Minute)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  %s: waiter error: %v\n", table, err)
+		}
+	}
+}
+
+// enablePITR enables point-in-time recovery on a table.
+func enablePITR(ctx context.Context, client *dynamodb.Client, tableName string) {
+	_, err := client.UpdateContinuousBackups(ctx, &dynamodb.UpdateContinuousBackupsInput{
+		TableName: &tableName,
+		PointInTimeRecoverySpecification: &types.PointInTimeRecoverySpecification{
+			PointInTimeRecoveryEnabled: aws.Bool(true),
+		},
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s: PITR error: %v\n", tableName, err)
+		return
+	}
+	fmt.Printf("  %s: PITR enabled\n", tableName)
+}
+
+// enableTTL enables TTL on a table for the given attribute.
+func enableTTL(ctx context.Context, client *dynamodb.Client, tableName, attr string) {
+	_, err := client.UpdateTimeToLive(ctx, &dynamodb.UpdateTimeToLiveInput{
+		TableName: &tableName,
+		TimeToLiveSpecification: &types.TimeToLiveSpecification{
+			Enabled:       aws.Bool(true),
+			AttributeName: &attr,
+		},
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s: TTL error: %v\n", tableName, err)
+		return
+	}
+	fmt.Printf("  %s: TTL enabled (attribute: %s)\n", tableName, attr)
+}
+
+// disableProtection disables deletion protection on a table.
+func disableProtection(ctx context.Context, client *dynamodb.Client, tableName string) {
+	_, err := client.UpdateTable(ctx, &dynamodb.UpdateTableInput{
+		TableName:                 &tableName,
+		DeletionProtectionEnabled: aws.Bool(false),
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s: error: %v\n", tableName, err)
+		return
+	}
+	fmt.Printf("  %s: deletion protection disabled\n", tableName)
 }
 
 func deleteTable(ctx context.Context, client *dynamodb.Client, tableName string) {
@@ -152,12 +222,52 @@ func describeTable(ctx context.Context, client *dynamodb.Client, tableName strin
 		fmt.Fprintf(os.Stderr, "  %s: not found or error: %v\n", tableName, err)
 		return
 	}
-	t := resp.Table
+	tbl := resp.Table
 	gsiInfo := ""
-	if len(t.GlobalSecondaryIndexes) > 0 {
-		gsiInfo = fmt.Sprintf(" gsis=%d", len(t.GlobalSecondaryIndexes))
+	if len(tbl.GlobalSecondaryIndexes) > 0 {
+		gsiInfo = fmt.Sprintf(" gsis=%d", len(tbl.GlobalSecondaryIndexes))
 	}
-	fmt.Printf("  %s: status=%s items=%d%s\n", tableName, t.TableStatus, aws.ToInt64(t.ItemCount), gsiInfo)
+	protection := "off"
+	if tbl.DeletionProtectionEnabled != nil && *tbl.DeletionProtectionEnabled {
+		protection = "on"
+	}
+	fmt.Printf("  %s: status=%s items=%d%s deletion_protection=%s\n",
+		tableName, tbl.TableStatus, aws.ToInt64(tbl.ItemCount), gsiInfo, protection)
+
+	// TTL
+	ttlResp, err := client.DescribeTimeToLive(ctx, &dynamodb.DescribeTimeToLiveInput{
+		TableName: &tableName,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s: TTL status error: %v\n", tableName, err)
+	} else {
+		ttl := ttlResp.TimeToLiveDescription
+		fmt.Printf("  %s: ttl=%s", tableName, ttl.TimeToLiveStatus)
+		if ttl.AttributeName != nil {
+			fmt.Printf(" (attribute: %s)", *ttl.AttributeName)
+		}
+		fmt.Println()
+	}
+
+	// PITR
+	backupResp, err := client.DescribeContinuousBackups(ctx, &dynamodb.DescribeContinuousBackupsInput{
+		TableName: &tableName,
+	})
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  %s: PITR status error: %v\n", tableName, err)
+	} else {
+		pitr := backupResp.ContinuousBackupsDescription.PointInTimeRecoveryDescription
+		if pitr != nil {
+			fmt.Printf("  %s: pitr=%s", tableName, pitr.PointInTimeRecoveryStatus)
+			if pitr.EarliestRestorableDateTime != nil {
+				fmt.Printf(" (earliest: %s)", pitr.EarliestRestorableDateTime.Format(time.RFC3339))
+			}
+			if pitr.LatestRestorableDateTime != nil {
+				fmt.Printf(" (latest: %s)", pitr.LatestRestorableDateTime.Format(time.RFC3339))
+			}
+			fmt.Println()
+		}
+	}
 }
 
 func envOrDefault(key, fallback string) string {
