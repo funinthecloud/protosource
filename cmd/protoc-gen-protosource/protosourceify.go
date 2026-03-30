@@ -55,6 +55,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"commandAllowedStates":   p.commandAllowedStates,
 		"stateEnumName":          p.stateEnumName,
 		"snapshotEveryN":         p.snapshotEveryN,
+		"eventTTLSeconds":        p.eventTTLSeconds,
 		"eventMessage":           p.eventMessage,
 		"eventSetsState":              p.eventSetsState,
 		"eventCollectionMapping":      p.eventCollectionMapping,
@@ -271,6 +272,19 @@ func (p *ProtosourceModule) snapshotEveryN(f pgs.File) uint32 {
 			return 0
 		}
 		return snap.GetEveryNEvents()
+	}
+	return 0
+}
+
+// eventTTLSeconds returns the event_ttl_seconds value from the aggregate message
+// in the file, or 0 if no TTL is configured.
+func (p *ProtosourceModule) eventTTLSeconds(f pgs.File) int64 {
+	for _, m := range f.Messages() {
+		opts := p.messageOptions(m)
+		if opts == nil || opts.GetAggregate() == nil {
+			continue
+		}
+		return opts.GetAggregate().GetEventTtlSeconds()
 	}
 	return 0
 }

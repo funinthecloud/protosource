@@ -420,6 +420,13 @@ func (r *Repository) Save(ctx context.Context, events ...Event) error {
 		h.Records = append(h.Records, record)
 	}
 
+	if ttler, ok := r.new().(EventTTLer); ok && ttler.EventTTLSeconds() > 0 {
+		expiry := time.Now().Unix() + ttler.EventTTLSeconds()
+		for _, record := range h.GetRecords() {
+			record.Ttl = expiry
+		}
+	}
+
 	return r.store.Save(ctx, aggregateID, h.GetRecords()...)
 }
 
@@ -544,6 +551,13 @@ type CommandAuthorizer interface {
 // abort the command.
 type CommandEvaluator interface {
 	Evaluate(aggregate Aggregate) error
+}
+
+// EventTTLer is an optional interface that aggregates implement when they have
+// an event_ttl_seconds annotation. The Repository uses this to stamp records
+// with a TTL before passing them to the Store.
+type EventTTLer interface {
+	EventTTLSeconds() int64
 }
 
 // Snapshoter interface enables aggregates to create snapshots at specific versions.

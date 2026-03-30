@@ -57,6 +57,7 @@ func main() {
 		waitForActive(ctx, client, eventsTable, aggregatesTable)
 		enablePITR(ctx, client, eventsTable)
 		enablePITR(ctx, client, aggregatesTable)
+		enableTTL(ctx, client, eventsTable, "t")
 		enableTTL(ctx, client, aggregatesTable, "t")
 	case "delete":
 		for _, table := range []string{eventsTable, aggregatesTable} {

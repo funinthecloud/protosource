@@ -21,6 +21,7 @@ enum State {
 //  its name must match the first part of the package.
 message Test {
   option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+    event_ttl_seconds: 86400
   };
   string id        = 1;
   int64  version   = 2;

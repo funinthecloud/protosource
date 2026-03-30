@@ -689,9 +689,14 @@ func (x *EventOptions) GetCollection() *CollectionMapping {
 type AggregateOptions struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Prefix for the event stream ID. e.g. "order-" → stream ID = "order-{id}"
-	StreamPrefix  string `protobuf:"bytes,1,opt,name=stream_prefix,json=streamPrefix,proto3" json:"stream_prefix,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	StreamPrefix string `protobuf:"bytes,1,opt,name=stream_prefix,json=streamPrefix,proto3" json:"stream_prefix,omitempty"`
+	// TTL for events in this aggregate's stream, in seconds.
+	// 0 (default) = events persist indefinitely.
+	// > 0 = all events (including snapshots) expire after this duration.
+	// Use for ephemeral/temporary aggregates whose entire history can be discarded.
+	EventTtlSeconds int64 `protobuf:"varint,2,opt,name=event_ttl_seconds,json=eventTtlSeconds,proto3" json:"event_ttl_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *AggregateOptions) Reset() {
@@ -729,6 +734,13 @@ func (x *AggregateOptions) GetStreamPrefix() string {
 		return x.StreamPrefix
 	}
 	return ""
+}
+
+func (x *AggregateOptions) GetEventTtlSeconds() int64 {
+	if x != nil {
+		return x.EventTtlSeconds
+	}
+	return 0
 }
 
 type ProjectionOptions struct {
@@ -1003,9 +1015,10 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"sets_state\x18\x02 \x01(\tR\tsetsState\x12W\n" +
 	"\n" +
 	"collection\x18\x03 \x01(\v27.funinthecloud.protosource.options.v1.CollectionMappingR\n" +
-	"collection\"7\n" +
+	"collection\"c\n" +
 	"\x10AggregateOptions\x12#\n" +
-	"\rstream_prefix\x18\x01 \x01(\tR\fstreamPrefix\"@\n" +
+	"\rstream_prefix\x18\x01 \x01(\tR\fstreamPrefix\x12*\n" +
+	"\x11event_ttl_seconds\x18\x02 \x01(\x03R\x0feventTtlSeconds\"@\n" +
 	"\x11ProjectionOptions\x12+\n" +
 	"\x11source_aggregates\x18\x01 \x03(\tR\x10sourceAggregates\"S\n" +
 	"\x0fSnapshotOptions\x12$\n" +

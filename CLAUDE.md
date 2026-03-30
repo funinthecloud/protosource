@@ -32,6 +32,7 @@ The framework's central types:
 - **`Aggregate`**, **`Commander`**, **`Event`** — domain interfaces implemented by generated code.
 - **`PostApplyHook`** — optional interface (`AfterOn()`) for derived field computation after event replay/materialization.
 - **`Projector`** — optional interface (`Projections()`) for materialized projection views, generated for aggregates with projection messages.
+- **`EventTTLer`** — optional interface (`EventTTLSeconds()`) for aggregates with `event_ttl_seconds` annotation. Repository stamps records with TTL before persisting.
 - **`Request`/`Response`/`HandlerFunc`** — provider-agnostic HTTP abstractions for generated handlers.
 
 ### Code Generation (`cmd/protoc-gen-protosource/`)
@@ -76,6 +77,9 @@ All materialized aggregates must implement `AutoPKSK`; there is no fallback stor
 - `"NA"` — unused GSI slots only (not for main table SK)
 - `"PROJ#<Name>"` — reserved for future projection rows
 
+### TTL
+Both tables have DynamoDB TTL enabled on the `t` attribute. Events table TTL is used for ephemeral aggregates (`event_ttl_seconds` annotation). Aggregates table TTL is used by the opaquedata layer for expiring materialized state.
+
 ### GSIs
 Always create all 20 GSI pairs (`gsi1pk`/`gsi1sk` through `gsi20pk`/`gsi20sk`). Empty GSIs cost nothing with PAY_PER_REQUEST billing.
 
@@ -88,6 +92,13 @@ option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
 
 message Sample {
   option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {};
+}
+
+// Ephemeral aggregate with 24h event TTL:
+message TempSession {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+    event_ttl_seconds: 86400
+  };
 }
 message Create {
   option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
@@ -227,5 +238,6 @@ git checkout -b <branch-name> origin/main
 
 - [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)
 - [x] Nested collections: `map<string, Message>` fields with ADD/REMOVE via `collection` annotation, `PostApplyHook` for derived fields (PR #24, #25)
+- [ ] Snapshot-aware event TTL (Case 2): pre-snapshot events get TTL while snapshots persist. Deferred — needs a triggered downstream process (e.g. DynamoDB Streams) to safely mark pre-snapshot events with TTL only after confirming the snapshot exists. Writing events with TTL proactively risks data loss if snapshots don't arrive in time.
 - [ ] Multi-aggregate projections: projections that join/denormalize across multiple aggregate types (e.g. Order + Customer → OrderWithCustomerView). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)

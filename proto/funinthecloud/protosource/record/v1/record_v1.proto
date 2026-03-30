@@ -7,4 +7,8 @@ option go_package = "github.com/funinthecloud/protosource/record/v1;recordv1";
 message Record {
   int64 version = 1;
   bytes data    = 2;
+  // Absolute epoch seconds for DynamoDB TTL. 0 = no TTL.
+  // Set by Repository based on aggregate's event_ttl_seconds annotation.
+  // Store implementations read this to apply per-record TTL.
+  int64 ttl = 3;
 }

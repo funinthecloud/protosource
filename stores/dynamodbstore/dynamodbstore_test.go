@@ -565,6 +565,42 @@ func TestWithTTL_SetsTTLAttribute(t *testing.T) {
 	}
 }
 
+func TestRecordTTL_TakesPrecedenceOverStoreTTL(t *testing.T) {
+	store, mock := newTestStore(t, WithTTL(24*time.Hour))
+	ctx := context.Background()
+
+	rec := makeRecord(1, []byte("data"))
+	rec.Ttl = 1700000000 // specific epoch
+
+	require.NoError(t, store.Save(ctx, "agg-1", rec))
+
+	table := mock.tables[DefaultEventsTable]
+	require.NotEmpty(t, table, "expected items in table after Save")
+	for _, item := range table {
+		ttlVal, ok := item["t"].(*types.AttributeValueMemberN)
+		require.True(t, ok, "TTL attribute should be present")
+		assert.Equal(t, "1700000000", ttlVal.Value, "record-level TTL should take precedence over store-level TTL")
+	}
+}
+
+func TestRecordTTL_UsedWhenNoStoreTTL(t *testing.T) {
+	store, mock := newTestStore(t) // no WithTTL
+	ctx := context.Background()
+
+	rec := makeRecord(1, []byte("data"))
+	rec.Ttl = 1700000000
+
+	require.NoError(t, store.Save(ctx, "agg-1", rec))
+
+	table := mock.tables[DefaultEventsTable]
+	require.NotEmpty(t, table, "expected items in table after Save")
+	for _, item := range table {
+		ttlVal, ok := item["t"].(*types.AttributeValueMemberN)
+		require.True(t, ok, "TTL attribute should be present")
+		assert.Equal(t, "1700000000", ttlVal.Value)
+	}
+}
+
 func TestWithoutTTL_NoTTLAttribute(t *testing.T) {
 	store, mock := newTestStore(t) // no WithTTL
 	ctx := context.Background()
