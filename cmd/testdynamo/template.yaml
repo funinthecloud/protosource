@@ -35,6 +35,12 @@ Resources:
           AttributeType: S
         - AttributeName: v
           AttributeType: N
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: t
 
   # Aggregates table: opaquedata single-table design with pk/sk and 20 GSIs.
   # Materialized aggregates are stored here via AutoPKSK + OpaqueStore.
@@ -234,6 +240,12 @@ Resources:
             - {AttributeName: gsi20pk, KeyType: HASH}
             - {AttributeName: gsi20sk, KeyType: RANGE}
           Projection: {ProjectionType: ALL}
+      DeletionProtectionEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      TimeToLiveSpecification:
+        Enabled: true
+        AttributeName: t
 
   TestDynamoFunction:
     Type: AWS::Serverless::Function
