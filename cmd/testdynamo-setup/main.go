@@ -16,6 +16,7 @@ const usage = `Usage: testdynamo-setup <command>
 
 Commands:
   create              Create the DynamoDB tables (events + aggregates)
+  fix                 Enable TTL and PITR on existing tables (idempotent)
   delete              Delete the DynamoDB tables (requires disable-protection first)
   disable-protection  Disable deletion protection on both tables
   status              Check table status, TTL, PITR, and deletion protection
@@ -59,6 +60,11 @@ func main() {
 		enablePITR(ctx, client, aggregatesTable)
 		enableTTL(ctx, client, eventsTable, "t")
 		enableTTL(ctx, client, aggregatesTable, "t")
+	case "fix":
+		for _, table := range []string{eventsTable, aggregatesTable} {
+			enablePITR(ctx, client, table)
+			enableTTL(ctx, client, table, "t")
+		}
 	case "delete":
 		for _, table := range []string{eventsTable, aggregatesTable} {
 			deleteTable(ctx, client, table)
@@ -235,6 +241,10 @@ func describeTable(ctx context.Context, client *dynamodb.Client, tableName strin
 	fmt.Printf("  %s: status=%s items=%d%s deletion_protection=%s\n",
 		tableName, tbl.TableStatus, aws.ToInt64(tbl.ItemCount), gsiInfo, protection)
 
+	if protection == "off" {
+		fmt.Fprintf(os.Stderr, "  %s: WARNING: deletion protection is disabled\n", tableName)
+	}
+
 	// TTL
 	ttlResp, err := client.DescribeTimeToLive(ctx, &dynamodb.DescribeTimeToLiveInput{
 		TableName: &tableName,
@@ -248,6 +258,9 @@ func describeTable(ctx context.Context, client *dynamodb.Client, tableName strin
 			fmt.Printf(" (attribute: %s)", *ttl.AttributeName)
 		}
 		fmt.Println()
+		if ttl.TimeToLiveStatus == types.TimeToLiveStatusDisabled || ttl.TimeToLiveStatus == types.TimeToLiveStatusDisabling {
+			fmt.Fprintf(os.Stderr, "  %s: WARNING: TTL is not enabled (expected attribute \"t\"); run 'fix' to enable\n", tableName)
+		}
 	}
 
 	// PITR
@@ -267,6 +280,9 @@ func describeTable(ctx context.Context, client *dynamodb.Client, tableName strin
 				fmt.Printf(" (latest: %s)", pitr.LatestRestorableDateTime.Format(time.RFC3339))
 			}
 			fmt.Println()
+			if pitr.PointInTimeRecoveryStatus == types.PointInTimeRecoveryStatusDisabled {
+				fmt.Fprintf(os.Stderr, "  %s: WARNING: PITR is not enabled; run 'fix' to enable\n", tableName)
+			}
 		}
 	}
 }
