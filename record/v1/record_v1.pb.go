@@ -22,9 +22,13 @@ const (
 )
 
 type Record struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Version       int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
-	Data          []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	Version int64                  `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	Data    []byte                 `protobuf:"bytes,2,opt,name=data,proto3" json:"data,omitempty"`
+	// Absolute epoch seconds for DynamoDB TTL. 0 = no TTL.
+	// Set by Repository based on aggregate's event_ttl_seconds annotation.
+	// Store implementations read this to apply per-record TTL.
+	Ttl           int64 `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -73,14 +77,22 @@ func (x *Record) GetData() []byte {
 	return nil
 }
 
+func (x *Record) GetTtl() int64 {
+	if x != nil {
+		return x.Ttl
+	}
+	return 0
+}
+
 var File_funinthecloud_protosource_record_v1_record_v1_proto protoreflect.FileDescriptor
 
 const file_funinthecloud_protosource_record_v1_record_v1_proto_rawDesc = "" +
 	"\n" +
-	"3funinthecloud/protosource/record/v1/record_v1.proto\x12#funinthecloud.protosource.record.v1\"6\n" +
+	"3funinthecloud/protosource/record/v1/record_v1.proto\x12#funinthecloud.protosource.record.v1\"H\n" +
 	"\x06Record\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x03R\aversion\x12\x12\n" +
-	"\x04data\x18\x02 \x01(\fR\x04dataB\xa0\x02\n" +
+	"\x04data\x18\x02 \x01(\fR\x04data\x12\x10\n" +
+	"\x03ttl\x18\x03 \x01(\x03R\x03ttlB\xa0\x02\n" +
 	"'com.funinthecloud.protosource.record.v1B\rRecordV1ProtoP\x01Z7github.com/funinthecloud/protosource/record/v1;recordv1\xa2\x02\x03FPR\xaa\x02#Funinthecloud.Protosource.Record.V1\xca\x02#Funinthecloud\\Protosource\\Record\\V1\xe2\x02/Funinthecloud\\Protosource\\Record\\V1\\GPBMetadata\xea\x02&Funinthecloud::Protosource::Record::V1b\x06proto3"
 
 var (
