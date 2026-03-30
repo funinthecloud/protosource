@@ -2,46 +2,66 @@
 package main
 
 import (
-	"context"
+	"bytes"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/user"
 	"strconv"
-	"text/tabwriter"
+	"strings"
 	"time"
 
-	"github.com/funinthecloud/protosource"
 	pkg "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1"
-	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
-	"github.com/funinthecloud/protosource/stores/boltdbstore"
 	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
-var usage = "Usage: samplemgr <command> [args]\n\nCommands:\n" +
+var usage = "Usage: samplemgr [-json] <command> [args]\n\nFlags:\n" +
+	"  -json              Use JSON serialization (default: protobuf)\n\n" +
+	"Commands:\n" +
 	"  create  <id>  <body>\n" +
 	"  update  <id>  <body>\n" +
 	"  load     <id>\n" +
 	"  history  <id>\n" +
-	"\nActor is derived automatically from the current user and hostname.\n"
+	"\nActor is derived automatically from the current user and hostname.\n\n" +
+	"Environment variables:\n" +
+	"  API_DOMAIN      Base domain for API endpoint (pattern: sample_v1.API_DOMAIN)\n" +
+	"  API_ENDPOINT    Full API endpoint URL (fallback if API_DOMAIN not set)\n"
+
+var (
+	useJSON     bool
+	apiEndpoint string
+)
 
 func main() {
+	// Parse flags
+	for len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "-") {
+		switch os.Args[1] {
+		case "-json":
+			useJSON = true
+			os.Args = append(os.Args[:1], os.Args[2:]...)
+		default:
+			fmt.Fprintln(os.Stderr, usage)
+			os.Exit(1)
+		}
+	}
+
 	if len(os.Args) < 2 {
 		fmt.Fprintln(os.Stderr, usage)
 		os.Exit(1)
 	}
 
-	store, err := boltdbstore.New("./data/sample", "sample")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error opening store: %v\n", err)
-		os.Exit(1)
+	// Resolve API endpoint
+	if apiDomain := os.Getenv("API_DOMAIN"); apiDomain != "" {
+		apiEndpoint = "https://sample_v1." + apiDomain
+	} else if endpoint := os.Getenv("API_ENDPOINT"); endpoint != "" {
+		apiEndpoint = endpoint
+	} else {
+		fatal("Neither API_DOMAIN nor API_ENDPOINT is defined")
 	}
-	defer store.Close()
-
-	serializer := protobinaryserializer.NewSerializer()
-	repo := pkg.NewRepository(store, serializer)
 
 	actor := detectActor()
-	ctx := context.Background()
 	subcmd := os.Args[1]
 
 	switch subcmd {
@@ -55,7 +75,7 @@ func main() {
 			Actor: actor,
 			Body:  os.Args[3],
 		}
-		applyAndPrint(ctx, repo, cmd)
+		applyAndPrint(cmd)
 
 	case "update":
 		if len(os.Args) != 4 {
@@ -66,44 +86,19 @@ func main() {
 			Actor: actor,
 			Body:  os.Args[3],
 		}
-		applyAndPrint(ctx, repo, cmd)
+		applyAndPrint(cmd)
 
 	case "load":
 		if len(os.Args) != 3 {
 			fatal("usage: samplemgr load <id>")
 		}
-		agg, err := repo.Load(ctx, os.Args[2])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-		printAggregate(agg)
+		loadAggregate(os.Args[2])
 
 	case "history":
 		if len(os.Args) != 3 {
 			fatal("usage: samplemgr history <id>")
 		}
-		hist, err := repo.History(ctx, os.Args[2])
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "error: %v\n", err)
-			os.Exit(1)
-		}
-		fmt.Printf("History: %d record(s)\n\n", len(hist.GetRecords()))
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "VERSION\tEVENT\tACTOR\tAT\tBYTES")
-		fmt.Fprintln(w, "-------\t-----\t-----\t--\t-----")
-		for _, rec := range hist.GetRecords() {
-			event, err := serializer.UnmarshalEvent(rec)
-			if err != nil {
-				fmt.Fprintf(w, "%d\t(error)\t\t\t%d\n", rec.GetVersion(), len(rec.GetData()))
-				continue
-			}
-			name := string(event.ProtoReflect().Descriptor().Name())
-			fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%d\n",
-				event.GetVersion(), name, event.GetActor(),
-				formatMicros(event.GetAt()), len(rec.GetData()))
-		}
-		w.Flush()
+		loadHistory(os.Args[2])
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s\n", subcmd, usage)
@@ -111,22 +106,157 @@ func main() {
 	}
 }
 
-func applyAndPrint(ctx context.Context, repo *protosource.Repository, cmd protosource.Commander) {
-	if _, err := repo.Apply(ctx, cmd); err != nil {
-		fmt.Fprintf(os.Stderr, "error: %v\n", err)
-		os.Exit(1)
+func applyAndPrint(cmd proto.Message) {
+	// Serialize command
+	var body []byte
+	var contentType string
+	var accept string
+
+	if useJSON {
+		b, err := protojson.Marshal(cmd)
+		if err != nil {
+			fatal(fmt.Sprintf("error marshaling command: %v", err))
+		}
+		body = b
+		contentType = "application/json"
+		accept = "application/json"
+	} else {
+		b, err := proto.Marshal(cmd)
+		if err != nil {
+			fatal(fmt.Sprintf("error marshaling command: %v", err))
+		}
+		body = b
+		contentType = "application/protobuf"
+		accept = "application/protobuf"
 	}
-	agg, err := repo.Load(ctx, cmd.GetId())
+
+	// Extract command name from type
+	cmdName := strings.ToLower(string(cmd.ProtoReflect().Descriptor().Name()))
+	url := apiEndpoint + "/example/app/samplenosnapshot/v1/" + cmdName
+
+	// Make request
+	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "error loading after apply: %v\n", err)
+		fatal(fmt.Sprintf("error creating request: %v", err))
+	}
+	req.Header.Set("Content-Type", contentType)
+	req.Header.Set("Accept", accept)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fatal(fmt.Sprintf("error making request: %v", err))
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fatal(fmt.Sprintf("error reading response: %v", err))
+	}
+
+	if resp.StatusCode >= 400 {
+		fmt.Fprintf(os.Stderr, "error: %s\n", string(respBody))
 		os.Exit(1)
 	}
+
+	// Parse response as aggregate
+	agg := &pkg.Sample{}
+	if useJSON {
+		if err := protojson.Unmarshal(respBody, agg); err != nil {
+			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
+		}
+	} else {
+		if err := proto.Unmarshal(respBody, agg); err != nil {
+			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
+		}
+	}
+
 	printAggregate(agg)
+}
+
+func loadAggregate(id string) {
+	var accept string
+	if useJSON {
+		accept = "application/json"
+	} else {
+		accept = "application/protobuf"
+	}
+
+	url := apiEndpoint + "/" + id
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fatal(fmt.Sprintf("error creating request: %v", err))
+	}
+	req.Header.Set("Accept", accept)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fatal(fmt.Sprintf("error making request: %v", err))
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fatal(fmt.Sprintf("error reading response: %v", err))
+	}
+
+	if resp.StatusCode >= 400 {
+		fmt.Fprintf(os.Stderr, "error: %s\n", string(respBody))
+		os.Exit(1)
+	}
+
+	agg := &pkg.Sample{}
+	if useJSON {
+		if err := protojson.Unmarshal(respBody, agg); err != nil {
+			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
+		}
+	} else {
+		if err := proto.Unmarshal(respBody, agg); err != nil {
+			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
+		}
+	}
+
+	printAggregate(agg)
+}
+
+func loadHistory(id string) {
+	var accept string
+	if useJSON {
+		accept = "application/json"
+	} else {
+		accept = "application/protobuf"
+	}
+
+	url := apiEndpoint + "/" + id + "/history"
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		fatal(fmt.Sprintf("error creating request: %v", err))
+	}
+	req.Header.Set("Accept", accept)
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		fatal(fmt.Sprintf("error making request: %v", err))
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		fatal(fmt.Sprintf("error reading response: %v", err))
+	}
+
+	if resp.StatusCode >= 400 {
+		fmt.Fprintf(os.Stderr, "error: %s\n", string(respBody))
+		os.Exit(1)
+	}
+
+	// Parse history - would need historyv1.History type
+	// For now, just print the raw response
+	fmt.Println(string(respBody))
 }
 
 var jsonFormatter = protojson.MarshalOptions{Multiline: true, Indent: "  "}
 
-func printAggregate(agg protosource.Aggregate) {
+func printAggregate(agg proto.Message) {
 	b, err := jsonFormatter.Marshal(agg)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error formatting aggregate: %v\n", err)

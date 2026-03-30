@@ -373,22 +373,34 @@ func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Reques
 	}
 }
 
-// acceptsProtobuf returns true if the Accept header includes application/protobuf.
+// acceptsProtobuf returns true if the Accept header indicates protobuf (or is absent for default).
+// Default is protobuf; only JSON if explicitly requested.
 func acceptsProtobuf(request protosource.Request) bool {
 	accept := request.Headers["Accept"]
 	if accept == "" {
 		accept = request.Headers["accept"]
 	}
-	return strings.Contains(accept, "application/protobuf")
+	// If Accept is explicitly JSON, return false
+	if strings.Contains(accept, "application/json") {
+		return false
+	}
+	// Default to true: protobuf (whether explicitly requested or absent)
+	return true
 }
 
-// isProtobufContent returns true if the Content-Type header indicates protobuf.
+// isProtobufContent returns true if the Content-Type header indicates protobuf (or is absent for default).
+// Default is protobuf; only JSON if explicitly requested.
 func isProtobufContent(request protosource.Request) bool {
 	ct := request.Headers["Content-Type"]
 	if ct == "" {
 		ct = request.Headers["content-type"]
 	}
-	return strings.Contains(ct, "application/protobuf")
+	// If Content-Type is explicitly JSON, return false
+	if strings.Contains(ct, "application/json") {
+		return false
+	}
+	// Default to true: protobuf (whether explicitly requested or absent)
+	return true
 }
 
 // unmarshalCommand decodes the request body into a proto message, using
