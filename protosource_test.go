@@ -1380,3 +1380,49 @@ func TestApply_CollectionMaterialized(t *testing.T) {
 		t.Errorf("expected materialized total_cents 2000, got %d", materializedOrder.GetTotalCents())
 	}
 }
+
+// --- Event TTL tests ---
+
+// recordCapturingStore wraps a memorystore and captures records passed to Save.
+type recordCapturingStore struct {
+	inner   *memorystore.MemoryStore
+	records []*recordv1.Record
+}
+
+func (s *recordCapturingStore) Save(ctx context.Context, aggregateID string, records ...*recordv1.Record) error {
+	for _, r := range records {
+		clone := &recordv1.Record{Version: r.GetVersion(), Data: r.GetData(), Ttl: r.GetTtl()}
+		s.records = append(s.records, clone)
+	}
+	return s.inner.Save(ctx, aggregateID, records...)
+}
+
+func (s *recordCapturingStore) Load(ctx context.Context, aggregateID string) (*historyv1.History, error) {
+	return s.inner.Load(ctx, aggregateID)
+}
+
+func TestApply_EventTTLStampsRecords(t *testing.T) {
+	store := &recordCapturingStore{inner: memorystore.New(0)}
+	// testv1.Test has event_ttl_seconds: 86400
+	repo := protosource.New(
+		&testv1.Test{},
+		store,
+		protobinaryserializer.NewSerializer(),
+	)
+
+	before := time.Now().Add(86400 * time.Second).Unix()
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	after := time.Now().Add(86400 * time.Second).Unix()
+
+	if len(store.records) == 0 {
+		t.Fatal("expected records to be captured")
+	}
+	for _, rec := range store.records {
+		if rec.GetTtl() == 0 {
+			t.Errorf("expected TTL on record v%d, got 0", rec.GetVersion())
+		}
+		if rec.GetTtl() < before || rec.GetTtl() > after {
+			t.Errorf("TTL %d out of expected range [%d, %d]", rec.GetTtl(), before, after)
+		}
+	}
+}

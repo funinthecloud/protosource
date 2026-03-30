@@ -120,7 +120,9 @@ func (s *DynamoDBStore) Save(ctx context.Context, aggregateID string, records ..
 				attrSortKey:      &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetVersion(), 10)},
 				attrData:         &types.AttributeValueMemberB{Value: rec.GetData()},
 			}
-			if s.ttl > 0 {
+			if rec.GetTtl() > 0 {
+				item[attrTTL] = &types.AttributeValueMemberN{Value: strconv.FormatInt(rec.GetTtl(), 10)}
+			} else if s.ttl > 0 {
 				expiry := time.Now().Add(s.ttl).Unix()
 				item[attrTTL] = &types.AttributeValueMemberN{Value: strconv.FormatInt(expiry, 10)}
 			}

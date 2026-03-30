@@ -52,6 +52,9 @@ func (b *Builder) nextVersion() int64 {
 // SnapshotEveryNEvents is the snapshot interval from the proto annotation.
 const SnapshotEveryNEvents int32 = 3
 
+// EventTTLDuration is the event TTL from the proto annotation.
+const EventTTLDuration int64 = 86400
+
 // NewRepository creates a new protosource.Repository for the Test aggregate.
 func NewRepository(store protosource.Store, serializer protosource.Serializer, opts ...protosource.Option) *protosource.Repository {
 	return protosource.New(&Test{}, store, serializer, opts...)
@@ -100,6 +103,10 @@ func (aggregate *Test) setCreated(event protosource.Event) {
 func (aggregate *Test) setModified(event protosource.Event) {
 	aggregate.ModifyAt = event.GetAt()
 	aggregate.ModifyBy = event.GetActor()
+}
+
+func (aggregate *Test) EventTTLSeconds() int64 {
+	return EventTTLDuration
 }
 
 // On applies an event to the aggregate, rebuilding its state.

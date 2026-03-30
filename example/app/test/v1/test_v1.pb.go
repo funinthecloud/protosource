@@ -778,7 +778,7 @@ var File_example_app_test_v1_test_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\n" +
-	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xf2\x01\n" +
+	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xf6\x01\n" +
 	"\x04Test\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1b\n" +
@@ -787,7 +787,8 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
 	"\x04body\x18\a \x01(\tR\x04body\x120\n" +
-	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateR\x05state:\x06ʬ\x1d\x02\x1a\x00\"z\n" +
+	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateR\x05state:\n" +
+	"ʬ\x1d\x06\x1a\x04\x10\x80\xa3\x05\"z\n" +
 	"\x06Create\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05actor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\x12\x1b\n" +

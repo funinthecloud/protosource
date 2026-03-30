@@ -65,6 +65,7 @@ func (b *Builder) nextVersion() int64 {
 {{ $aggregate := "" }}
 {{ $hasSnapshot := false }}
 {{ $everyN := snapshotEveryN . }}
+{{ $eventTTLSeconds := eventTTLSeconds . }}
 
 {{/* This Loop is just for the globals */}}
 {{ range $message := .AllMessages }}
@@ -79,6 +80,11 @@ func (b *Builder) nextVersion() int64 {
 {{ if and $hasSnapshot (gt $everyN 0) -}}
 // SnapshotEveryNEvents is the snapshot interval from the proto annotation.
 const SnapshotEveryNEvents int32 = {{ $everyN }}
+{{ end -}}
+
+{{ if gt $eventTTLSeconds 0 -}}
+// EventTTLDuration is the event TTL from the proto annotation.
+const EventTTLDuration int64 = {{ $eventTTLSeconds }}
 {{ end -}}
 
 // NewRepository creates a new protosource.Repository for the {{ $aggregate }} aggregate.
@@ -133,7 +139,11 @@ func (aggregate *{{$aggregate}}) setModified(event protosource.Event) {
     aggregate.ModifyAt = event.GetAt()
     aggregate.ModifyBy = event.GetActor()
 }
-
+{{ if gt $eventTTLSeconds 0 }}
+func (aggregate *{{$aggregate}}) EventTTLSeconds() int64 {
+    return EventTTLDuration
+}
+{{ end }}
 // On applies an event to the aggregate, rebuilding its state.
 // This method is called during Repository.Load to reconstruct from stored events,
 // and during test scenarios. Events represent facts — never reject based on business rules.
