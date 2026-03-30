@@ -31,7 +31,7 @@ func TestGetItem_AllFields(t *testing.T) {
 		Pk:     "PK",
 		Sk:     "SK",
 		Body:   []byte("body-data"),
-		Ttl:    1234567890,
+		T:      1234567890,
 		Gsi1Pk: "G1PK",
 		Gsi1Sk: "G1SK",
 		Gsi5Pk: "G5PK",
@@ -41,7 +41,7 @@ func TestGetItem_AllFields(t *testing.T) {
 	assert.Equal(t, "PK", item["pk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, "SK", item["sk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, []byte("body-data"), item["body"].(*types.AttributeValueMemberB).Value)
-	assert.Equal(t, "1234567890", item["ttl"].(*types.AttributeValueMemberN).Value)
+	assert.Equal(t, "1234567890", item["t"].(*types.AttributeValueMemberN).Value)
 	assert.Equal(t, "G1PK", item["gsi1pk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, "G1SK", item["gsi1sk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, "G5PK", item["gsi5pk"].(*types.AttributeValueMemberS).Value)
@@ -61,7 +61,7 @@ func TestGetItem_OmitsEmptyGSIs(t *testing.T) {
 func TestGetItem_OmitsZeroTTL(t *testing.T) {
 	od := &opaquedatav1.OpaqueData{Pk: "PK", Sk: "SK"}
 	item := GetItem(od)
-	_, hasTTL := item["ttl"]
+	_, hasTTL := item["t"]
 	assert.False(t, hasTTL)
 }
 
@@ -91,7 +91,7 @@ func TestGetExpressionValues_ColonPrefix(t *testing.T) {
 }
 
 func TestGetValue_ExcludesKeys(t *testing.T) {
-	od := &opaquedatav1.OpaqueData{Pk: "PK", Sk: "SK", Body: []byte("data"), Ttl: 123}
+	od := &opaquedatav1.OpaqueData{Pk: "PK", Sk: "SK", Body: []byte("data"), T: 123}
 
 	val := GetValue(od)
 	_, hasPK := val["pk"]
@@ -99,7 +99,7 @@ func TestGetValue_ExcludesKeys(t *testing.T) {
 	_, hasSK := val["sk"]
 	assert.False(t, hasSK)
 	assert.Equal(t, []byte("data"), val["body"].(*types.AttributeValueMemberB).Value)
-	assert.Equal(t, "123", val["ttl"].(*types.AttributeValueMemberN).Value)
+	assert.Equal(t, "123", val["t"].(*types.AttributeValueMemberN).Value)
 }
 
 // ---------------------------------------------------------------------------
@@ -366,8 +366,8 @@ func TestQuery_TTLFilter(t *testing.T) {
 	store := newTestStore(mock)
 	_, err := store.Query(context.Background(), "pk", "pk1", "sk", nil)
 	require.NoError(t, err)
-	assert.Contains(t, *mock.queryCalls[0].FilterExpression, "attribute_not_exists(#ttl)")
-	assert.Contains(t, *mock.queryCalls[0].FilterExpression, "#ttl > :now")
+	assert.Contains(t, *mock.queryCalls[0].FilterExpression, "attribute_not_exists(#t)")
+	assert.Contains(t, *mock.queryCalls[0].FilterExpression, "#t > :now")
 }
 
 // ---------------------------------------------------------------------------
@@ -415,7 +415,7 @@ func TestUnmarshalMap_FullItem(t *testing.T) {
 		"pk":      &types.AttributeValueMemberS{Value: "PK"},
 		"sk":      &types.AttributeValueMemberS{Value: "SK"},
 		"body":    &types.AttributeValueMemberB{Value: []byte("body")},
-		"ttl":     &types.AttributeValueMemberN{Value: "999"},
+		"t":       &types.AttributeValueMemberN{Value: "999"},
 		"version": &types.AttributeValueMemberN{Value: "0"},
 		"gsi1pk":  &types.AttributeValueMemberS{Value: "G1PK"},
 		"gsi20sk": &types.AttributeValueMemberS{Value: "G20SK"},
@@ -425,7 +425,7 @@ func TestUnmarshalMap_FullItem(t *testing.T) {
 	assert.Equal(t, "PK", od.GetPk())
 	assert.Equal(t, "SK", od.GetSk())
 	assert.Equal(t, []byte("body"), od.GetBody())
-	assert.Equal(t, int64(999), od.GetTtl())
+	assert.Equal(t, int64(999), od.GetT())
 	assert.Equal(t, int64(0), od.GetVersion())
 	assert.Equal(t, "G1PK", od.GetGsi1Pk())
 	assert.Equal(t, "G20SK", od.GetGsi20Sk())

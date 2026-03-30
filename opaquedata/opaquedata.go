@@ -87,7 +87,7 @@ func NewOpaqueDataFromProto(msg AutoPKSK, opts ...Option) (*opaquedatav1.OpaqueD
 		Pk:      msg.PK(),
 		Sk:      msg.SK(),
 		Body:    body,
-		Ttl:     GetTTL(o.ttl),
+		T:       GetTTL(o.ttl),
 		Gsi1Pk:  msg.GSI1PK(),
 		Gsi1Sk:  msg.GSI1SK(),
 		Gsi2Pk:  msg.GSI2PK(),

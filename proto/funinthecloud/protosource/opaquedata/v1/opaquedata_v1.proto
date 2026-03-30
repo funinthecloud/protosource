@@ -5,9 +5,9 @@ package funinthecloud.protosource.opaquedata.v1;
 option go_package = "github.com/funinthecloud/protosource/opaquedata/v1;opaquedatav1";
 
 message OpaqueData {
-  string pk  = 1;
-  string sk  = 2;
-  int64  ttl = 3;
+  string pk = 1;
+  string sk = 2;
+  int64  t  = 3;  // TTL epoch seconds
 
   // Reserved for future optimistic locking. Always 0 for now.
   int64 version = 4;

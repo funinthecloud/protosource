@@ -25,7 +25,7 @@ type OpaqueData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Pk    string                 `protobuf:"bytes,1,opt,name=pk,proto3" json:"pk,omitempty"`
 	Sk    string                 `protobuf:"bytes,2,opt,name=sk,proto3" json:"sk,omitempty"`
-	Ttl   int64                  `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
+	T     int64                  `protobuf:"varint,3,opt,name=t,proto3" json:"t,omitempty"` // TTL epoch seconds
 	// Reserved for future optimistic locking. Always 0 for now.
 	Version       int64  `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
 	Body          []byte `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
@@ -117,9 +117,9 @@ func (x *OpaqueData) GetSk() string {
 	return ""
 }
 
-func (x *OpaqueData) GetTtl() int64 {
+func (x *OpaqueData) GetT() int64 {
 	if x != nil {
-		return x.Ttl
+		return x.T
 	}
 	return 0
 }
@@ -422,12 +422,12 @@ var File_funinthecloud_protosource_opaquedata_v1_opaquedata_v1_proto protoreflec
 
 const file_funinthecloud_protosource_opaquedata_v1_opaquedata_v1_proto_rawDesc = "" +
 	"\n" +
-	";funinthecloud/protosource/opaquedata/v1/opaquedata_v1.proto\x12'funinthecloud.protosource.opaquedata.v1\"\xd8\b\n" +
+	";funinthecloud/protosource/opaquedata/v1/opaquedata_v1.proto\x12'funinthecloud.protosource.opaquedata.v1\"\xd4\b\n" +
 	"\n" +
 	"OpaqueData\x12\x0e\n" +
 	"\x02pk\x18\x01 \x01(\tR\x02pk\x12\x0e\n" +
-	"\x02sk\x18\x02 \x01(\tR\x02sk\x12\x10\n" +
-	"\x03ttl\x18\x03 \x01(\x03R\x03ttl\x12\x18\n" +
+	"\x02sk\x18\x02 \x01(\tR\x02sk\x12\f\n" +
+	"\x01t\x18\x03 \x01(\x03R\x01t\x12\x18\n" +
 	"\aversion\x18\x04 \x01(\x03R\aversion\x12\x12\n" +
 	"\x04body\x18\x05 \x01(\fR\x04body\x12\x16\n" +
 	"\x06gsi1pk\x18\x06 \x01(\tR\x06gsi1pk\x12\x16\n" +
