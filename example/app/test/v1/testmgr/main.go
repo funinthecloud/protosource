@@ -28,7 +28,7 @@ var usage = "Usage: testmgr [-json] <command> [args]\n\nFlags:\n" +
 	"  history  <id>\n" +
 	"\nActor is derived automatically from the current user and hostname.\n\n" +
 	"Environment variables:\n" +
-	"  API_DOMAIN      Base domain for API endpoint (pattern: test_v1.API_DOMAIN)\n" +
+	"  API_DOMAIN      Base domain for API endpoint (pattern: test-v1.API_DOMAIN)\n" +
 	"  API_ENDPOINT    Full API endpoint URL (fallback if API_DOMAIN not set)\n"
 
 var (
@@ -56,7 +56,7 @@ func main() {
 
 	// Resolve API endpoint
 	if apiDomain := os.Getenv("API_DOMAIN"); apiDomain != "" {
-		apiEndpoint = "https://test_v1." + apiDomain
+		apiEndpoint = "https://test-v1." + apiDomain
 	} else if endpoint := os.Getenv("API_ENDPOINT"); endpoint != "" {
 		apiEndpoint = endpoint
 	} else {
@@ -180,19 +180,8 @@ func applyAndPrint(cmd proto.Message) {
 		os.Exit(1)
 	}
 
-	// Parse response as aggregate
-	agg := &pkg.Test{}
-	if useJSON {
-		if err := protojson.Unmarshal(respBody, agg); err != nil {
-			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
-		}
-	} else {
-		if err := proto.Unmarshal(respBody, agg); err != nil {
-			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
-		}
-	}
-
-	printAggregate(agg)
+	// Command response is JSON {"id":"...","version":...}
+	fmt.Println(string(respBody))
 }
 
 func loadAggregate(id string) {
@@ -203,7 +192,7 @@ func loadAggregate(id string) {
 		accept = "application/protobuf"
 	}
 
-	url := apiEndpoint + "/" + id
+	url := apiEndpoint + "/example/app/test/v1/" + id
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fatal(fmt.Sprintf("error creating request: %v", err))
@@ -248,7 +237,7 @@ func loadHistory(id string) {
 		accept = "application/protobuf"
 	}
 
-	url := apiEndpoint + "/" + id + "/history"
+	url := apiEndpoint + "/example/app/test/v1/" + id + "/history"
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fatal(fmt.Sprintf("error creating request: %v", err))
