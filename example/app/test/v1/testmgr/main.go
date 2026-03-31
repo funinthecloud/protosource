@@ -299,7 +299,7 @@ func loadHistory(id string) {
 			continue
 		}
 
-		fmt.Printf("v%d %s\n%s\n", record.GetVersion(), typeName, string(b))
+		fmt.Printf("v%d %s\n%s\n\n", record.GetVersion(), typeName, string(b))
 	}
 }
 

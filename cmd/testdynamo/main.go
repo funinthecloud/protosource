@@ -11,6 +11,8 @@ import (
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/adapters/awslambda"
+	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
+	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
 	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	opaquedynamo "github.com/funinthecloud/protosource/opaquedata/dynamo"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
@@ -39,11 +41,11 @@ func main() {
 	}
 
 	serializer := protobinaryserializer.NewSerializer()
-	repo := testv1.NewRepository(store, serializer)
 
-	h := testv1.NewHandler(repo)
 	router := protosource.NewRouter()
-	h.RegisterRoutes(router)
+	testv1.NewHandler(testv1.NewRepository(store, serializer)).RegisterRoutes(router)
+	orderv1.NewHandler(orderv1.NewRepository(store, serializer)).RegisterRoutes(router)
+	samplev1.NewHandler(samplev1.NewRepository(store, serializer)).RegisterRoutes(router)
 
 	handler := awslambda.WrapRouter(router, extractActor)
 	lambda.Start(handler)

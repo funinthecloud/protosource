@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
@@ -175,6 +176,7 @@ type Repository struct {
 	serializer        Serializer   // Converts between events and records
 	compressThreshold int          // 0 = disabled; >0 = compress data at or above this byte size
 	logger            Logger       // diagnostic logging for best-effort operations
+	keyPrefix         string       // proto full name prefix for namespacing event store keys
 }
 
 // New creates a new Repository with the given prototype, store, and serializer.
@@ -197,12 +199,17 @@ func New(prototype Aggregate, store Store, serializer Serializer, opts ...Option
 		t = t.Elem()
 	}
 
+	// Derive key prefix from proto package name: example.app.test.v1 → example_app_test_v1#
+	pkg := string(prototype.ProtoReflect().Descriptor().ParentFile().Package())
+	prefix := strings.ReplaceAll(pkg, ".", "_") + "#"
+
 	r := &Repository{
 		prototype:         t,
 		store:             store,
 		serializer:        serializer,
 		compressThreshold: DefaultCompressThreshold,
 		logger:            noopLogger{},
+		keyPrefix:         prefix,
 	}
 
 	for _, opt := range opts {
@@ -210,6 +217,12 @@ func New(prototype Aggregate, store Store, serializer Serializer, opts ...Option
 	}
 
 	return r
+}
+
+// qualifiedID prefixes the aggregate ID with the proto package namespace
+// to prevent key collisions across aggregate types sharing the same store.
+func (r *Repository) qualifiedID(id string) string {
+	return r.keyPrefix + id
 }
 
 // Option provides functional configuration options for the Repository
@@ -259,7 +272,7 @@ func (r *Repository) History(ctx context.Context, aggregateID string) (*historyv
 	if aggregateID == "" {
 		return nil, ErrEmptyAggregateId
 	}
-	history, err := r.store.Load(ctx, aggregateID)
+	history, err := r.store.Load(ctx, r.qualifiedID(aggregateID))
 	if err != nil {
 		return nil, err
 	}
@@ -427,7 +440,7 @@ func (r *Repository) Save(ctx context.Context, events ...Event) error {
 		}
 	}
 
-	return r.store.Save(ctx, aggregateID, h.GetRecords()...)
+	return r.store.Save(ctx, r.qualifiedID(aggregateID), h.GetRecords()...)
 }
 
 var (
@@ -498,19 +511,20 @@ func (r *Repository) loadAggregateVersion(ctx context.Context, aggregateId strin
 // SnapshotTailStore and the aggregate prototype has a snapshot interval, it
 // loads only the last interval-worth of events instead of the entire history.
 func (r *Repository) loadHistory(ctx context.Context, aggregateId string) (*historyv1.History, error) {
+	qid := r.qualifiedID(aggregateId)
 	sts, isSTS := r.store.(SnapshotTailStore)
 	if !isSTS {
-		return r.store.Load(ctx, aggregateId)
+		return r.store.Load(ctx, qid)
 	}
 
 	// Check if the aggregate prototype supports snapshots.
 	p := r.new()
 	snapshoter, hasSnapshots := p.(Snapshoter)
 	if !hasSnapshots || snapshoter.SnapshotInterval() <= 0 {
-		return r.store.Load(ctx, aggregateId)
+		return r.store.Load(ctx, qid)
 	}
 
-	return sts.LoadTail(ctx, aggregateId, int(snapshoter.SnapshotInterval()))
+	return sts.LoadTail(ctx, qid, int(snapshoter.SnapshotInterval()))
 }
 
 // EventEmitter is implemented by generated command types that can produce events.

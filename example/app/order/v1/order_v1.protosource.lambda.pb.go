@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -57,20 +58,12 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 // HandleCreate processes a Create command.
 func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &Create{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -87,20 +80,12 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 // HandleAddItem processes a AddItem command.
 func (h *Handler) HandleAddItem(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &AddItem{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -117,20 +102,12 @@ func (h *Handler) HandleAddItem(ctx context.Context, request protosource.Request
 // HandleRemoveItem processes a RemoveItem command.
 func (h *Handler) HandleRemoveItem(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &RemoveItem{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -147,20 +124,12 @@ func (h *Handler) HandleRemoveItem(ctx context.Context, request protosource.Requ
 // HandleAddTag processes a AddTag command.
 func (h *Handler) HandleAddTag(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &AddTag{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -177,20 +146,12 @@ func (h *Handler) HandleAddTag(ctx context.Context, request protosource.Request)
 // HandleRemoveTag processes a RemoveTag command.
 func (h *Handler) HandleRemoveTag(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &RemoveTag{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -207,20 +168,12 @@ func (h *Handler) HandleRemoveTag(ctx context.Context, request protosource.Reque
 // HandleSetShipping processes a SetShipping command.
 func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &SetShipping{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -237,20 +190,12 @@ func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Req
 // HandlePlace processes a Place command.
 func (h *Handler) HandlePlace(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &Place{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -267,20 +212,12 @@ func (h *Handler) HandlePlace(ctx context.Context, request protosource.Request) 
 // HandleCancel processes a Cancel command.
 func (h *Handler) HandleCancel(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
-		return protosource.Response{
-			StatusCode: http.StatusUnauthorized,
-			Body:       `{"error":"unauthorized: no actor identity found"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &Cancel{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"invalid request body"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Override actor from auth context to prevent spoofing.
@@ -298,36 +235,20 @@ func (h *Handler) HandleCancel(ctx context.Context, request protosource.Request)
 func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"missing required parameter: id"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
 	}
 
 	aggregate, err := h.repo.Load(ctx, id)
 	if err != nil {
 		if errors.Is(err, protosource.ErrAggregateNotFound) {
-			return protosource.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       `{"error":"aggregate not found"}`,
-				Headers:    map[string]string{"Content-Type": "application/json"},
-			}
+			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
 		}
-		return protosource.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       `{"error":"internal server error"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
 	}
 
 	body, contentType, err := marshalResponse(request, aggregate)
 	if err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       `{"error":"failed to serialize aggregate"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
 	}
 
 	return protosource.Response{
@@ -341,36 +262,20 @@ func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) pr
 func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
-		return protosource.Response{
-			StatusCode: http.StatusBadRequest,
-			Body:       `{"error":"missing required parameter: id"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusBadRequest, "HIST_NO_ID", "missing required parameter: id", nil)
 	}
 
 	history, err := h.repo.History(ctx, id)
 	if err != nil {
 		if errors.Is(err, protosource.ErrAggregateNotFound) {
-			return protosource.Response{
-				StatusCode: http.StatusNotFound,
-				Body:       `{"error":"aggregate not found"}`,
-				Headers:    map[string]string{"Content-Type": "application/json"},
-			}
+			return errorResponse(http.StatusNotFound, "HIST_NOT_FOUND", "aggregate not found", nil)
 		}
-		return protosource.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       `{"error":"internal server error"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusInternalServerError, "HIST_LOAD", "failed to load history", err)
 	}
 
 	body, contentType, err := marshalResponse(request, history)
 	if err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       `{"error":"failed to serialize history"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusInternalServerError, "HIST_MARSHAL", "failed to serialize history", err)
 	}
 
 	return protosource.Response{
@@ -441,15 +346,26 @@ func extractID(request protosource.Request) string {
 	return request.QueryParameters["id"]
 }
 
+// errorResponse builds a JSON error response with a code for tracing.
+// If cause is non-nil, its message is included in the detail field.
+func errorResponse(statusCode int, code, message string, cause error) protosource.Response {
+	body := map[string]string{"error": message, "code": code}
+	if cause != nil {
+		body["detail"] = cause.Error()
+	}
+	b, _ := json.Marshal(body)
+	return protosource.Response{
+		StatusCode: statusCode,
+		Body:       string(b),
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}
+}
+
 // jsonResponse marshals a value as JSON and returns a protosource.Response.
 func jsonResponse(statusCode int, v any) protosource.Response {
 	b, err := json.Marshal(v)
 	if err != nil {
-		return protosource.Response{
-			StatusCode: http.StatusInternalServerError,
-			Body:       `{"error":"failed to serialize response"}`,
-			Headers:    map[string]string{"Content-Type": "application/json"},
-		}
+		return errorResponse(http.StatusInternalServerError, "JSON_MARSHAL", "failed to serialize response", err)
 	}
 	return protosource.Response{
 		StatusCode: statusCode,
@@ -460,29 +376,20 @@ func jsonResponse(statusCode int, v any) protosource.Response {
 
 // commandErrorResponse maps protosource errors to appropriate HTTP responses.
 func commandErrorResponse(err error) protosource.Response {
-	statusCode := http.StatusInternalServerError
-	message := "internal server error"
-
 	switch {
 	case errors.Is(err, protosource.ErrValidationFailed):
-		statusCode = http.StatusBadRequest
-		message = err.Error()
+		return errorResponse(http.StatusBadRequest, "CMD_VALIDATION", err.Error(), nil)
 	case errors.Is(err, protosource.ErrEmptyAggregateId):
-		statusCode = http.StatusBadRequest
-		message = "aggregate id is required"
+		return errorResponse(http.StatusBadRequest, "CMD_EMPTY_ID", "aggregate id is required", nil)
 	case errors.Is(err, protosource.ErrAlreadyCreated):
-		statusCode = http.StatusConflict
-		message = "aggregate already exists"
+		return errorResponse(http.StatusConflict, "CMD_ALREADY_CREATED", "aggregate already exists", nil)
 	case errors.Is(err, protosource.ErrNotCreatedYet):
-		statusCode = http.StatusNotFound
-		message = "aggregate not found"
+		return errorResponse(http.StatusNotFound, "CMD_NOT_CREATED", "aggregate not found", nil)
 	case errors.Is(err, protosource.ErrAggregateNotFound):
-		statusCode = http.StatusNotFound
-		message = "aggregate not found"
+		return errorResponse(http.StatusNotFound, "CMD_NOT_FOUND", "aggregate not found", nil)
 	case errors.Is(err, protosource.ErrUnauthorized):
-		statusCode = http.StatusForbidden
-		message = "command not authorized"
+		return errorResponse(http.StatusForbidden, "CMD_UNAUTHORIZED", "command not authorized", nil)
+	default:
+		return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
 	}
-
-	return jsonResponse(statusCode, map[string]string{"error": message})
 }

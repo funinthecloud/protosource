@@ -892,8 +892,8 @@ func TestSnapshot_CapturesPostEventState(t *testing.T) {
 		t.Fatalf("update failed: %v", err)
 	}
 
-	// Load the raw history and find the snapshot event.
-	history, err := store.Load(ctx, "id-1")
+	// Load the history via repo and find the snapshot event.
+	history, err := repo.History(ctx, "id-1")
 	if err != nil {
 		t.Fatalf("load history failed: %v", err)
 	}
@@ -950,7 +950,7 @@ func TestSnapshot_MultiEventBoundaryCrossing(t *testing.T) {
 		}
 	}
 
-	history, err := store.Load(ctx, "id-1")
+	history, err := repo.History(ctx, "id-1")
 	if err != nil {
 		t.Fatalf("load history failed: %v", err)
 	}
