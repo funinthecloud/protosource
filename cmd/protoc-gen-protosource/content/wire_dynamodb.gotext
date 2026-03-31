@@ -25,13 +25,13 @@ import (
     "github.com/google/wire"
 )
 
-func provideOpaqueStore(client *dynamodb.Client, aggregatesTable string) *opaquedynamo.Store {
-    return opaquedynamo.New(client, aggregatesTable)
+func provideOpaqueStore(client *dynamodb.Client, table AggregatesTableName) *opaquedynamo.Store {
+    return opaquedynamo.New(client, string(table))
 }
 
-func provideStore(client *dynamodb.Client, opaqueStore *opaquedynamo.Store, eventsTable string) (*dynamodbstore.DynamoDBStore, error) {
+func provideStore(client *dynamodb.Client, opaqueStore *opaquedynamo.Store, table EventsTableName) (*dynamodbstore.DynamoDBStore, error) {
     return dynamodbstore.New(client,
-        dynamodbstore.WithEventsTable(eventsTable),
+        dynamodbstore.WithEventsTable(string(table)),
         dynamodbstore.WithOpaqueStore(opaqueStore),
     )
 }
