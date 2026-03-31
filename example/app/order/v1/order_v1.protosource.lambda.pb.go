@@ -14,18 +14,25 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Handlers provides request handler functions for the Order aggregate.
-type Handlers struct {
-	repo protosource.Repo
+// Repo is a package-specific interface for dependency injection.
+// It embeds protosource.Repo so that *protosource.Repository satisfies it,
+// while giving each aggregate package a distinct type for Wire.
+type Repo interface {
+	protosource.Repo
 }
 
-// NewHandlers creates a new Handlers instance with the given repository.
-func NewHandlers(repo protosource.Repo) *Handlers {
-	return &Handlers{repo: repo}
+// Handler provides request handler functions for the Order aggregate.
+type Handler struct {
+	repo Repo
+}
+
+// NewHandler creates a new Handler instance with the given repository.
+func NewHandler(repo Repo) *Handler {
+	return &Handler{repo: repo}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
-func (h *Handlers) RegisterRoutes(router *protosource.Router) {
+func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("POST", "example/app/order/v1/create", h.HandleCreate)
 
@@ -48,7 +55,7 @@ func (h *Handlers) RegisterRoutes(router *protosource.Router) {
 }
 
 // HandleCreate processes a Create command.
-func (h *Handlers) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -78,7 +85,7 @@ func (h *Handlers) HandleCreate(ctx context.Context, request protosource.Request
 }
 
 // HandleAddItem processes a AddItem command.
-func (h *Handlers) HandleAddItem(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleAddItem(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -108,7 +115,7 @@ func (h *Handlers) HandleAddItem(ctx context.Context, request protosource.Reques
 }
 
 // HandleRemoveItem processes a RemoveItem command.
-func (h *Handlers) HandleRemoveItem(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleRemoveItem(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -138,7 +145,7 @@ func (h *Handlers) HandleRemoveItem(ctx context.Context, request protosource.Req
 }
 
 // HandleAddTag processes a AddTag command.
-func (h *Handlers) HandleAddTag(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleAddTag(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -168,7 +175,7 @@ func (h *Handlers) HandleAddTag(ctx context.Context, request protosource.Request
 }
 
 // HandleRemoveTag processes a RemoveTag command.
-func (h *Handlers) HandleRemoveTag(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleRemoveTag(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -198,7 +205,7 @@ func (h *Handlers) HandleRemoveTag(ctx context.Context, request protosource.Requ
 }
 
 // HandleSetShipping processes a SetShipping command.
-func (h *Handlers) HandleSetShipping(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -228,7 +235,7 @@ func (h *Handlers) HandleSetShipping(ctx context.Context, request protosource.Re
 }
 
 // HandlePlace processes a Place command.
-func (h *Handlers) HandlePlace(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandlePlace(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -258,7 +265,7 @@ func (h *Handlers) HandlePlace(ctx context.Context, request protosource.Request)
 }
 
 // HandleCancel processes a Cancel command.
-func (h *Handlers) HandleCancel(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleCancel(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -288,7 +295,7 @@ func (h *Handlers) HandleCancel(ctx context.Context, request protosource.Request
 }
 
 // HandleGet retrieves the current state of a Order aggregate.
-func (h *Handlers) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
 		return protosource.Response{
@@ -331,7 +338,7 @@ func (h *Handlers) HandleGet(ctx context.Context, request protosource.Request) p
 }
 
 // HandleHistory retrieves the full event history for a Order aggregate.
-func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
 		return protosource.Response{
@@ -373,33 +380,35 @@ func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Reques
 	}
 }
 
-// acceptsProtobuf returns true if the Accept header indicates protobuf (or is absent for default).
-// Default is protobuf; only JSON if explicitly requested.
+// acceptsProtobuf checks the Accept header: protobuf wins if present,
+// then JSON if present, otherwise defaults to protobuf.
 func acceptsProtobuf(request protosource.Request) bool {
 	accept := request.Headers["Accept"]
 	if accept == "" {
 		accept = request.Headers["accept"]
 	}
-	// If Accept is explicitly JSON, return false
+	if strings.Contains(accept, "application/protobuf") {
+		return true
+	}
 	if strings.Contains(accept, "application/json") {
 		return false
 	}
-	// Default to true: protobuf (whether explicitly requested or absent)
 	return true
 }
 
-// isProtobufContent returns true if the Content-Type header indicates protobuf (or is absent for default).
-// Default is protobuf; only JSON if explicitly requested.
+// isProtobufContent checks the Content-Type header: protobuf wins if present,
+// then JSON if present, otherwise defaults to protobuf.
 func isProtobufContent(request protosource.Request) bool {
 	ct := request.Headers["Content-Type"]
 	if ct == "" {
 		ct = request.Headers["content-type"]
 	}
-	// If Content-Type is explicitly JSON, return false
+	if strings.Contains(ct, "application/protobuf") {
+		return true
+	}
 	if strings.Contains(ct, "application/json") {
 		return false
 	}
-	// Default to true: protobuf (whether explicitly requested or absent)
 	return true
 }
 

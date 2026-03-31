@@ -13,8 +13,10 @@ import (
 	"time"
 
 	pkg "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1"
+	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/anypb"
 )
 
 var usage = "Usage: samplemgr [-json] <command> [args]\n\nFlags:\n" +
@@ -32,6 +34,7 @@ var usage = "Usage: samplemgr [-json] <command> [args]\n\nFlags:\n" +
 var (
 	useJSON     bool
 	apiEndpoint string
+	httpClient  = &http.Client{Timeout: 30 * time.Second}
 )
 
 func main() {
@@ -142,7 +145,7 @@ func applyAndPrint(cmd proto.Message) {
 	req.Header.Set("Content-Type", contentType)
 	req.Header.Set("Accept", accept)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		fatal(fmt.Sprintf("error making request: %v", err))
 	}
@@ -177,7 +180,7 @@ func loadAggregate(id string) {
 	}
 	req.Header.Set("Accept", accept)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		fatal(fmt.Sprintf("error making request: %v", err))
 	}
@@ -222,7 +225,7 @@ func loadHistory(id string) {
 	}
 	req.Header.Set("Accept", accept)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		fatal(fmt.Sprintf("error making request: %v", err))
 	}
@@ -238,9 +241,44 @@ func loadHistory(id string) {
 		os.Exit(1)
 	}
 
-	// Parse history - would need historyv1.History type
-	// For now, just print the raw response
-	fmt.Println(string(respBody))
+	history := &historyv1.History{}
+	if useJSON {
+		if err := protojson.Unmarshal(respBody, history); err != nil {
+			fatal(fmt.Sprintf("error unmarshaling history: %v", err))
+		}
+	} else {
+		if err := proto.Unmarshal(respBody, history); err != nil {
+			fatal(fmt.Sprintf("error unmarshaling history: %v", err))
+		}
+	}
+
+	for _, record := range history.GetRecords() {
+		var a anypb.Any
+		if err := proto.Unmarshal(record.GetData(), &a); err != nil {
+			fmt.Fprintf(os.Stderr, "v%d: error unmarshaling record: %v\n", record.GetVersion(), err)
+			continue
+		}
+
+		// Extract short type name from type URL
+		typeName := a.GetTypeUrl()
+		if i := strings.LastIndex(typeName, "."); i >= 0 {
+			typeName = typeName[i+1:]
+		}
+
+		msg, err := a.UnmarshalNew()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "v%d %s: error unpacking: %v\n", record.GetVersion(), typeName, err)
+			continue
+		}
+
+		b, err := jsonFormatter.Marshal(msg)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "v%d %s: error formatting: %v\n", record.GetVersion(), typeName, err)
+			continue
+		}
+
+		fmt.Printf("v%d %s\n%s\n\n", record.GetVersion(), typeName, string(b))
+	}
 }
 
 var jsonFormatter = protojson.MarshalOptions{Multiline: true, Indent: "  "}
@@ -252,13 +290,6 @@ func printAggregate(agg proto.Message) {
 		os.Exit(1)
 	}
 	fmt.Println(string(b))
-}
-
-func formatMicros(us int64) string {
-	if us == 0 {
-		return "(none)"
-	}
-	return time.UnixMicro(us).Format(time.RFC3339)
 }
 
 func detectActor() string {

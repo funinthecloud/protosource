@@ -41,9 +41,9 @@ func main() {
 	serializer := protobinaryserializer.NewSerializer()
 	repo := testv1.NewRepository(store, serializer)
 
-	handlers := testv1.NewHandlers(repo)
+	h := testv1.NewHandler(repo)
 	router := protosource.NewRouter()
-	handlers.RegisterRoutes(router)
+	h.RegisterRoutes(router)
 
 	handler := awslambda.WrapRouter(router, extractActor)
 	lambda.Start(handler)
