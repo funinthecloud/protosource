@@ -14,18 +14,25 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// Handlers provides request handler functions for the Test aggregate.
-type Handlers struct {
-	repo protosource.Repo
+// Repo is a package-specific interface for dependency injection.
+// It embeds protosource.Repo so that *protosource.Repository satisfies it,
+// while giving each aggregate package a distinct type for Wire.
+type Repo interface {
+	protosource.Repo
 }
 
-// NewHandlers creates a new Handlers instance with the given repository.
-func NewHandlers(repo protosource.Repo) *Handlers {
-	return &Handlers{repo: repo}
+// Handler provides request handler functions for the Test aggregate.
+type Handler struct {
+	repo Repo
+}
+
+// NewHandler creates a new Handler instance with the given repository.
+func NewHandler(repo Repo) *Handler {
+	return &Handler{repo: repo}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
-func (h *Handlers) RegisterRoutes(router *protosource.Router) {
+func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("POST", "example/app/test/v1/create", h.HandleCreate)
 
@@ -40,7 +47,7 @@ func (h *Handlers) RegisterRoutes(router *protosource.Router) {
 }
 
 // HandleCreate processes a Create command.
-func (h *Handlers) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -70,7 +77,7 @@ func (h *Handlers) HandleCreate(ctx context.Context, request protosource.Request
 }
 
 // HandleUpdate processes a Update command.
-func (h *Handlers) HandleUpdate(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -100,7 +107,7 @@ func (h *Handlers) HandleUpdate(ctx context.Context, request protosource.Request
 }
 
 // HandleLock processes a Lock command.
-func (h *Handlers) HandleLock(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleLock(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -130,7 +137,7 @@ func (h *Handlers) HandleLock(ctx context.Context, request protosource.Request) 
 }
 
 // HandleUnlock processes a Unlock command.
-func (h *Handlers) HandleUnlock(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleUnlock(ctx context.Context, request protosource.Request) protosource.Response {
 	if request.Actor == "" {
 		return protosource.Response{
 			StatusCode: http.StatusUnauthorized,
@@ -160,7 +167,7 @@ func (h *Handlers) HandleUnlock(ctx context.Context, request protosource.Request
 }
 
 // HandleGet retrieves the current state of a Test aggregate.
-func (h *Handlers) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
 		return protosource.Response{
@@ -203,7 +210,7 @@ func (h *Handlers) HandleGet(ctx context.Context, request protosource.Request) p
 }
 
 // HandleHistory retrieves the full event history for a Test aggregate.
-func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
+func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
 		return protosource.Response{
@@ -245,22 +252,36 @@ func (h *Handlers) HandleHistory(ctx context.Context, request protosource.Reques
 	}
 }
 
-// acceptsProtobuf returns true if the Accept header includes application/protobuf.
+// acceptsProtobuf checks the Accept header: protobuf wins if present,
+// then JSON if present, otherwise defaults to protobuf.
 func acceptsProtobuf(request protosource.Request) bool {
 	accept := request.Headers["Accept"]
 	if accept == "" {
 		accept = request.Headers["accept"]
 	}
-	return strings.Contains(accept, "application/protobuf")
+	if strings.Contains(accept, "application/protobuf") {
+		return true
+	}
+	if strings.Contains(accept, "application/json") {
+		return false
+	}
+	return true
 }
 
-// isProtobufContent returns true if the Content-Type header indicates protobuf.
+// isProtobufContent checks the Content-Type header: protobuf wins if present,
+// then JSON if present, otherwise defaults to protobuf.
 func isProtobufContent(request protosource.Request) bool {
 	ct := request.Headers["Content-Type"]
 	if ct == "" {
 		ct = request.Headers["content-type"]
 	}
-	return strings.Contains(ct, "application/protobuf")
+	if strings.Contains(ct, "application/protobuf") {
+		return true
+	}
+	if strings.Contains(ct, "application/json") {
+		return false
+	}
+	return true
 }
 
 // unmarshalCommand decodes the request body into a proto message, using

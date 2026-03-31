@@ -89,6 +89,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"cliParseExpr":           cliParseExpr,
 		"fileSupportsCLI":        p.fileSupportsCLI,
 		"add":                    func(a, b int) int { return a + b },
+		"lastPathComponent":      lastPathComponent,
 	}
 }
 
@@ -930,6 +931,15 @@ func (p *ProtosourceModule) routePrefix(f pgs.File) string {
 
 func (p *ProtosourceModule) dump(input any) string {
 	return fmt.Sprintf("%#v", input)
+}
+
+// lastPathComponent returns the last component of a path string (e.g., "v1" from "example/app/test/v1")
+func lastPathComponent(path string) string {
+	parts := strings.Split(path, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return ""
 }
 
 // Name satisfies the generator.Plugin interface.
