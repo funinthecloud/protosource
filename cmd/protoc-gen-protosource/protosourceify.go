@@ -867,6 +867,18 @@ func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Temp
 		return p.cliOutputPath(f, importPath)
 	}
 
+	// Wire templates go into <aggregate><version><store>/ subdirectories.
+	if strings.HasPrefix(tpl.Name(), "wire_") {
+		name := strings.TrimSuffix(strings.TrimPrefix(tpl.Name(), "wire_"), ".gotext")
+		// wire_dynamodb_types.gotext → dynamodb dir, types.go filename
+		if idx := strings.LastIndex(name, "_"); idx > 0 {
+			store := name[:idx]
+			file := name[idx+1:] + ".go"
+			return p.wireOutputPath(f, importPath, store, file)
+		}
+		return p.wireOutputPath(f, importPath, name, "wire.go")
+	}
+
 	suffix := ".protosource.pb.go"
 	if tplName := tpl.Name(); tplName != "protosource.gotext" {
 		name := strings.TrimSuffix(tplName, ".gotext")
@@ -911,6 +923,34 @@ func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string 
 	out := p.ctx.OutputPath(f).String()
 	parent := filepath.Dir(out)
 	return filepath.Join(parent, dir, "main.go")
+}
+
+// wireOutputPath returns the output path for a wire template, placing it in
+// a <aggregate><version><store>/ subdirectory (e.g., "example/app/test/v1/testv1memory/wire.go").
+func (p *ProtosourceModule) wireOutputPath(f pgs.File, importPath, store, filename string) string {
+	aggregateName := ""
+	for _, m := range f.Messages() {
+		if p.isAggregate(m) {
+			aggregateName = strings.ToLower(m.Name().String())
+			break
+		}
+	}
+	if aggregateName == "" {
+		aggregateName = "wire"
+	}
+
+	version := lastPathComponent(p.routePrefix(f))
+	dir := aggregateName + version + store
+
+	if mod := p.params.Str("module"); mod != "" {
+		rel := strings.TrimPrefix(importPath, mod)
+		rel = strings.TrimPrefix(rel, "/")
+		return rel + "/" + dir + "/" + filename
+	}
+
+	out := p.ctx.OutputPath(f).String()
+	parent := filepath.Dir(out)
+	return filepath.Join(parent, dir, filename)
 }
 
 // importPath returns the full Go import path for the proto file's package.
