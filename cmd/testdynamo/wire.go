@@ -18,17 +18,12 @@ import (
 	"github.com/funinthecloud/protosource/stores/dynamodbstore"
 )
 
-// provideRouter creates a router with all aggregate handlers registered.
 func provideRouter(
 	testHandler *testv1.Handler,
 	orderHandler *orderv1.Handler,
 	sampleHandler *samplev1.Handler,
 ) *protosource.Router {
-	router := protosource.NewRouter()
-	testHandler.RegisterRoutes(router)
-	orderHandler.RegisterRoutes(router)
-	sampleHandler.RegisterRoutes(router)
-	return router
+	return protosource.NewRouter(testHandler, orderHandler, sampleHandler)
 }
 
 // InitializeRouter wires all dependencies and returns a configured router.

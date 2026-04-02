@@ -112,6 +112,30 @@ func TestRouterMultipleRoutes(t *testing.T) {
 	}
 }
 
+type stubRegistrar struct {
+	method, pattern, body string
+}
+
+func (s *stubRegistrar) RegisterRoutes(r *Router) {
+	r.Handle(s.method, s.pattern, handler(s.body))
+}
+
+func TestNewRouterWithRegistrars(t *testing.T) {
+	r := NewRouter(
+		&stubRegistrar{"POST", "a/v1/create", "a-create"},
+		&stubRegistrar{"POST", "b/v1/create", "b-create"},
+	)
+
+	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{})
+	if resp.StatusCode != 200 || resp.Body != "a-create" {
+		t.Fatalf("want 200/a-create, got %d/%s", resp.StatusCode, resp.Body)
+	}
+	resp = r.Dispatch(context.Background(), "POST", "/b/v1/create", Request{})
+	if resp.StatusCode != 200 || resp.Body != "b-create" {
+		t.Fatalf("want 200/b-create, got %d/%s", resp.StatusCode, resp.Body)
+	}
+}
+
 func TestRouterDoubleSlash(t *testing.T) {
 	r := NewRouter()
 	r.Handle("GET", "a/b/c", handler("abc"))
