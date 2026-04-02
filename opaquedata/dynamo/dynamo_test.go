@@ -157,6 +157,10 @@ func (m *mockDynamo) UpdateItem(_ context.Context, _ *dynamodb.UpdateItemInput, 
 	return &dynamodb.UpdateItemOutput{}, nil
 }
 
+func (m *mockDynamo) TransactWriteItems(_ context.Context, _ *dynamodb.TransactWriteItemsInput, _ ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error) {
+	return &dynamodb.TransactWriteItemsOutput{}, nil
+}
+
 func makeOpaqueItem(pk, sk string, body []byte) map[string]types.AttributeValue {
 	item := map[string]types.AttributeValue{
 		"pk": &types.AttributeValueMemberS{Value: pk},

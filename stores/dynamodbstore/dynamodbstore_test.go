@@ -174,6 +174,22 @@ func (m *mockDynamoer) Query(ctx context.Context, input *dynamodb.QueryInput, _ 
 	}, nil
 }
 
+func (m *mockDynamoer) PutItem(_ context.Context, _ *dynamodb.PutItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error) {
+	return nil, fmt.Errorf("PutItem not implemented in mock")
+}
+
+func (m *mockDynamoer) DeleteItem(_ context.Context, _ *dynamodb.DeleteItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error) {
+	return nil, fmt.Errorf("DeleteItem not implemented in mock")
+}
+
+func (m *mockDynamoer) UpdateItem(_ context.Context, _ *dynamodb.UpdateItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error) {
+	return nil, fmt.Errorf("UpdateItem not implemented in mock")
+}
+
+func (m *mockDynamoer) GetItem(_ context.Context, _ *dynamodb.GetItemInput, _ ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error) {
+	return nil, fmt.Errorf("GetItem not implemented in mock")
+}
+
 func strPtr(s string) *string { return &s }
 
 // ---------------------------------------------------------------------------

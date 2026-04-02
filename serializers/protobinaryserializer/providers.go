@@ -1,5 +1,3 @@
-//go:build wireinject
-
 package protobinaryserializer
 
 import (
