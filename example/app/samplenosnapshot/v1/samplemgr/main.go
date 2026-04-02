@@ -2,18 +2,16 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"os/user"
 	"strconv"
 	"strings"
-	"time"
 
 	pkg "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1"
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
+	"github.com/funinthecloud/protosource/httpclient"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -31,13 +29,9 @@ var usage = "Usage: samplemgr [-json] <command> [args]\n\nFlags:\n" +
 	"  API_DOMAIN      Base domain for API endpoint (pattern: sample-v1.API_DOMAIN)\n" +
 	"  API_ENDPOINT    Full API endpoint URL (fallback if API_DOMAIN not set)\n"
 
-var (
-	useJSON     bool
-	apiEndpoint string
-	httpClient  = &http.Client{Timeout: 30 * time.Second}
-)
-
 func main() {
+	var useJSON bool
+
 	// Parse flags
 	for len(os.Args) > 1 && strings.HasPrefix(os.Args[1], "-") {
 		switch os.Args[1] {
@@ -56,6 +50,7 @@ func main() {
 	}
 
 	// Resolve API endpoint
+	var apiEndpoint string
 	if apiDomain := os.Getenv("API_DOMAIN"); apiDomain != "" {
 		apiEndpoint = "https://sample-v1." + apiDomain
 	} else if endpoint := os.Getenv("API_ENDPOINT"); endpoint != "" {
@@ -64,7 +59,15 @@ func main() {
 		fatal("Neither API_DOMAIN nor API_ENDPOINT is defined")
 	}
 
-	actor := detectActor()
+	// Create client
+	auth := httpclient.NewNoAuth(detectActor())
+	var opts []httpclient.Option
+	if useJSON {
+		opts = append(opts, httpclient.WithJSON())
+	}
+	client := pkg.NewHTTPClient(httpclient.New(apiEndpoint, auth, opts...))
+
+	ctx := context.Background()
 	subcmd := os.Args[1]
 
 	switch subcmd {
@@ -73,35 +76,41 @@ func main() {
 		if len(os.Args) != 4 {
 			fatal("usage: samplemgr create <id> <body>")
 		}
-		cmd := &pkg.Create{
-			Id:    os.Args[2],
-			Actor: actor,
-			Body:  os.Args[3],
+		result, err := client.Create(ctx, os.Args[2], os.Args[3])
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
 		}
-		applyAndPrint(cmd)
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
 
 	case "update":
 		if len(os.Args) != 4 {
 			fatal("usage: samplemgr update <id> <body>")
 		}
-		cmd := &pkg.Update{
-			Id:    os.Args[2],
-			Actor: actor,
-			Body:  os.Args[3],
+		result, err := client.Update(ctx, os.Args[2], os.Args[3])
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
 		}
-		applyAndPrint(cmd)
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
 
 	case "load":
 		if len(os.Args) != 3 {
 			fatal("usage: samplemgr load <id>")
 		}
-		loadAggregate(os.Args[2])
+		agg, err := client.Load(ctx, os.Args[2])
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
+		}
+		printProto(agg)
 
 	case "history":
 		if len(os.Args) != 3 {
 			fatal("usage: samplemgr history <id>")
 		}
-		loadHistory(os.Args[2])
+		history, err := client.History(ctx, os.Args[2])
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
+		}
+		printHistory(history)
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s\n", subcmd, usage)
@@ -109,149 +118,17 @@ func main() {
 	}
 }
 
-func applyAndPrint(cmd proto.Message) {
-	// Serialize command
-	var body []byte
-	var contentType string
-	var accept string
+var jsonFormatter = protojson.MarshalOptions{Multiline: true, Indent: "  "}
 
-	if useJSON {
-		b, err := protojson.Marshal(cmd)
-		if err != nil {
-			fatal(fmt.Sprintf("error marshaling command: %v", err))
-		}
-		body = b
-		contentType = "application/json"
-		accept = "application/json"
-	} else {
-		b, err := proto.Marshal(cmd)
-		if err != nil {
-			fatal(fmt.Sprintf("error marshaling command: %v", err))
-		}
-		body = b
-		contentType = "application/protobuf"
-		accept = "application/protobuf"
-	}
-
-	// Extract command name from type
-	cmdName := strings.ToLower(string(cmd.ProtoReflect().Descriptor().Name()))
-	url := apiEndpoint + "/example/app/samplenosnapshot/v1/" + cmdName
-
-	// Make request
-	req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+func printProto(msg proto.Message) {
+	b, err := jsonFormatter.Marshal(msg)
 	if err != nil {
-		fatal(fmt.Sprintf("error creating request: %v", err))
+		fatal(fmt.Sprintf("error formatting: %v", err))
 	}
-	req.Header.Set("Content-Type", contentType)
-	req.Header.Set("Accept", accept)
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		fatal(fmt.Sprintf("error making request: %v", err))
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fatal(fmt.Sprintf("error reading response: %v", err))
-	}
-
-	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "error: %s\n", string(respBody))
-		os.Exit(1)
-	}
-
-	// Command response is JSON {"id":"...","version":...}
-	fmt.Println(string(respBody))
+	fmt.Println(string(b))
 }
 
-func loadAggregate(id string) {
-	var accept string
-	if useJSON {
-		accept = "application/json"
-	} else {
-		accept = "application/protobuf"
-	}
-
-	url := apiEndpoint + "/example/app/samplenosnapshot/v1/" + id
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fatal(fmt.Sprintf("error creating request: %v", err))
-	}
-	req.Header.Set("Accept", accept)
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		fatal(fmt.Sprintf("error making request: %v", err))
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fatal(fmt.Sprintf("error reading response: %v", err))
-	}
-
-	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "error: %s\n", string(respBody))
-		os.Exit(1)
-	}
-
-	agg := &pkg.Sample{}
-	if useJSON {
-		if err := protojson.Unmarshal(respBody, agg); err != nil {
-			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
-		}
-	} else {
-		if err := proto.Unmarshal(respBody, agg); err != nil {
-			fatal(fmt.Sprintf("error unmarshaling response: %v", err))
-		}
-	}
-
-	printAggregate(agg)
-}
-
-func loadHistory(id string) {
-	var accept string
-	if useJSON {
-		accept = "application/json"
-	} else {
-		accept = "application/protobuf"
-	}
-
-	url := apiEndpoint + "/example/app/samplenosnapshot/v1/" + id + "/history"
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		fatal(fmt.Sprintf("error creating request: %v", err))
-	}
-	req.Header.Set("Accept", accept)
-
-	resp, err := httpClient.Do(req)
-	if err != nil {
-		fatal(fmt.Sprintf("error making request: %v", err))
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fatal(fmt.Sprintf("error reading response: %v", err))
-	}
-
-	if resp.StatusCode >= 400 {
-		fmt.Fprintf(os.Stderr, "error: %s\n", string(respBody))
-		os.Exit(1)
-	}
-
-	history := &historyv1.History{}
-	if useJSON {
-		if err := protojson.Unmarshal(respBody, history); err != nil {
-			fatal(fmt.Sprintf("error unmarshaling history: %v", err))
-		}
-	} else {
-		if err := proto.Unmarshal(respBody, history); err != nil {
-			fatal(fmt.Sprintf("error unmarshaling history: %v", err))
-		}
-	}
-
+func printHistory(history *historyv1.History) {
 	for _, record := range history.GetRecords() {
 		var a anypb.Any
 		if err := proto.Unmarshal(record.GetData(), &a); err != nil {
@@ -259,7 +136,6 @@ func loadHistory(id string) {
 			continue
 		}
 
-		// Extract short type name from type URL
 		typeName := a.GetTypeUrl()
 		if i := strings.LastIndex(typeName, "."); i >= 0 {
 			typeName = typeName[i+1:]
@@ -279,17 +155,6 @@ func loadHistory(id string) {
 
 		fmt.Printf("v%d %s\n%s\n\n", record.GetVersion(), typeName, string(b))
 	}
-}
-
-var jsonFormatter = protojson.MarshalOptions{Multiline: true, Indent: "  "}
-
-func printAggregate(agg proto.Message) {
-	b, err := jsonFormatter.Marshal(agg)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error formatting aggregate: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println(string(b))
 }
 
 func detectActor() string {
