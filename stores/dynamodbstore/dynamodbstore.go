@@ -9,18 +9,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/funinthecloud/protosource/aws/dynamoclient"
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/opaquedata"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"google.golang.org/protobuf/proto"
 )
-
-// Dynamoer is the minimal DynamoDB interface required by DynamoDBStore.
-// It is satisfied by *dynamodb.Client.
-type Dynamoer interface {
-	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
-	TransactWriteItems(ctx context.Context, params *dynamodb.TransactWriteItemsInput, optFns ...func(*dynamodb.Options)) (*dynamodb.TransactWriteItemsOutput, error)
-}
 
 // DynamoDB attribute names are kept to single characters to minimize read/write
 // costs. DynamoDB charges per byte for both reads and writes, and attribute
@@ -39,14 +33,14 @@ const (
 // DynamoDBStore implements the protosource Store, AggregateStore, and
 // SnapshotTailStore interfaces backed by DynamoDB.
 type DynamoDBStore struct {
-	client      Dynamoer
+	client      dynamoclient.Client
 	eventsTable string
 	opaqueStore opaquedata.OpaqueStore // SaveAggregate requires this; aggregates are stored via opaquedata with GSI indexing
 	ttl         time.Duration          // when non-zero, sets TTL attribute on event writes
 }
 
 // New creates a new DynamoDBStore. The client must not be nil.
-func New(client Dynamoer, opts ...Option) (*DynamoDBStore, error) {
+func New(client dynamoclient.Client, opts ...Option) (*DynamoDBStore, error) {
 	s := &DynamoDBStore{
 		client:      client,
 		eventsTable: DefaultEventsTable,

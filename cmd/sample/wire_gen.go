@@ -7,18 +7,18 @@
 package main
 
 import (
-	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/example/app/sample/v1"
+	"github.com/funinthecloud/protosource/example/app/sample/v1/samplev1memory"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 )
 
 // Injectors from wire.go:
 
-func InitializeRepository() *protosource.Repository {
+func InitializeRepository() *samplev1memory.Repository {
 	memoryStore := provideStore()
 	serializer := protobinaryserializer.NewSerializer()
-	repository := provideRepository(memoryStore, serializer)
+	repository := samplev1memory.ProvideRepository(memoryStore, serializer)
 	return repository
 }
 
@@ -26,8 +26,4 @@ func InitializeRepository() *protosource.Repository {
 
 func provideStore() *memorystore.MemoryStore {
 	return memorystore.New(samplev1.SnapshotEveryNEvents)
-}
-
-func provideRepository(store *memorystore.MemoryStore, serializer *protobinaryserializer.Serializer) *protosource.Repository {
-	return samplev1.NewRepository(store, serializer)
 }

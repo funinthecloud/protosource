@@ -870,13 +870,7 @@ func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Temp
 	// Wire templates go into <aggregate><version><store>/ subdirectories.
 	if strings.HasPrefix(tpl.Name(), "wire_") {
 		name := strings.TrimSuffix(strings.TrimPrefix(tpl.Name(), "wire_"), ".gotext")
-		// wire_dynamodb_types.gotext → dynamodb dir, types.go filename
-		if idx := strings.LastIndex(name, "_"); idx > 0 {
-			store := name[:idx]
-			file := name[idx+1:] + ".go"
-			return p.wireOutputPath(f, importPath, store, file)
-		}
-		return p.wireOutputPath(f, importPath, name, "wire.go")
+		return p.wireOutputPath(f, importPath, name, "providers.go")
 	}
 
 	suffix := ".protosource.pb.go"
@@ -926,7 +920,7 @@ func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string 
 }
 
 // wireOutputPath returns the output path for a wire template, placing it in
-// a <aggregate><version><store>/ subdirectory (e.g., "example/app/test/v1/testv1memory/wire.go").
+// a <aggregate><version><store>/ subdirectory (e.g., "example/app/test/v1/testv1memory/providers.go").
 func (p *ProtosourceModule) wireOutputPath(f pgs.File, importPath, store, filename string) string {
 	aggregateName := ""
 	for _, m := range f.Messages() {

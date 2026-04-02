@@ -9,33 +9,19 @@ import (
 	"github.com/aws/aws-sdk-go-v2/feature/dynamodb/attributevalue"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/funinthecloud/protosource/aws/dynamoclient"
 	"github.com/funinthecloud/protosource/opaquedata"
 	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
 )
 
-// DynamoDBer is the minimal DynamoDB interface needed by the dynamo adapter.
-// It is satisfied by *dynamodb.Client.
-type DynamoDBer interface {
-	Querier
-	PutItem(ctx context.Context, params *dynamodb.PutItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.PutItemOutput, error)
-	DeleteItem(ctx context.Context, params *dynamodb.DeleteItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.DeleteItemOutput, error)
-	UpdateItem(ctx context.Context, params *dynamodb.UpdateItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.UpdateItemOutput, error)
-	GetItem(ctx context.Context, params *dynamodb.GetItemInput, optFns ...func(*dynamodb.Options)) (*dynamodb.GetItemOutput, error)
-}
-
-// Querier is the subset of DynamoDB operations needed for queries.
-type Querier interface {
-	Query(ctx context.Context, params *dynamodb.QueryInput, optFns ...func(*dynamodb.Options)) (*dynamodb.QueryOutput, error)
-}
-
 // Store implements opaquedata.OpaqueStore backed by DynamoDB.
 type Store struct {
-	client    DynamoDBer
+	client    dynamoclient.Client
 	tableName string
 }
 
 // New creates a new DynamoDB-backed OpaqueStore.
-func New(client DynamoDBer, tableName string) *Store {
+func New(client dynamoclient.Client, tableName string) *Store {
 	return &Store{client: client, tableName: tableName}
 }
 

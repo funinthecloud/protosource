@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 
 	"github.com/funinthecloud/protosource/adapters/awslambda"
-	testv1dynamodb "github.com/funinthecloud/protosource/example/app/test/v1/testv1dynamodb"
+	"github.com/funinthecloud/protosource/stores/dynamodbstore"
 )
 
 func main() {
@@ -21,8 +21,8 @@ func main() {
 
 	client := dynamodb.NewFromConfig(cfg)
 
-	eventsTable := testv1dynamodb.EventsTableName(envOrDefault("EVENTS_TABLE", "events"))
-	aggregatesTable := testv1dynamodb.AggregatesTableName(envOrDefault("AGGREGATES_TABLE", "aggregates"))
+	eventsTable := dynamodbstore.EventsTableName(envOrDefault("EVENTS_TABLE", "events"))
+	aggregatesTable := dynamodbstore.AggregatesTableName(envOrDefault("AGGREGATES_TABLE", "aggregates"))
 
 	router, err := InitializeRouter(client, eventsTable, aggregatesTable)
 	if err != nil {
