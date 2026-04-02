@@ -228,6 +228,16 @@ func (r *Repository) qualifiedID(id string) string {
 // Option provides functional configuration options for the Repository
 type Option func(*Repository)
 
+// WithLogger sets the logger used for diagnostic messages (materialization
+// and projection failures). By default, no logging occurs.
+func WithLogger(logger Logger) Option {
+	return func(r *Repository) {
+		if logger != nil {
+			r.logger = logger
+		}
+	}
+}
+
 // WithCompression enables gzip compression for event record data stored by the
 // repository. Record data at or above the threshold (in bytes) is compressed
 // before writing to the store. Data below the threshold is stored uncompressed.
@@ -239,16 +249,6 @@ type Option func(*Repository)
 //
 // Use 300 as a sensible starting threshold. Pass 0 or any negative value to
 // disable compression (the default).
-// WithLogger sets the logger used for diagnostic messages (materialization
-// and projection failures). By default, no logging occurs.
-func WithLogger(logger Logger) Option {
-	return func(r *Repository) {
-		if logger != nil {
-			r.logger = logger
-		}
-	}
-}
-
 func WithCompression(threshold int) Option {
 	return func(r *Repository) {
 		r.compressThreshold = threshold
