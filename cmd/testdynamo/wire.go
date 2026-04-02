@@ -14,6 +14,8 @@ import (
 	samplev1dynamodb "github.com/funinthecloud/protosource/example/app/sample/v1/samplev1dynamodb"
 	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	testv1dynamodb "github.com/funinthecloud/protosource/example/app/test/v1/testv1dynamodb"
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedynamo "github.com/funinthecloud/protosource/opaquedata/dynamo"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/dynamodbstore"
 )
@@ -34,11 +36,15 @@ func InitializeRouter(
 ) (*protosource.Router, error) {
 	wire.Build(
 		wire.Bind(new(dynamoclient.Client), new(*dynamodb.Client)),
+		wire.Bind(new(opaquedata.OpaqueStore), new(*opaquedynamo.Store)),
 		dynamodbstore.ProviderSet,
 		protobinaryserializer.ProviderSet,
 		testv1dynamodb.ProviderSet,
 		orderv1dynamodb.ProviderSet,
 		samplev1dynamodb.ProviderSet,
+		testv1.NewTestClient,
+		orderv1.NewOrderClient,
+		samplev1.NewSampleClient,
 		testv1.NewHandler,
 		orderv1.NewHandler,
 		samplev1.NewHandler,

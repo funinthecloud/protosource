@@ -90,6 +90,8 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"fileSupportsCLI":        p.fileSupportsCLI,
 		"add":                    func(a, b int) int { return a + b },
 		"lastPathComponent":      lastPathComponent,
+		"queryRoutePath":         queryRoutePath,
+		"queryParseExpr":         queryParseExpr,
 	}
 }
 
@@ -687,6 +689,21 @@ func cliParseExpr(f pgs.Field, argIdx int) string {
 		return fmt.Sprintf("mustReadFile(%s, %q)", arg, name)
 	default:
 		return arg
+	}
+}
+
+// queryParseExpr returns a Go expression that parses a string variable into
+// the field's Go type. Used in generated query handlers.
+func queryParseExpr(f pgs.Field, varName string) string {
+	switch f.Type().ProtoType() {
+	case pgs.StringT:
+		return varName
+	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
+		return fmt.Sprintf("parseQueryParamInt32(%s)", varName)
+	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
+		return fmt.Sprintf("parseQueryParamInt64(%s)", varName)
+	default:
+		return varName
 	}
 }
 
@@ -1339,6 +1356,16 @@ func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
 	}
 	mappings := p.opaqueKeyMappings(m)
 	return mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]
+}
+
+// queryRoutePath builds a URL path segment from GSI PK field names.
+// e.g., fields [CustomerId] -> "by-customer-id", fields [TenantId, RegionId] -> "by-tenant-id-and-region-id"
+func queryRoutePath(fields []opaqueFieldMapping) string {
+	parts := make([]string, len(fields))
+	for i, fm := range fields {
+		parts[i] = strings.ReplaceAll(strings.ToLower(fm.Field.Name().String()), "_", "-")
+	}
+	return "by-" + strings.Join(parts, "-and-")
 }
 
 // aggregateForFile returns the aggregate message in the same file as the given message.

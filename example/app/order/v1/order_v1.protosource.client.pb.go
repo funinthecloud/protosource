@@ -4,9 +4,12 @@ package orderv1
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "example/app/order/v1"
@@ -108,4 +111,37 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Order, error) {
 // History retrieves the full event history for a Order aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
+}
+
+// QueryByCustomerId queries by customer_id via GSI1.
+func (c *HTTPClient) QueryByCustomerId(ctx context.Context, customer_id string) ([]*Order, error) {
+	params := map[string]string{
+		"customer_id": customer_id,
+	}
+	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+}
+
+// QueryByCustomerIdWithCreateAt queries by customer_id with a sort key condition via GSI1.
+func (c *HTTPClient) QueryByCustomerIdWithCreateAt(ctx context.Context, customer_id string, skOp string, create_at string) ([]*Order, error) {
+	params := map[string]string{
+		"customer_id": customer_id,
+		"sk_op":       skOp,
+		"create_at":   create_at,
+	}
+	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+}
+
+func unmarshalQueryResultsOrder(raw []json.RawMessage, err error) ([]*Order, error) {
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*Order, 0, len(raw))
+	for _, item := range raw {
+		agg := &Order{}
+		if err := protojson.Unmarshal(item, agg); err != nil {
+			return nil, fmt.Errorf("unmarshal query result: %w", err)
+		}
+		results = append(results, agg)
+	}
+	return results, nil
 }

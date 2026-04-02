@@ -4,9 +4,12 @@ package testv1
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "example/app/test/v1"
@@ -69,4 +72,19 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Test, error) {
 // History retrieves the full event history for a Test aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
+}
+
+func unmarshalQueryResultsTest(raw []json.RawMessage, err error) ([]*Test, error) {
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*Test, 0, len(raw))
+	for _, item := range raw {
+		agg := &Test{}
+		if err := protojson.Unmarshal(item, agg); err != nil {
+			return nil, fmt.Errorf("unmarshal query result: %w", err)
+		}
+		results = append(results, agg)
+	}
+	return results, nil
 }

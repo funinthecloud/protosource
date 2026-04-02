@@ -174,6 +174,43 @@ func TestHistory(t *testing.T) {
 	assert.Len(t, result.Records, 2)
 }
 
+func TestQuery(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/test/v1/query/by-customer-id", r.URL.Path)
+		assert.Equal(t, "123", r.URL.Query().Get("customer_id"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`[{"id":"a"},{"id":"b"}]`))
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"))
+	items, err := c.Query(context.Background(), "test/v1", "by-customer-id", map[string]string{
+		"customer_id": "123",
+	})
+
+	require.NoError(t, err)
+	assert.Len(t, items, 2)
+	assert.Contains(t, string(items[0]), `"id":"a"`)
+}
+
+func TestQuery_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		w.Write([]byte(`{"code":"QUERY_MISSING_PK","message":"missing parameter"}`))
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"))
+	_, err := c.Query(context.Background(), "test/v1", "by-foo", nil)
+
+	require.Error(t, err)
+	apiErr, ok := err.(*APIError)
+	require.True(t, ok)
+	assert.Equal(t, 400, apiErr.StatusCode)
+	assert.Equal(t, "QUERY_MISSING_PK", apiErr.Code)
+}
+
 func TestSetActorField(t *testing.T) {
 	// Use a Record which has version(1) and data(2) -- field 2 is bytes not string,
 	// so setActorField should be a no-op (kind mismatch).

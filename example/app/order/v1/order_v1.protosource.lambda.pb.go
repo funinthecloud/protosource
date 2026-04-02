@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/funinthecloud/protosource"
+	"github.com/funinthecloud/protosource/opaquedata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -24,12 +26,13 @@ type Repo interface {
 
 // Handler provides request handler functions for the Order aggregate.
 type Handler struct {
-	repo Repo
+	repo   Repo
+	client *OrderClient
 }
 
-// NewHandler creates a new Handler instance with the given repository.
-func NewHandler(repo Repo) *Handler {
-	return &Handler{repo: repo}
+// NewHandler creates a new Handler instance with the given repository and client.
+func NewHandler(repo Repo, client *OrderClient) *Handler {
+	return &Handler{repo: repo, client: client}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
@@ -53,6 +56,9 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("GET", "example/app/order/v1/{id}", h.HandleGet)
 	router.Handle("GET", "example/app/order/v1/{id}/history", h.HandleHistory)
+
+	router.Handle("GET", "example/app/order/v1/query/by-customer-id", h.HandleQueryByCustomerId)
+
 }
 
 // HandleCreate processes a Create command.
@@ -285,6 +291,59 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 	}
 }
 
+// HandleQueryByCustomerId queries GSI1 by partition key with optional sort key condition.
+func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosource.Request) protosource.Response {
+	customer_id := request.QueryParameters["customer_id"]
+	if customer_id == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: customer_id", nil)
+	}
+
+	skOp := request.QueryParameters["sk_op"]
+
+	if skOp == "" {
+		results, err := h.client.SelectOrderByCustomerId(ctx, customer_id)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return marshalQueryResults(results)
+	}
+
+	op, ok := parseSortOperator(skOp)
+	if !ok {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+	}
+
+	create_atRaw := request.QueryParameters["create_at"]
+	if create_atRaw == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at", nil)
+	}
+
+	skVal := OrderGSI1SK{
+		CreateAt: parseQueryParamInt64(create_atRaw),
+	}
+
+	if op == opaquedata.Between {
+		create_atRaw2 := request.QueryParameters["create_at2"]
+		skVal2 := OrderGSI1SK{
+			CreateAt: parseQueryParamInt64(create_atRaw2),
+		}
+		results, err := h.client.SelectOrderByCustomerIdWithCreateAt(ctx, customer_id, op, skVal, skVal2)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return marshalQueryResults(results)
+	}
+
+	results, err := h.client.SelectOrderByCustomerIdWithCreateAt(ctx, customer_id, op, skVal)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+	}
+	return marshalQueryResults(results)
+
+}
+
+// ── Helpers ──
+
 // acceptsProtobuf checks the Accept header: protobuf wins if present,
 // then JSON if present, otherwise defaults to protobuf.
 func acceptsProtobuf(request protosource.Request) bool {
@@ -338,12 +397,55 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
 	return b, "application/json", err
 }
 
+// marshalQueryResults serializes a slice of proto messages as a JSON array.
+func marshalQueryResults[T proto.Message](results []T) protosource.Response {
+	items := make([]json.RawMessage, 0, len(results))
+	for _, r := range results {
+		b, err := protojson.Marshal(r)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize result", err)
+		}
+		items = append(items, b)
+	}
+	body, err := json.Marshal(items)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
+	}
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}
+}
+
 // extractID extracts the aggregate ID from path parameters or query string.
 func extractID(request protosource.Request) string {
 	if id, ok := request.PathParameters["id"]; ok && id != "" {
 		return id
 	}
 	return request.QueryParameters["id"]
+}
+
+// parseSortOperator maps a query parameter value to an opaquedata.SortOperator.
+func parseSortOperator(s string) (opaquedata.SortOperator, bool) {
+	switch strings.ToLower(s) {
+	case "eq":
+		return opaquedata.Equal, true
+	case "lt":
+		return opaquedata.Lt, true
+	case "le":
+		return opaquedata.Le, true
+	case "gt":
+		return opaquedata.Gt, true
+	case "ge":
+		return opaquedata.Ge, true
+	case "begins_with":
+		return opaquedata.BeginsWith, true
+	case "between":
+		return opaquedata.Between, true
+	default:
+		return 0, false
+	}
 }
 
 // errorResponse builds a JSON error response with a code for tracing.
@@ -392,4 +494,16 @@ func commandErrorResponse(err error) protosource.Response {
 	default:
 		return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
 	}
+}
+
+// ── Query parameter parsers ──
+
+func parseQueryParamInt32(s string) int32 {
+	v, _ := strconv.ParseInt(s, 10, 32)
+	return int32(v)
+}
+
+func parseQueryParamInt64(s string) int64 {
+	v, _ := strconv.ParseInt(s, 10, 64)
+	return v
 }

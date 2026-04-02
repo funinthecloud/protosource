@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -24,6 +25,7 @@ type Doer interface {
 	Apply(ctx context.Context, routePath string, cmd proto.Message) (*ApplyResult, error)
 	Load(ctx context.Context, routePath string, id string, target proto.Message) error
 	History(ctx context.Context, routePath string, id string) (*historyv1.History, error)
+	Query(ctx context.Context, routePath string, queryPath string, params map[string]string) ([]json.RawMessage, error)
 }
 
 // AuthProvider decorates outgoing HTTP requests with authentication.
@@ -187,6 +189,50 @@ func (c *Client) History(ctx context.Context, routePath string, id string) (*his
 		return nil, err
 	}
 	return history, nil
+}
+
+// Query sends a GET request to a query endpoint and returns the raw JSON items.
+// The queryPath is appended to {baseURL}/{routePath}/query/{queryPath}.
+// Params are sent as URL query parameters.
+func (c *Client) Query(ctx context.Context, routePath string, queryPath string, params map[string]string) ([]json.RawMessage, error) {
+	u := c.baseURL + "/" + routePath + "/query/" + queryPath
+	if len(params) > 0 {
+		v := url.Values{}
+		for k, val := range params {
+			v.Set(k, val)
+		}
+		u += "?" + v.Encode()
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: create request: %w", err)
+	}
+
+	if err := c.auth.Authenticate(req); err != nil {
+		return nil, fmt.Errorf("httpclient: authenticate: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("httpclient: read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, parseAPIError(resp.StatusCode, respBody)
+	}
+
+	var items []json.RawMessage
+	if err := json.Unmarshal(respBody, &items); err != nil {
+		return nil, fmt.Errorf("httpclient: unmarshal query results: %w", err)
+	}
+	return items, nil
 }
 
 func (c *Client) marshal(msg proto.Message) (body []byte, contentType, accept string, err error) {

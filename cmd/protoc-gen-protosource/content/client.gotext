@@ -14,9 +14,12 @@ package {{ package . }}
 
 import (
     "context"
+    "encoding/json"
+    "fmt"
 
     historyv1 "github.com/funinthecloud/protosource/history/v1"
     "github.com/funinthecloud/protosource/httpclient"
+    "google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "{{ $route }}"
@@ -59,4 +62,42 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*{{ $aggregate }}, er
 // History retrieves the full event history for a {{ $aggregate }} aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
     return c.c.History(ctx, routePath, id)
+}
+
+{{ $agg := aggregateForFile . }}
+{{ range $gsi := opaqueUsedGSIs $agg }}
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} via GSI{{ $gsi.Num }}.
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} string{{ end }}) ([]*{{ $aggregate }}, error) {
+    params := map[string]string{
+{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}    }
+    return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
+}
+
+{{ if $gsi.HasSK }}
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} with a sort key condition via GSI{{ $gsi.Num }}.
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} string{{ end }}, skOp string{{ range $fm := $gsi.SKFields }}, {{ opaqueFieldNameLower $fm.Field }} string{{ end }}) ([]*{{ $aggregate }}, error) {
+    params := map[string]string{
+{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}        "sk_op": skOp,
+{{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ opaqueFieldNameLower $fm.Field }},
+{{ end }}    }
+    return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
+}
+{{ end }}
+{{ end }}
+
+func unmarshalQueryResults{{ $aggregate }}(raw []json.RawMessage, err error) ([]*{{ $aggregate }}, error) {
+    if err != nil {
+        return nil, err
+    }
+    results := make([]*{{ $aggregate }}, 0, len(raw))
+    for _, item := range raw {
+        agg := &{{ $aggregate }}{}
+        if err := protojson.Unmarshal(item, agg); err != nil {
+            return nil, fmt.Errorf("unmarshal query result: %w", err)
+        }
+        results = append(results, agg)
+    }
+    return results, nil
 }

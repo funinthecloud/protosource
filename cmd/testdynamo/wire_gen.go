@@ -30,11 +30,14 @@ func InitializeRouter(client *dynamodb.Client, eventsTable dynamodbstore.EventsT
 	}
 	serializer := protobinaryserializer.NewSerializer()
 	repository := testv1dynamodb.ProvideRepository(dynamoDBStore, serializer)
-	handler := testv1.NewHandler(repository)
+	testClient := testv1.NewTestClient(store)
+	handler := testv1.NewHandler(repository, testClient)
 	orderv1dynamodbRepository := orderv1dynamodb.ProvideRepository(dynamoDBStore, serializer)
-	orderv1Handler := orderv1.NewHandler(orderv1dynamodbRepository)
+	orderClient := orderv1.NewOrderClient(store)
+	orderv1Handler := orderv1.NewHandler(orderv1dynamodbRepository, orderClient)
 	samplev1dynamodbRepository := samplev1dynamodb.ProvideRepository(dynamoDBStore, serializer)
-	samplev1Handler := samplev1.NewHandler(samplev1dynamodbRepository)
+	sampleClient := samplev1.NewSampleClient(store)
+	samplev1Handler := samplev1.NewHandler(samplev1dynamodbRepository, sampleClient)
 	router := provideRouter(handler, orderv1Handler, samplev1Handler)
 	return router, nil
 }
