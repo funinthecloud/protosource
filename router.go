@@ -18,9 +18,20 @@ type route struct {
 	handler  HandlerFunc
 }
 
-// NewRouter creates a new Router.
-func NewRouter() *Router {
-	return &Router{}
+// RouteRegistrar is implemented by types that register routes on a Router.
+// Generated Handler types satisfy this interface.
+type RouteRegistrar interface {
+	RegisterRoutes(router *Router)
+}
+
+// NewRouter creates a new Router. If registrars are provided, their routes
+// are registered immediately.
+func NewRouter(registrars ...RouteRegistrar) *Router {
+	r := &Router{}
+	for _, reg := range registrars {
+		reg.RegisterRoutes(r)
+	}
+	return r
 }
 
 // Handle registers a handler for the given HTTP method and path pattern.
