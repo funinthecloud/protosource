@@ -27,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 	return &HTTPClient{c: c}
 }
 
-// Create sends a Create command.
+// Create sends the Create command.
 func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
 	cmd := &Create{
 		Id:   id,
@@ -36,7 +36,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpc
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Update sends a Update command.
+// Update sends the Update command.
 func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
 	cmd := &Update{
 		Id:   id,
@@ -45,7 +45,7 @@ func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpc
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of a Sample aggregate.
+// Load retrieves the current state of the Sample aggregate.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Sample, error) {
 	agg := &Sample{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
@@ -54,7 +54,7 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Sample, error) {
 	return agg, nil
 }
 
-// History retrieves the full event history for a Sample aggregate.
+// History retrieves the full event history for the Sample aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
 }

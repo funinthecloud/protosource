@@ -53,8 +53,11 @@ type Client struct {
 // Option configures a Client.
 type Option func(*Client)
 
-// New creates a new Client.
+// New creates a new Client. Panics if auth is nil.
 func New(baseURL string, auth AuthProvider, opts ...Option) *Client {
+	if auth == nil {
+		panic("httpclient.New: auth must not be nil (use httpclient.NewNoAuth for no authentication)")
+	}
 	c := &Client{
 		httpClient: &http.Client{Timeout: 30 * time.Second},
 		baseURL:    strings.TrimRight(baseURL, "/"),

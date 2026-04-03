@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strings"
 	"text/template"
+	"unicode"
 
 	pgs "github.com/lyft/protoc-gen-star/v2"
 	pgsgo "github.com/lyft/protoc-gen-star/v2/lang/go"
@@ -90,6 +91,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"fileSupportsCLI":        p.fileSupportsCLI,
 		"add":                    func(a, b int) int { return a + b },
 		"lastPathComponent":      lastPathComponent,
+		"unexport":               unexport,
 		"queryRoutePath":         queryRoutePath,
 		"queryParseExpr":         queryParseExpr,
 		"queryFormatExpr":        queryFormatExpr,
@@ -1393,6 +1395,17 @@ func (p *ProtosourceModule) opaquePKFields(m pgs.Message) []opaqueFieldMapping {
 	}
 	mappings := p.opaqueKeyMappings(m)
 	return mappings[optionsv1.OpaqueKeyType_OPAQUE_KEY_TYPE_PK]
+}
+
+// unexport lowercases the first character of a Go identifier, preserving
+// internal casing: "CustomerId" -> "customerId", "ID" -> "iD".
+func unexport(s string) string {
+	if s == "" {
+		return s
+	}
+	r := []rune(s)
+	r[0] = unicode.ToLower(r[0])
+	return string(r)
 }
 
 // queryRoutePath builds a URL path segment from GSI PK field names.

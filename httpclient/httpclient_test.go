@@ -15,9 +15,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// simpleMessage is a minimal proto message for testing marshaling.
-// We use History as a stand-in since it's available.
-
 func TestApply_JSON(t *testing.T) {
 	var gotContentType, gotAccept, gotAuth string
 	var gotBody []byte
@@ -69,7 +66,7 @@ func TestApply_Protobuf(t *testing.T) {
 func TestApply_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
-		w.Write([]byte(`{"code":"CMD_UNMARSHAL","message":"bad request"}`))
+		w.Write([]byte(`{"code":"CMD_UNMARSHAL","error":"bad request"}`))
 	}))
 	defer server.Close()
 
@@ -137,7 +134,7 @@ func TestLoad_Protobuf(t *testing.T) {
 func TestLoad_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		w.Write([]byte(`{"code":"GET_NOT_FOUND","message":"aggregate not found"}`))
+		w.Write([]byte(`{"code":"GET_NOT_FOUND","error":"aggregate not found"}`))
 	}))
 	defer server.Close()
 
@@ -197,7 +194,7 @@ func TestQuery(t *testing.T) {
 func TestQuery_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
-		w.Write([]byte(`{"code":"QUERY_MISSING_PK","message":"missing parameter"}`))
+		w.Write([]byte(`{"code":"QUERY_MISSING_PK","error":"missing parameter"}`))
 	}))
 	defer server.Close()
 

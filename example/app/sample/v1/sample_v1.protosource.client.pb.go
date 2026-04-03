@@ -27,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 	return &HTTPClient{c: c}
 }
 
-// Create sends a Create command.
+// Create sends the Create command.
 func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
 	cmd := &Create{
 		Id:   id,
@@ -36,7 +36,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpc
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Update sends a Update command.
+// Update sends the Update command.
 func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
 	cmd := &Update{
 		Id:   id,
@@ -45,7 +45,7 @@ func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpc
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of a Sample aggregate.
+// Load retrieves the current state of the Sample aggregate.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Sample, error) {
 	agg := &Sample{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
@@ -54,25 +54,25 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Sample, error) {
 	return agg, nil
 }
 
-// History retrieves the full event history for a Sample aggregate.
+// History retrieves the full event history for the Sample aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
 }
 
 // QueryByCreateBy queries by create_by via GSI1.
-func (c *HTTPClient) QueryByCreateBy(ctx context.Context, create_by string) ([]*Sample, error) {
+func (c *HTTPClient) QueryByCreateBy(ctx context.Context, createBy string) ([]*Sample, error) {
 	params := map[string]string{
-		"create_by": create_by,
+		"create_by": createBy,
 	}
 	return unmarshalQueryResultsSample(c.c.Query(ctx, routePath, "by-create-by", params))
 }
 
 // QueryByCreateByWithCreateAt queries by create_by with a sort key condition via GSI1.
-func (c *HTTPClient) QueryByCreateByWithCreateAt(ctx context.Context, create_by string, skOp string, create_at int64) ([]*Sample, error) {
+func (c *HTTPClient) QueryByCreateByWithCreateAt(ctx context.Context, createBy string, skOp string, createAt int64) ([]*Sample, error) {
 	params := map[string]string{
-		"create_by": create_by,
+		"create_by": createBy,
 		"sk_op":     skOp,
-		"create_at": strconv.FormatInt(create_at, 10),
+		"create_at": strconv.FormatInt(createAt, 10),
 	}
 	return unmarshalQueryResultsSample(c.c.Query(ctx, routePath, "by-create-by", params))
 }
