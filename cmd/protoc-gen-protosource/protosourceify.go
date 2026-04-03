@@ -1558,6 +1558,9 @@ func (p *ProtosourceModule) validateAggregateList(f pgs.File, agg pgs.Message) e
 	if !f0.Type().IsRepeated() {
 		return fmt.Errorf("%s.items must be repeated", listName)
 	}
+	if f0.Descriptor().GetNumber() != 1 {
+		return fmt.Errorf("%s.items must be field number 1, got %d", listName, f0.Descriptor().GetNumber())
+	}
 	elem := f0.Type().Element()
 	if elem == nil || !elem.IsEmbed() {
 		return fmt.Errorf("%s.items must be a message type (repeated %s)", listName, agg.Name())

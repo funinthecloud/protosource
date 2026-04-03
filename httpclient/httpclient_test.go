@@ -199,6 +199,31 @@ func TestQuery_Protobuf(t *testing.T) {
 	assert.Len(t, target.Records, 1)
 }
 
+func TestQuery_JSON(t *testing.T) {
+	history := &historyv1.History{
+		Records: []*recordv1.Record{{Version: 2, Data: []byte("y")}},
+	}
+	jsonBytes, err := protojson.Marshal(history)
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/json", r.Header.Get("Accept"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonBytes)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"), WithJSON())
+	target := &historyv1.History{}
+	err = c.Query(context.Background(), "test/v1", "by-foo", map[string]string{
+		"foo": "bar",
+	}, target)
+
+	require.NoError(t, err)
+	assert.Len(t, target.Records, 1)
+	assert.Equal(t, int64(2), target.Records[0].Version)
+}
+
 func TestQuery_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(400)
