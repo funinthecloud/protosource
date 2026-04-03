@@ -8,9 +8,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/funinthecloud/protosource"
+	"github.com/funinthecloud/protosource/opaquedata"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -24,12 +26,13 @@ type Repo interface {
 
 // Handler provides request handler functions for the Sample aggregate.
 type Handler struct {
-	repo Repo
+	repo   Repo
+	client *SampleClient
 }
 
-// NewHandler creates a new Handler instance with the given repository.
-func NewHandler(repo Repo) *Handler {
-	return &Handler{repo: repo}
+// NewHandler creates a new Handler instance with the given repository and client.
+func NewHandler(repo Repo, client *SampleClient) *Handler {
+	return &Handler{repo: repo, client: client}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
@@ -41,6 +44,9 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("GET", "example/app/sample/v1/{id}", h.HandleGet)
 	router.Handle("GET", "example/app/sample/v1/{id}/history", h.HandleHistory)
+
+	router.Handle("GET", "example/app/sample/v1/query/by-create-by", h.HandleQueryByCreateBy)
+
 }
 
 // HandleCreate processes a Create command.
@@ -141,6 +147,70 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 	}
 }
 
+// HandleQueryByCreateBy queries GSI1 by partition key with optional sort key condition.
+func (h *Handler) HandleQueryByCreateBy(ctx context.Context, request protosource.Request) protosource.Response {
+	create_by := request.QueryParameters["create_by"]
+	if create_by == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: create_by", nil)
+	}
+
+	skOp := request.QueryParameters["sk_op"]
+
+	if skOp == "" {
+		results, err := h.client.SelectSampleByCreateBy(ctx, create_by)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return marshalQueryResults(results)
+	}
+
+	op, ok := parseSortOperator(skOp)
+	if !ok {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+	}
+
+	create_atRaw := request.QueryParameters["create_at"]
+	if create_atRaw == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at", nil)
+	}
+	create_atVal, create_atErr := parseQueryParamInt64(create_atRaw)
+	if create_atErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at: %v", create_atErr), nil)
+	}
+
+	skVal := SampleGSI1SK{
+		CreateAt: create_atVal,
+	}
+
+	if op == opaquedata.Between {
+		create_atRaw2 := request.QueryParameters["create_at2"]
+		if create_atRaw2 == "" {
+			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at2 (required for between)", nil)
+		}
+		create_atVal2, create_atErr2 := parseQueryParamInt64(create_atRaw2)
+		if create_atErr2 != nil {
+			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at2: %v", create_atErr2), nil)
+		}
+		skVal2 := SampleGSI1SK{
+			CreateAt: create_atVal2,
+		}
+		results, err := h.client.SelectSampleByCreateByWithCreateAt(ctx, create_by, op, skVal, skVal2)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return marshalQueryResults(results)
+	}
+
+	results, err := h.client.SelectSampleByCreateByWithCreateAt(ctx, create_by, op, skVal)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+	}
+	return marshalQueryResults(results)
+
+}
+
+// ── Helpers ──
+
 // acceptsProtobuf checks the Accept header: protobuf wins if present,
 // then JSON if present, otherwise defaults to protobuf.
 func acceptsProtobuf(request protosource.Request) bool {
@@ -194,12 +264,57 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
 	return b, "application/json", err
 }
 
+// marshalQueryResults serializes a slice of proto messages as a JSON array
+// using protojson encoding. Query results are always returned as JSON because
+// there is no standard protobuf envelope for multi-item responses.
+func marshalQueryResults[T proto.Message](results []T) protosource.Response {
+	items := make([]json.RawMessage, 0, len(results))
+	for _, r := range results {
+		b, err := protojson.Marshal(r)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize result", err)
+		}
+		items = append(items, b)
+	}
+	body, err := json.Marshal(items)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
+	}
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": "application/json"},
+	}
+}
+
 // extractID extracts the aggregate ID from path parameters or query string.
 func extractID(request protosource.Request) string {
 	if id, ok := request.PathParameters["id"]; ok && id != "" {
 		return id
 	}
 	return request.QueryParameters["id"]
+}
+
+// parseSortOperator maps a query parameter value to an opaquedata.SortOperator.
+func parseSortOperator(s string) (opaquedata.SortOperator, bool) {
+	switch strings.ToLower(s) {
+	case "eq":
+		return opaquedata.Equal, true
+	case "lt":
+		return opaquedata.Lt, true
+	case "le":
+		return opaquedata.Le, true
+	case "gt":
+		return opaquedata.Gt, true
+	case "ge":
+		return opaquedata.Ge, true
+	case "begins_with":
+		return opaquedata.BeginsWith, true
+	case "between":
+		return opaquedata.Between, true
+	default:
+		return 0, false
+	}
 }
 
 // errorResponse builds a JSON error response with a code for tracing.
@@ -248,4 +363,64 @@ func commandErrorResponse(err error) protosource.Response {
 	default:
 		return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
 	}
+}
+
+// ── Query parameter parsers ──
+
+func parseQueryParamString(s string) (string, error) { return s, nil }
+
+func parseQueryParamInt32(s string) (int32, error) {
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int32: %w", err)
+	}
+	return int32(v), nil
+}
+
+func parseQueryParamInt64(s string) (int64, error) {
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int64: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamUint32(s string) (uint32, error) {
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid uint32: %w", err)
+	}
+	return uint32(v), nil
+}
+
+func parseQueryParamUint64(s string) (uint64, error) {
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid uint64: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamBool(s string) (bool, error) {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, fmt.Errorf("invalid bool: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamFloat32(s string) (float32, error) {
+	v, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float32: %w", err)
+	}
+	return float32(v), nil
+}
+
+func parseQueryParamFloat64(s string) (float64, error) {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float64: %w", err)
+	}
+	return v, nil
 }

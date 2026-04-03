@@ -9,9 +9,11 @@ import (
     "errors"
     "fmt"
     "net/http"
+    "strconv"
     "strings"
 
     "github.com/funinthecloud/protosource"
+    "github.com/funinthecloud/protosource/opaquedata"
     "google.golang.org/protobuf/encoding/protojson"
     "google.golang.org/protobuf/proto"
 )
@@ -32,12 +34,13 @@ type Repo interface {
 
 // Handler provides request handler functions for the {{ $aggregate }} aggregate.
 type Handler struct {
-    repo Repo
+    repo   Repo
+    client *{{ $aggregate }}Client
 }
 
-// NewHandler creates a new Handler instance with the given repository.
-func NewHandler(repo Repo) *Handler {
-    return &Handler{repo: repo}
+// NewHandler creates a new Handler instance with the given repository and client.
+func NewHandler(repo Repo, client *{{ $aggregate }}Client) *Handler {
+    return &Handler{repo: repo, client: client}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
@@ -47,6 +50,9 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 {{ end }}
 {{ end }}    router.Handle("GET", "{{ routePrefix $ }}/{id}", h.HandleGet)
     router.Handle("GET", "{{ routePrefix $ }}/{id}/history", h.HandleHistory)
+{{ $agg := aggregateForFile . }}
+{{ range $gsi := opaqueUsedGSIs $agg }}    router.Handle("GET", "{{ routePrefix $ }}/query/{{ queryRoutePath $gsi.PKFields }}", h.HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }})
+{{ end }}
 }
 
 {{ range $message := .AllMessages }}
@@ -129,6 +135,82 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
     }
 }
 
+{{ $agg2 := aggregateForFile . }}
+{{ range $gsi := opaqueUsedGSIs $agg2 }}
+// HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries GSI{{ $gsi.Num }} by partition key{{ if $gsi.HasSK }} with optional sort key condition{{ end }}.
+func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, request protosource.Request) protosource.Response {
+{{ range $fm := $gsi.PKFields }}    {{ opaqueFieldNameLower $fm.Field }} := request.QueryParameters["{{ opaqueFieldNameLower $fm.Field }}"]
+    if {{ opaqueFieldNameLower $fm.Field }} == "" {
+        return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: {{ opaqueFieldNameLower $fm.Field }}", nil)
+    }
+{{ end }}
+    skOp := request.QueryParameters["sk_op"]
+{{ if $gsi.HasSK }}
+    if skOp == "" {
+        results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }})
+        if err != nil {
+            return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+        }
+        return marshalQueryResults(results)
+    }
+
+    op, ok := parseSortOperator(skOp)
+    if !ok {
+        return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+    }
+
+{{ range $fm := $gsi.SKFields }}    {{ opaqueFieldNameLower $fm.Field }}Raw := request.QueryParameters["{{ opaqueFieldNameLower $fm.Field }}"]
+    if {{ opaqueFieldNameLower $fm.Field }}Raw == "" {
+        return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: {{ opaqueFieldNameLower $fm.Field }}", nil)
+    }
+    {{ opaqueFieldNameLower $fm.Field }}Val, {{ opaqueFieldNameLower $fm.Field }}Err := {{ queryParseExpr $fm.Field (printf "%sRaw" (opaqueFieldNameLower $fm.Field)) }}
+    if {{ opaqueFieldNameLower $fm.Field }}Err != nil {
+        return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for {{ opaqueFieldNameLower $fm.Field }}: %v", {{ opaqueFieldNameLower $fm.Field }}Err), nil)
+    }
+{{ end }}
+    skVal := {{ $agg2.Name }}GSI{{ $gsi.Num }}SK{
+{{ range $fm := $gsi.SKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }}Val,
+{{ end }}    }
+
+    if op == opaquedata.Between {
+{{ range $fm := $gsi.SKFields }}        {{ opaqueFieldNameLower $fm.Field }}Raw2 := request.QueryParameters["{{ opaqueFieldNameLower $fm.Field }}2"]
+        if {{ opaqueFieldNameLower $fm.Field }}Raw2 == "" {
+            return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: {{ opaqueFieldNameLower $fm.Field }}2 (required for between)", nil)
+        }
+        {{ opaqueFieldNameLower $fm.Field }}Val2, {{ opaqueFieldNameLower $fm.Field }}Err2 := {{ queryParseExpr $fm.Field (printf "%sRaw2" (opaqueFieldNameLower $fm.Field)) }}
+        if {{ opaqueFieldNameLower $fm.Field }}Err2 != nil {
+            return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for {{ opaqueFieldNameLower $fm.Field }}2: %v", {{ opaqueFieldNameLower $fm.Field }}Err2), nil)
+        }
+{{ end }}        skVal2 := {{ $agg2.Name }}GSI{{ $gsi.Num }}SK{
+{{ range $fm := $gsi.SKFields }}            {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }}Val2,
+{{ end }}        }
+        results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }}, op, skVal, skVal2)
+        if err != nil {
+            return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+        }
+        return marshalQueryResults(results)
+    }
+
+    results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }}, op, skVal)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+    }
+    return marshalQueryResults(results)
+{{ else }}
+    if skOp != "" {
+        return errorResponse(http.StatusBadRequest, "QUERY_NO_SK", "this index does not support sort key conditions", nil)
+    }
+    results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }})
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+    }
+    return marshalQueryResults(results)
+{{ end }}
+}
+{{ end }}
+
+// ── Helpers ──
+
 // acceptsProtobuf checks the Accept header: protobuf wins if present,
 // then JSON if present, otherwise defaults to protobuf.
 func acceptsProtobuf(request protosource.Request) bool {
@@ -182,12 +264,57 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
     return b, "application/json", err
 }
 
+// marshalQueryResults serializes a slice of proto messages as a JSON array
+// using protojson encoding. Query results are always returned as JSON because
+// there is no standard protobuf envelope for multi-item responses.
+func marshalQueryResults[T proto.Message](results []T) protosource.Response {
+    items := make([]json.RawMessage, 0, len(results))
+    for _, r := range results {
+        b, err := protojson.Marshal(r)
+        if err != nil {
+            return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize result", err)
+        }
+        items = append(items, b)
+    }
+    body, err := json.Marshal(items)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
+    }
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": "application/json"},
+    }
+}
+
 // extractID extracts the aggregate ID from path parameters or query string.
 func extractID(request protosource.Request) string {
     if id, ok := request.PathParameters["id"]; ok && id != "" {
         return id
     }
     return request.QueryParameters["id"]
+}
+
+// parseSortOperator maps a query parameter value to an opaquedata.SortOperator.
+func parseSortOperator(s string) (opaquedata.SortOperator, bool) {
+    switch strings.ToLower(s) {
+    case "eq":
+        return opaquedata.Equal, true
+    case "lt":
+        return opaquedata.Lt, true
+    case "le":
+        return opaquedata.Le, true
+    case "gt":
+        return opaquedata.Gt, true
+    case "ge":
+        return opaquedata.Ge, true
+    case "begins_with":
+        return opaquedata.BeginsWith, true
+    case "between":
+        return opaquedata.Between, true
+    default:
+        return 0, false
+    }
 }
 
 // errorResponse builds a JSON error response with a code for tracing.
@@ -236,4 +363,64 @@ func commandErrorResponse(err error) protosource.Response {
     default:
         return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
     }
+}
+
+// ── Query parameter parsers ──
+
+func parseQueryParamString(s string) (string, error) { return s, nil }
+
+func parseQueryParamInt32(s string) (int32, error) {
+    v, err := strconv.ParseInt(s, 10, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid int32: %w", err)
+    }
+    return int32(v), nil
+}
+
+func parseQueryParamInt64(s string) (int64, error) {
+    v, err := strconv.ParseInt(s, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid int64: %w", err)
+    }
+    return v, nil
+}
+
+func parseQueryParamUint32(s string) (uint32, error) {
+    v, err := strconv.ParseUint(s, 10, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid uint32: %w", err)
+    }
+    return uint32(v), nil
+}
+
+func parseQueryParamUint64(s string) (uint64, error) {
+    v, err := strconv.ParseUint(s, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid uint64: %w", err)
+    }
+    return v, nil
+}
+
+func parseQueryParamBool(s string) (bool, error) {
+    v, err := strconv.ParseBool(s)
+    if err != nil {
+        return false, fmt.Errorf("invalid bool: %w", err)
+    }
+    return v, nil
+}
+
+func parseQueryParamFloat32(s string) (float32, error) {
+    v, err := strconv.ParseFloat(s, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid float32: %w", err)
+    }
+    return float32(v), nil
+}
+
+func parseQueryParamFloat64(s string) (float64, error) {
+    v, err := strconv.ParseFloat(s, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid float64: %w", err)
+    }
+    return v, nil
 }

@@ -4,9 +4,13 @@ package testv1
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "example/app/test/v1"
@@ -23,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 	return &HTTPClient{c: c}
 }
 
-// Create sends a Create command.
+// Create sends the Create command.
 func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
 	cmd := &Create{
 		Id:   id,
@@ -32,7 +36,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpc
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Update sends a Update command.
+// Update sends the Update command.
 func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
 	cmd := &Update{
 		Id:   id,
@@ -41,7 +45,7 @@ func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpc
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Lock sends a Lock command.
+// Lock sends the Lock command.
 func (c *HTTPClient) Lock(ctx context.Context, id string) (*httpclient.ApplyResult, error) {
 	cmd := &Lock{
 		Id: id,
@@ -49,7 +53,7 @@ func (c *HTTPClient) Lock(ctx context.Context, id string) (*httpclient.ApplyResu
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Unlock sends a Unlock command.
+// Unlock sends the Unlock command.
 func (c *HTTPClient) Unlock(ctx context.Context, id string) (*httpclient.ApplyResult, error) {
 	cmd := &Unlock{
 		Id: id,
@@ -57,7 +61,7 @@ func (c *HTTPClient) Unlock(ctx context.Context, id string) (*httpclient.ApplyRe
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of a Test aggregate.
+// Load retrieves the current state of the Test aggregate.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Test, error) {
 	agg := &Test{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
@@ -66,7 +70,25 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Test, error) {
 	return agg, nil
 }
 
-// History retrieves the full event history for a Test aggregate.
+// History retrieves the full event history for the Test aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
+}
+
+// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+var _ = strconv.FormatInt
+
+func unmarshalQueryResultsTest(raw []json.RawMessage, err error) ([]*Test, error) {
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*Test, 0, len(raw))
+	for _, item := range raw {
+		agg := &Test{}
+		if err := protojson.Unmarshal(item, agg); err != nil {
+			return nil, fmt.Errorf("unmarshal query result: %w", err)
+		}
+		results = append(results, agg)
+	}
+	return results, nil
 }

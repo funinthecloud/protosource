@@ -6,10 +6,11 @@ import (
 )
 
 // APIError represents an error response from the server.
+// The server sends {"code": "...", "error": "...", "detail": "..."}.
 type APIError struct {
 	StatusCode int    `json:"-"`
 	Code       string `json:"code"`
-	Message    string `json:"message"`
+	Message    string `json:"error"`
 	Detail     string `json:"detail,omitempty"`
 }
 

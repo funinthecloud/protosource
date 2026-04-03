@@ -4,9 +4,13 @@ package orderv1
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "example/app/order/v1"
@@ -23,17 +27,17 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 	return &HTTPClient{c: c}
 }
 
-// Create sends a Create command.
-func (c *HTTPClient) Create(ctx context.Context, id string, customerid string, customername string) (*httpclient.ApplyResult, error) {
+// Create sends the Create command.
+func (c *HTTPClient) Create(ctx context.Context, id string, customerId string, customerName string) (*httpclient.ApplyResult, error) {
 	cmd := &Create{
 		Id:           id,
-		CustomerId:   customerid,
-		CustomerName: customername,
+		CustomerId:   customerId,
+		CustomerName: customerName,
 	}
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// AddItem sends a AddItem command.
+// AddItem sends the AddItem command.
 func (c *HTTPClient) AddItem(ctx context.Context, id string, item *LineItem) (*httpclient.ApplyResult, error) {
 	cmd := &AddItem{
 		Id:   id,
@@ -42,16 +46,16 @@ func (c *HTTPClient) AddItem(ctx context.Context, id string, item *LineItem) (*h
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// RemoveItem sends a RemoveItem command.
-func (c *HTTPClient) RemoveItem(ctx context.Context, id string, itemid string) (*httpclient.ApplyResult, error) {
+// RemoveItem sends the RemoveItem command.
+func (c *HTTPClient) RemoveItem(ctx context.Context, id string, itemId string) (*httpclient.ApplyResult, error) {
 	cmd := &RemoveItem{
 		Id:     id,
-		ItemId: itemid,
+		ItemId: itemId,
 	}
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// AddTag sends a AddTag command.
+// AddTag sends the AddTag command.
 func (c *HTTPClient) AddTag(ctx context.Context, id string, tag *Tag) (*httpclient.ApplyResult, error) {
 	cmd := &AddTag{
 		Id:  id,
@@ -60,7 +64,7 @@ func (c *HTTPClient) AddTag(ctx context.Context, id string, tag *Tag) (*httpclie
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// RemoveTag sends a RemoveTag command.
+// RemoveTag sends the RemoveTag command.
 func (c *HTTPClient) RemoveTag(ctx context.Context, id string, key string) (*httpclient.ApplyResult, error) {
 	cmd := &RemoveTag{
 		Id:  id,
@@ -69,25 +73,25 @@ func (c *HTTPClient) RemoveTag(ctx context.Context, id string, key string) (*htt
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// SetShipping sends a SetShipping command.
-func (c *HTTPClient) SetShipping(ctx context.Context, id string, shippingaddress string) (*httpclient.ApplyResult, error) {
+// SetShipping sends the SetShipping command.
+func (c *HTTPClient) SetShipping(ctx context.Context, id string, shippingAddress string) (*httpclient.ApplyResult, error) {
 	cmd := &SetShipping{
 		Id:              id,
-		ShippingAddress: shippingaddress,
+		ShippingAddress: shippingAddress,
 	}
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Place sends a Place command.
-func (c *HTTPClient) Place(ctx context.Context, id string, placedat int64) (*httpclient.ApplyResult, error) {
+// Place sends the Place command.
+func (c *HTTPClient) Place(ctx context.Context, id string, placedAt int64) (*httpclient.ApplyResult, error) {
 	cmd := &Place{
 		Id:       id,
-		PlacedAt: placedat,
+		PlacedAt: placedAt,
 	}
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Cancel sends a Cancel command.
+// Cancel sends the Cancel command.
 func (c *HTTPClient) Cancel(ctx context.Context, id string, reason string) (*httpclient.ApplyResult, error) {
 	cmd := &Cancel{
 		Id:     id,
@@ -96,7 +100,7 @@ func (c *HTTPClient) Cancel(ctx context.Context, id string, reason string) (*htt
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of a Order aggregate.
+// Load retrieves the current state of the Order aggregate.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Order, error) {
 	agg := &Order{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
@@ -105,7 +109,58 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Order, error) {
 	return agg, nil
 }
 
-// History retrieves the full event history for a Order aggregate.
+// History retrieves the full event history for the Order aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
+}
+
+// QueryByCustomerId queries by customer_id via GSI1.
+func (c *HTTPClient) QueryByCustomerId(ctx context.Context, customerId string) ([]*Order, error) {
+	params := map[string]string{
+		"customer_id": customerId,
+	}
+	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+}
+
+// QueryByCustomerIdWithCreateAt queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryByCustomerIdBetweenCreateAt instead.
+func (c *HTTPClient) QueryByCustomerIdWithCreateAt(ctx context.Context, customerId string, skOp string, createAt int64) ([]*Order, error) {
+	if skOp == "between" {
+		return nil, fmt.Errorf("use QueryByCustomerIdBetweenCreateAt for between queries")
+	}
+	params := map[string]string{
+		"customer_id": customerId,
+		"sk_op":       skOp,
+		"create_at":   strconv.FormatInt(createAt, 10),
+	}
+	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+}
+
+// QueryByCustomerIdBetweenCreateAt queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryByCustomerIdBetweenCreateAt(ctx context.Context, customerId string, createAtFrom int64, createAtTo int64) ([]*Order, error) {
+	params := map[string]string{
+		"customer_id": customerId,
+		"sk_op":       "between",
+		"create_at":   strconv.FormatInt(createAtFrom, 10),
+		"create_at2":  strconv.FormatInt(createAtTo, 10),
+	}
+	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+}
+
+// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+var _ = strconv.FormatInt
+
+func unmarshalQueryResultsOrder(raw []json.RawMessage, err error) ([]*Order, error) {
+	if err != nil {
+		return nil, err
+	}
+	results := make([]*Order, 0, len(raw))
+	for _, item := range raw {
+		agg := &Order{}
+		if err := protojson.Unmarshal(item, agg); err != nil {
+			return nil, fmt.Errorf("unmarshal query result: %w", err)
+		}
+		results = append(results, agg)
+	}
+	return results, nil
 }
