@@ -151,7 +151,7 @@ func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}An
         if err != nil {
             return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
         }
-        return marshalQueryResults(request, results)
+        return marshalQueryResults(results)
     }
 
     op, ok := parseSortOperator(skOp)
@@ -188,14 +188,14 @@ func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}An
         if err != nil {
             return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
         }
-        return marshalQueryResults(request, results)
+        return marshalQueryResults(results)
     }
 
     results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }}, op, skVal)
     if err != nil {
         return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
     }
-    return marshalQueryResults(request, results)
+    return marshalQueryResults(results)
 {{ else }}
     if skOp != "" {
         return errorResponse(http.StatusBadRequest, "QUERY_NO_SK", "this index does not support sort key conditions", nil)
@@ -204,7 +204,7 @@ func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}An
     if err != nil {
         return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
     }
-    return marshalQueryResults(request, results)
+    return marshalQueryResults(results)
 {{ end }}
 }
 {{ end }}
@@ -264,11 +264,10 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
     return b, "application/json", err
 }
 
-// marshalQueryResults serializes a slice of proto messages, respecting the
-// Accept header. For JSON, returns a JSON array. For protobuf, returns each
-// item serialized with protojson in a JSON array (query results are always
-// multi-item, which has no standard protobuf envelope).
-func marshalQueryResults[T proto.Message](request protosource.Request, results []T) protosource.Response {
+// marshalQueryResults serializes a slice of proto messages as a JSON array
+// using protojson encoding. Query results are always returned as JSON because
+// there is no standard protobuf envelope for multi-item responses.
+func marshalQueryResults[T proto.Message](results []T) protosource.Response {
     items := make([]json.RawMessage, 0, len(results))
     for _, r := range results {
         b, err := protojson.Marshal(r)

@@ -305,7 +305,7 @@ func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosour
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}
-		return marshalQueryResults(request, results)
+		return marshalQueryResults(results)
 	}
 
 	op, ok := parseSortOperator(skOp)
@@ -342,14 +342,14 @@ func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosour
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}
-		return marshalQueryResults(request, results)
+		return marshalQueryResults(results)
 	}
 
 	results, err := h.client.SelectOrderByCustomerIdWithCreateAt(ctx, customer_id, op, skVal)
 	if err != nil {
 		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 	}
-	return marshalQueryResults(request, results)
+	return marshalQueryResults(results)
 
 }
 
@@ -408,11 +408,10 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
 	return b, "application/json", err
 }
 
-// marshalQueryResults serializes a slice of proto messages, respecting the
-// Accept header. For JSON, returns a JSON array. For protobuf, returns each
-// item serialized with protojson in a JSON array (query results are always
-// multi-item, which has no standard protobuf envelope).
-func marshalQueryResults[T proto.Message](request protosource.Request, results []T) protosource.Response {
+// marshalQueryResults serializes a slice of proto messages as a JSON array
+// using protojson encoding. Query results are always returned as JSON because
+// there is no standard protobuf envelope for multi-item responses.
+func marshalQueryResults[T proto.Message](results []T) protosource.Response {
 	items := make([]json.RawMessage, 0, len(results))
 	for _, r := range results {
 		b, err := protojson.Marshal(r)

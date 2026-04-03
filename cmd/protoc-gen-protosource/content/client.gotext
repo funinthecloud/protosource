@@ -74,12 +74,27 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
 }
 
 {{ if $gsi.HasSK }}
-// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} with a sort key condition via GSI{{ $gsi.Num }}.
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} instead.
 func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}, skOp string{{ range $fm := $gsi.SKFields }}, {{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
+    if skOp == "between" {
+        return nil, fmt.Errorf("use QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} for between queries")
+    }
     params := map[string]string{
 {{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}        "sk_op": skOp,
 {{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
+{{ end }}    }
+    return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
+}
+
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ unexport (name $fm.Field).String }}From {{ gotype $fm.Field }}, {{ unexport (name $fm.Field).String }}To {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
+    params := map[string]string{
+{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
+{{ end }}        "sk_op": "between",
+{{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (printf "%sFrom" (unexport (name $fm.Field).String)) }},
+        "{{ opaqueFieldNameLower $fm.Field }}2": {{ queryFormatExpr $fm.Field (printf "%sTo" (unexport (name $fm.Field).String)) }},
 {{ end }}    }
     return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
 }

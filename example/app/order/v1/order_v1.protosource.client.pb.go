@@ -122,12 +122,27 @@ func (c *HTTPClient) QueryByCustomerId(ctx context.Context, customerId string) (
 	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
 }
 
-// QueryByCustomerIdWithCreateAt queries by customer_id with a sort key condition via GSI1.
+// QueryByCustomerIdWithCreateAt queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryByCustomerIdBetweenCreateAt instead.
 func (c *HTTPClient) QueryByCustomerIdWithCreateAt(ctx context.Context, customerId string, skOp string, createAt int64) ([]*Order, error) {
+	if skOp == "between" {
+		return nil, fmt.Errorf("use QueryByCustomerIdBetweenCreateAt for between queries")
+	}
 	params := map[string]string{
 		"customer_id": customerId,
 		"sk_op":       skOp,
 		"create_at":   strconv.FormatInt(createAt, 10),
+	}
+	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+}
+
+// QueryByCustomerIdBetweenCreateAt queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryByCustomerIdBetweenCreateAt(ctx context.Context, customerId string, createAtFrom int64, createAtTo int64) ([]*Order, error) {
+	params := map[string]string{
+		"customer_id": customerId,
+		"sk_op":       "between",
+		"create_at":   strconv.FormatInt(createAtFrom, 10),
+		"create_at2":  strconv.FormatInt(createAtTo, 10),
 	}
 	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
 }
