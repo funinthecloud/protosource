@@ -4,7 +4,7 @@ import (
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/aws/dynamoclient"
 	opaquedynamo "github.com/funinthecloud/protosource/opaquedata/dynamo"
-	"github.com/google/wire"
+	"github.com/goforj/wire"
 )
 
 // EventsTableName is a named type for Wire to distinguish table name strings.

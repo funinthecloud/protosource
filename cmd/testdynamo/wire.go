@@ -4,7 +4,7 @@ package main
 
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
-	"github.com/google/wire"
+	"github.com/goforj/wire"
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/aws/dynamoclient"

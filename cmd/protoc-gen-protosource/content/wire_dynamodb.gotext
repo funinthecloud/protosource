@@ -16,7 +16,7 @@ package {{ $aggregateLower }}{{ $version }}dynamodb
 import (
     "github.com/funinthecloud/protosource"
     pkg "{{ importPath . }}"
-    "github.com/google/wire"
+    "github.com/goforj/wire"
 )
 
 // Repository wraps *protosource.Repository for the {{ $aggregate }} aggregate,

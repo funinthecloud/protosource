@@ -5,7 +5,7 @@ package samplev1dynamodb
 import (
 	"github.com/funinthecloud/protosource"
 	pkg "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1"
-	"github.com/google/wire"
+	"github.com/goforj/wire"
 )
 
 // Repository wraps *protosource.Repository for the Sample aggregate,
