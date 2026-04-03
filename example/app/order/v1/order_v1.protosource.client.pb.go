@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
@@ -122,14 +123,17 @@ func (c *HTTPClient) QueryByCustomerId(ctx context.Context, customer_id string) 
 }
 
 // QueryByCustomerIdWithCreateAt queries by customer_id with a sort key condition via GSI1.
-func (c *HTTPClient) QueryByCustomerIdWithCreateAt(ctx context.Context, customer_id string, skOp string, create_at string) ([]*Order, error) {
+func (c *HTTPClient) QueryByCustomerIdWithCreateAt(ctx context.Context, customer_id string, skOp string, create_at int64) ([]*Order, error) {
 	params := map[string]string{
 		"customer_id": customer_id,
 		"sk_op":       skOp,
-		"create_at":   create_at,
+		"create_at":   strconv.FormatInt(create_at, 10),
 	}
 	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
 }
+
+// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+var _ = strconv.FormatInt
 
 func unmarshalQueryResultsOrder(raw []json.RawMessage, err error) ([]*Order, error) {
 	if err != nil {

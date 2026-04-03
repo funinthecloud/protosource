@@ -151,7 +151,7 @@ func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}An
         if err != nil {
             return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
         }
-        return marshalQueryResults(results)
+        return marshalQueryResults(request, results)
     }
 
     op, ok := parseSortOperator(skOp)
@@ -163,28 +163,39 @@ func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}An
     if {{ opaqueFieldNameLower $fm.Field }}Raw == "" {
         return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: {{ opaqueFieldNameLower $fm.Field }}", nil)
     }
+    {{ opaqueFieldNameLower $fm.Field }}Val, {{ opaqueFieldNameLower $fm.Field }}Err := {{ queryParseExpr $fm.Field (printf "%sRaw" (opaqueFieldNameLower $fm.Field)) }}
+    if {{ opaqueFieldNameLower $fm.Field }}Err != nil {
+        return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for {{ opaqueFieldNameLower $fm.Field }}: %v", {{ opaqueFieldNameLower $fm.Field }}Err), nil)
+    }
 {{ end }}
     skVal := {{ $agg2.Name }}GSI{{ $gsi.Num }}SK{
-{{ range $fm := $gsi.SKFields }}        {{ name $fm.Field }}: {{ queryParseExpr $fm.Field (printf "%sRaw" (opaqueFieldNameLower $fm.Field)) }},
+{{ range $fm := $gsi.SKFields }}        {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }}Val,
 {{ end }}    }
 
     if op == opaquedata.Between {
 {{ range $fm := $gsi.SKFields }}        {{ opaqueFieldNameLower $fm.Field }}Raw2 := request.QueryParameters["{{ opaqueFieldNameLower $fm.Field }}2"]
+        if {{ opaqueFieldNameLower $fm.Field }}Raw2 == "" {
+            return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: {{ opaqueFieldNameLower $fm.Field }}2 (required for between)", nil)
+        }
+        {{ opaqueFieldNameLower $fm.Field }}Val2, {{ opaqueFieldNameLower $fm.Field }}Err2 := {{ queryParseExpr $fm.Field (printf "%sRaw2" (opaqueFieldNameLower $fm.Field)) }}
+        if {{ opaqueFieldNameLower $fm.Field }}Err2 != nil {
+            return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for {{ opaqueFieldNameLower $fm.Field }}2: %v", {{ opaqueFieldNameLower $fm.Field }}Err2), nil)
+        }
 {{ end }}        skVal2 := {{ $agg2.Name }}GSI{{ $gsi.Num }}SK{
-{{ range $fm := $gsi.SKFields }}            {{ name $fm.Field }}: {{ queryParseExpr $fm.Field (printf "%sRaw2" (opaqueFieldNameLower $fm.Field)) }},
+{{ range $fm := $gsi.SKFields }}            {{ name $fm.Field }}: {{ opaqueFieldNameLower $fm.Field }}Val2,
 {{ end }}        }
         results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }}, op, skVal, skVal2)
         if err != nil {
             return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
         }
-        return marshalQueryResults(results)
+        return marshalQueryResults(request, results)
     }
 
     results, err := h.client.Select{{ $agg2.Name }}By{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }}, op, skVal)
     if err != nil {
         return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
     }
-    return marshalQueryResults(results)
+    return marshalQueryResults(request, results)
 {{ else }}
     if skOp != "" {
         return errorResponse(http.StatusBadRequest, "QUERY_NO_SK", "this index does not support sort key conditions", nil)
@@ -193,7 +204,7 @@ func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}An
     if err != nil {
         return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
     }
-    return marshalQueryResults(results)
+    return marshalQueryResults(request, results)
 {{ end }}
 }
 {{ end }}
@@ -253,8 +264,11 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
     return b, "application/json", err
 }
 
-// marshalQueryResults serializes a slice of proto messages as a JSON array.
-func marshalQueryResults[T proto.Message](results []T) protosource.Response {
+// marshalQueryResults serializes a slice of proto messages, respecting the
+// Accept header. For JSON, returns a JSON array. For protobuf, returns each
+// item serialized with protojson in a JSON array (query results are always
+// multi-item, which has no standard protobuf envelope).
+func marshalQueryResults[T proto.Message](request protosource.Request, results []T) protosource.Response {
     items := make([]json.RawMessage, 0, len(results))
     for _, r := range results {
         b, err := protojson.Marshal(r)
@@ -354,12 +368,60 @@ func commandErrorResponse(err error) protosource.Response {
 
 // ── Query parameter parsers ──
 
-func parseQueryParamInt32(s string) int32 {
-    v, _ := strconv.ParseInt(s, 10, 32)
-    return int32(v)
+func parseQueryParamString(s string) (string, error) { return s, nil }
+
+func parseQueryParamInt32(s string) (int32, error) {
+    v, err := strconv.ParseInt(s, 10, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid int32: %w", err)
+    }
+    return int32(v), nil
 }
 
-func parseQueryParamInt64(s string) int64 {
-    v, _ := strconv.ParseInt(s, 10, 64)
-    return v
+func parseQueryParamInt64(s string) (int64, error) {
+    v, err := strconv.ParseInt(s, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid int64: %w", err)
+    }
+    return v, nil
+}
+
+func parseQueryParamUint32(s string) (uint32, error) {
+    v, err := strconv.ParseUint(s, 10, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid uint32: %w", err)
+    }
+    return uint32(v), nil
+}
+
+func parseQueryParamUint64(s string) (uint64, error) {
+    v, err := strconv.ParseUint(s, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid uint64: %w", err)
+    }
+    return v, nil
+}
+
+func parseQueryParamBool(s string) (bool, error) {
+    v, err := strconv.ParseBool(s)
+    if err != nil {
+        return false, fmt.Errorf("invalid bool: %w", err)
+    }
+    return v, nil
+}
+
+func parseQueryParamFloat32(s string) (float32, error) {
+    v, err := strconv.ParseFloat(s, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid float32: %w", err)
+    }
+    return float32(v), nil
+}
+
+func parseQueryParamFloat64(s string) (float64, error) {
+    v, err := strconv.ParseFloat(s, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid float64: %w", err)
+    }
+    return v, nil
 }

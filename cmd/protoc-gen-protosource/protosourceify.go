@@ -92,6 +92,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"lastPathComponent":      lastPathComponent,
 		"queryRoutePath":         queryRoutePath,
 		"queryParseExpr":         queryParseExpr,
+		"queryFormatExpr":        queryFormatExpr,
 	}
 }
 
@@ -693,17 +694,53 @@ func cliParseExpr(f pgs.Field, argIdx int) string {
 }
 
 // queryParseExpr returns a Go expression that parses a string variable into
-// the field's Go type. Used in generated query handlers.
+// the field's Go type, returning (value, error). Used in generated query handlers.
+// Panics at generation time for unsupported field types.
 func queryParseExpr(f pgs.Field, varName string) string {
 	switch f.Type().ProtoType() {
 	case pgs.StringT:
-		return varName
+		return fmt.Sprintf("parseQueryParamString(%s)", varName)
 	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
 		return fmt.Sprintf("parseQueryParamInt32(%s)", varName)
 	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
 		return fmt.Sprintf("parseQueryParamInt64(%s)", varName)
+	case pgs.UInt32T, pgs.Fixed32T:
+		return fmt.Sprintf("parseQueryParamUint32(%s)", varName)
+	case pgs.UInt64T, pgs.Fixed64T:
+		return fmt.Sprintf("parseQueryParamUint64(%s)", varName)
+	case pgs.BoolT:
+		return fmt.Sprintf("parseQueryParamBool(%s)", varName)
+	case pgs.FloatT:
+		return fmt.Sprintf("parseQueryParamFloat32(%s)", varName)
+	case pgs.DoubleT:
+		return fmt.Sprintf("parseQueryParamFloat64(%s)", varName)
 	default:
+		panic(fmt.Sprintf("queryParseExpr: unsupported field type %s for field %s — GSI key fields must be scalar types", f.Type().ProtoType(), f.Name()))
+	}
+}
+
+// queryFormatExpr returns a Go expression that formats a typed value as a string
+// for use in HTTP query parameters. Used in generated HTTP client methods.
+func queryFormatExpr(f pgs.Field, varName string) string {
+	switch f.Type().ProtoType() {
+	case pgs.StringT:
 		return varName
+	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
+		return fmt.Sprintf("strconv.FormatInt(int64(%s), 10)", varName)
+	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
+		return fmt.Sprintf("strconv.FormatInt(%s, 10)", varName)
+	case pgs.UInt32T, pgs.Fixed32T:
+		return fmt.Sprintf("strconv.FormatUint(uint64(%s), 10)", varName)
+	case pgs.UInt64T, pgs.Fixed64T:
+		return fmt.Sprintf("strconv.FormatUint(%s, 10)", varName)
+	case pgs.BoolT:
+		return fmt.Sprintf("strconv.FormatBool(%s)", varName)
+	case pgs.FloatT:
+		return fmt.Sprintf("strconv.FormatFloat(float64(%s), 'f', -1, 32)", varName)
+	case pgs.DoubleT:
+		return fmt.Sprintf("strconv.FormatFloat(%s, 'f', -1, 64)", varName)
+	default:
+		panic(fmt.Sprintf("queryFormatExpr: unsupported field type %s for field %s", f.Type().ProtoType(), f.Name()))
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
@@ -57,6 +58,9 @@ func (c *HTTPClient) Load(ctx context.Context, id string) (*Sample, error) {
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
 }
+
+// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+var _ = strconv.FormatInt
 
 func unmarshalQueryResultsSample(raw []json.RawMessage, err error) ([]*Sample, error) {
 	if err != nil {

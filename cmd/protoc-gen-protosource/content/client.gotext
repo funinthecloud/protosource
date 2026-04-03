@@ -16,6 +16,7 @@ import (
     "context"
     "encoding/json"
     "fmt"
+    "strconv"
 
     historyv1 "github.com/funinthecloud/protosource/history/v1"
     "github.com/funinthecloud/protosource/httpclient"
@@ -67,25 +68,28 @@ func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History
 {{ $agg := aggregateForFile . }}
 {{ range $gsi := opaqueUsedGSIs $agg }}
 // QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} via GSI{{ $gsi.Num }}.
-func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} string{{ end }}) ([]*{{ $aggregate }}, error) {
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
     params := map[string]string{
-{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ opaqueFieldNameLower $fm.Field }},
+{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (opaqueFieldNameLower $fm.Field) }},
 {{ end }}    }
     return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
 }
 
 {{ if $gsi.HasSK }}
 // QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} with a sort key condition via GSI{{ $gsi.Num }}.
-func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} string{{ end }}, skOp string{{ range $fm := $gsi.SKFields }}, {{ opaqueFieldNameLower $fm.Field }} string{{ end }}) ([]*{{ $aggregate }}, error) {
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}, skOp string{{ range $fm := $gsi.SKFields }}, {{ opaqueFieldNameLower $fm.Field }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
     params := map[string]string{
-{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ opaqueFieldNameLower $fm.Field }},
+{{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (opaqueFieldNameLower $fm.Field) }},
 {{ end }}        "sk_op": skOp,
-{{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ opaqueFieldNameLower $fm.Field }},
+{{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (opaqueFieldNameLower $fm.Field) }},
 {{ end }}    }
     return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
 }
 {{ end }}
 {{ end }}
+
+// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+var _ = strconv.FormatInt
 
 func unmarshalQueryResults{{ $aggregate }}(raw []json.RawMessage, err error) ([]*{{ $aggregate }}, error) {
     if err != nil {

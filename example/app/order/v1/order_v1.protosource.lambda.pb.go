@@ -305,7 +305,7 @@ func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosour
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}
-		return marshalQueryResults(results)
+		return marshalQueryResults(request, results)
 	}
 
 	op, ok := parseSortOperator(skOp)
@@ -317,28 +317,39 @@ func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosour
 	if create_atRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at", nil)
 	}
+	create_atVal, create_atErr := parseQueryParamInt64(create_atRaw)
+	if create_atErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at: %v", create_atErr), nil)
+	}
 
 	skVal := OrderGSI1SK{
-		CreateAt: parseQueryParamInt64(create_atRaw),
+		CreateAt: create_atVal,
 	}
 
 	if op == opaquedata.Between {
 		create_atRaw2 := request.QueryParameters["create_at2"]
+		if create_atRaw2 == "" {
+			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at2 (required for between)", nil)
+		}
+		create_atVal2, create_atErr2 := parseQueryParamInt64(create_atRaw2)
+		if create_atErr2 != nil {
+			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at2: %v", create_atErr2), nil)
+		}
 		skVal2 := OrderGSI1SK{
-			CreateAt: parseQueryParamInt64(create_atRaw2),
+			CreateAt: create_atVal2,
 		}
 		results, err := h.client.SelectOrderByCustomerIdWithCreateAt(ctx, customer_id, op, skVal, skVal2)
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}
-		return marshalQueryResults(results)
+		return marshalQueryResults(request, results)
 	}
 
 	results, err := h.client.SelectOrderByCustomerIdWithCreateAt(ctx, customer_id, op, skVal)
 	if err != nil {
 		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 	}
-	return marshalQueryResults(results)
+	return marshalQueryResults(request, results)
 
 }
 
@@ -397,8 +408,11 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
 	return b, "application/json", err
 }
 
-// marshalQueryResults serializes a slice of proto messages as a JSON array.
-func marshalQueryResults[T proto.Message](results []T) protosource.Response {
+// marshalQueryResults serializes a slice of proto messages, respecting the
+// Accept header. For JSON, returns a JSON array. For protobuf, returns each
+// item serialized with protojson in a JSON array (query results are always
+// multi-item, which has no standard protobuf envelope).
+func marshalQueryResults[T proto.Message](request protosource.Request, results []T) protosource.Response {
 	items := make([]json.RawMessage, 0, len(results))
 	for _, r := range results {
 		b, err := protojson.Marshal(r)
@@ -498,12 +512,60 @@ func commandErrorResponse(err error) protosource.Response {
 
 // ── Query parameter parsers ──
 
-func parseQueryParamInt32(s string) int32 {
-	v, _ := strconv.ParseInt(s, 10, 32)
-	return int32(v)
+func parseQueryParamString(s string) (string, error) { return s, nil }
+
+func parseQueryParamInt32(s string) (int32, error) {
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int32: %w", err)
+	}
+	return int32(v), nil
 }
 
-func parseQueryParamInt64(s string) int64 {
-	v, _ := strconv.ParseInt(s, 10, 64)
-	return v
+func parseQueryParamInt64(s string) (int64, error) {
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int64: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamUint32(s string) (uint32, error) {
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid uint32: %w", err)
+	}
+	return uint32(v), nil
+}
+
+func parseQueryParamUint64(s string) (uint64, error) {
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid uint64: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamBool(s string) (bool, error) {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, fmt.Errorf("invalid bool: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamFloat32(s string) (float32, error) {
+	v, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float32: %w", err)
+	}
+	return float32(v), nil
+}
+
+func parseQueryParamFloat64(s string) (float64, error) {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float64: %w", err)
+	}
+	return v, nil
 }

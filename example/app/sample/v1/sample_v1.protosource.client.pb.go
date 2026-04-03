@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
@@ -67,14 +68,17 @@ func (c *HTTPClient) QueryByCreateBy(ctx context.Context, create_by string) ([]*
 }
 
 // QueryByCreateByWithCreateAt queries by create_by with a sort key condition via GSI1.
-func (c *HTTPClient) QueryByCreateByWithCreateAt(ctx context.Context, create_by string, skOp string, create_at string) ([]*Sample, error) {
+func (c *HTTPClient) QueryByCreateByWithCreateAt(ctx context.Context, create_by string, skOp string, create_at int64) ([]*Sample, error) {
 	params := map[string]string{
 		"create_by": create_by,
 		"sk_op":     skOp,
-		"create_at": create_at,
+		"create_at": strconv.FormatInt(create_at, 10),
 	}
 	return unmarshalQueryResultsSample(c.c.Query(ctx, routePath, "by-create-by", params))
 }
+
+// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+var _ = strconv.FormatInt
 
 func unmarshalQueryResultsSample(raw []json.RawMessage, err error) ([]*Sample, error) {
 	if err != nil {

@@ -200,8 +200,11 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
 	return b, "application/json", err
 }
 
-// marshalQueryResults serializes a slice of proto messages as a JSON array.
-func marshalQueryResults[T proto.Message](results []T) protosource.Response {
+// marshalQueryResults serializes a slice of proto messages, respecting the
+// Accept header. For JSON, returns a JSON array. For protobuf, returns each
+// item serialized with protojson in a JSON array (query results are always
+// multi-item, which has no standard protobuf envelope).
+func marshalQueryResults[T proto.Message](request protosource.Request, results []T) protosource.Response {
 	items := make([]json.RawMessage, 0, len(results))
 	for _, r := range results {
 		b, err := protojson.Marshal(r)
@@ -301,12 +304,60 @@ func commandErrorResponse(err error) protosource.Response {
 
 // ── Query parameter parsers ──
 
-func parseQueryParamInt32(s string) int32 {
-	v, _ := strconv.ParseInt(s, 10, 32)
-	return int32(v)
+func parseQueryParamString(s string) (string, error) { return s, nil }
+
+func parseQueryParamInt32(s string) (int32, error) {
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int32: %w", err)
+	}
+	return int32(v), nil
 }
 
-func parseQueryParamInt64(s string) int64 {
-	v, _ := strconv.ParseInt(s, 10, 64)
-	return v
+func parseQueryParamInt64(s string) (int64, error) {
+	v, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int64: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamUint32(s string) (uint32, error) {
+	v, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid uint32: %w", err)
+	}
+	return uint32(v), nil
+}
+
+func parseQueryParamUint64(s string) (uint64, error) {
+	v, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid uint64: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamBool(s string) (bool, error) {
+	v, err := strconv.ParseBool(s)
+	if err != nil {
+		return false, fmt.Errorf("invalid bool: %w", err)
+	}
+	return v, nil
+}
+
+func parseQueryParamFloat32(s string) (float32, error) {
+	v, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float32: %w", err)
+	}
+	return float32(v), nil
+}
+
+func parseQueryParamFloat64(s string) (float64, error) {
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float64: %w", err)
+	}
+	return v, nil
 }
