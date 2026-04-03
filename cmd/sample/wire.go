@@ -8,7 +8,7 @@ import (
 	samplev1memory "github.com/funinthecloud/protosource/example/app/sample/v1/samplev1memory"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
-	"github.com/google/wire"
+	"github.com/goforj/wire"
 )
 
 func provideStore() *memorystore.MemoryStore {

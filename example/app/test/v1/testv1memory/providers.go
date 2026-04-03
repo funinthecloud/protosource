@@ -5,7 +5,7 @@ package testv1memory
 import (
 	"github.com/funinthecloud/protosource"
 	pkg "github.com/funinthecloud/protosource/example/app/test/v1"
-	"github.com/google/wire"
+	"github.com/goforj/wire"
 )
 
 // Repository wraps *protosource.Repository for the Test aggregate,

@@ -2,7 +2,7 @@ package protobinaryserializer
 
 import (
 	"github.com/funinthecloud/protosource"
-	"github.com/google/wire"
+	"github.com/goforj/wire"
 )
 
 // ProviderSet provides a protobinaryserializer and binds it to protosource.Serializer.

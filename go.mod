@@ -12,8 +12,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.1
 	github.com/bufbuild/buf v1.66.1
 	github.com/davecgh/go-spew v1.1.1
+	github.com/goforj/wire v1.1.0
 	github.com/google/go-cmp v0.7.0
-	github.com/google/wire v0.7.0
 	github.com/lyft/protoc-gen-star/v2 v2.0.4
 	github.com/stretchr/testify v1.11.1
 	go.etcd.io/bbolt v1.4.3
@@ -68,6 +68,7 @@ require (
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
+	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/gofrs/flock v0.13.0 // indirect
