@@ -171,24 +171,57 @@ func TestHistory(t *testing.T) {
 	assert.Len(t, result.Records, 2)
 }
 
-func TestQuery(t *testing.T) {
+func TestQuery_Protobuf(t *testing.T) {
+	// Use History as a stand-in for {Aggregate}List -- both are proto messages.
+	history := &historyv1.History{
+		Records: []*recordv1.Record{{Version: 1, Data: []byte("x")}},
+	}
+	protoBytes, err := proto.Marshal(history)
+	require.NoError(t, err)
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/test/v1/query/by-customer-id", r.URL.Path)
 		assert.Equal(t, "123", r.URL.Query().Get("customer_id"))
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(`[{"id":"a"},{"id":"b"}]`))
+		assert.Equal(t, "application/protobuf", r.Header.Get("Accept"))
+		w.Header().Set("Content-Type", "application/protobuf")
+		w.Write(protoBytes)
 	}))
 	defer server.Close()
 
 	c := New(server.URL, NewNoAuth("actor"))
-	items, err := c.Query(context.Background(), "test/v1", "by-customer-id", map[string]string{
+	target := &historyv1.History{}
+	err = c.Query(context.Background(), "test/v1", "by-customer-id", map[string]string{
 		"customer_id": "123",
-	})
+	}, target)
 
 	require.NoError(t, err)
-	assert.Len(t, items, 2)
-	assert.Contains(t, string(items[0]), `"id":"a"`)
+	assert.Len(t, target.Records, 1)
+}
+
+func TestQuery_JSON(t *testing.T) {
+	history := &historyv1.History{
+		Records: []*recordv1.Record{{Version: 2, Data: []byte("y")}},
+	}
+	jsonBytes, err := protojson.Marshal(history)
+	require.NoError(t, err)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "application/json", r.Header.Get("Accept"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonBytes)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"), WithJSON())
+	target := &historyv1.History{}
+	err = c.Query(context.Background(), "test/v1", "by-foo", map[string]string{
+		"foo": "bar",
+	}, target)
+
+	require.NoError(t, err)
+	assert.Len(t, target.Records, 1)
+	assert.Equal(t, int64(2), target.Records[0].Version)
 }
 
 func TestQuery_ServerError(t *testing.T) {
@@ -199,7 +232,7 @@ func TestQuery_ServerError(t *testing.T) {
 	defer server.Close()
 
 	c := New(server.URL, NewNoAuth("actor"))
-	_, err := c.Query(context.Background(), "test/v1", "by-foo", nil)
+	err := c.Query(context.Background(), "test/v1", "by-foo", nil, &historyv1.History{})
 
 	require.Error(t, err)
 	apiErr, ok := err.(*APIError)

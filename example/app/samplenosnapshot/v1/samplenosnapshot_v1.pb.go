@@ -118,6 +118,50 @@ func (x *Sample) GetBody() string {
 	return ""
 }
 
+type SampleList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Sample              `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SampleList) Reset() {
+	*x = SampleList{}
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SampleList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SampleList) ProtoMessage() {}
+
+func (x *SampleList) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SampleList.ProtoReflect.Descriptor instead.
+func (*SampleList) Descriptor() ([]byte, []int) {
+	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *SampleList) GetItems() []*Sample {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 // Create is the command that is used to create a sample.
 type Create struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -130,7 +174,7 @@ type Create struct {
 
 func (x *Create) Reset() {
 	*x = Create{}
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[1]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -142,7 +186,7 @@ func (x *Create) String() string {
 func (*Create) ProtoMessage() {}
 
 func (x *Create) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[1]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -155,7 +199,7 @@ func (x *Create) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Create.ProtoReflect.Descriptor instead.
 func (*Create) Descriptor() ([]byte, []int) {
-	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{1}
+	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Create) GetId() string {
@@ -191,7 +235,7 @@ type Update struct {
 
 func (x *Update) Reset() {
 	*x = Update{}
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[2]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -203,7 +247,7 @@ func (x *Update) String() string {
 func (*Update) ProtoMessage() {}
 
 func (x *Update) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[2]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -216,7 +260,7 @@ func (x *Update) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Update.ProtoReflect.Descriptor instead.
 func (*Update) Descriptor() ([]byte, []int) {
-	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{2}
+	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Update) GetId() string {
@@ -254,7 +298,7 @@ type Created struct {
 
 func (x *Created) Reset() {
 	*x = Created{}
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[3]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -266,7 +310,7 @@ func (x *Created) String() string {
 func (*Created) ProtoMessage() {}
 
 func (x *Created) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[3]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -279,7 +323,7 @@ func (x *Created) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Created.ProtoReflect.Descriptor instead.
 func (*Created) Descriptor() ([]byte, []int) {
-	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{3}
+	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Created) GetId() string {
@@ -331,7 +375,7 @@ type Updated struct {
 
 func (x *Updated) Reset() {
 	*x = Updated{}
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[4]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -343,7 +387,7 @@ func (x *Updated) String() string {
 func (*Updated) ProtoMessage() {}
 
 func (x *Updated) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[4]
+	mi := &file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -356,7 +400,7 @@ func (x *Updated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Updated.ProtoReflect.Descriptor instead.
 func (*Updated) Descriptor() ([]byte, []int) {
-	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{4}
+	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Updated) GetId() string {
@@ -406,7 +450,10 @@ const file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDesc = "
 	"\tcreate_by\x18\x04 \x01(\tR\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
-	"\x04body\x18\a \x01(\tR\x04body:\x06ʬ\x1d\x02\x1a\x00\"U\n" +
+	"\x04body\x18\a \x01(\tR\x04body:\x06ʬ\x1d\x02\x1a\x00\"K\n" +
+	"\n" +
+	"SampleList\x12=\n" +
+	"\x05items\x18\x01 \x03(\v2'.example.app.samplenosnapshot.v1.SampleR\x05items\"U\n" +
 	"\x06Create\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
@@ -445,20 +492,22 @@ func file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescGZIP(
 	return file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDescData
 }
 
-var file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_goTypes = []any{
-	(*Sample)(nil),  // 0: example.app.samplenosnapshot.v1.Sample
-	(*Create)(nil),  // 1: example.app.samplenosnapshot.v1.Create
-	(*Update)(nil),  // 2: example.app.samplenosnapshot.v1.Update
-	(*Created)(nil), // 3: example.app.samplenosnapshot.v1.Created
-	(*Updated)(nil), // 4: example.app.samplenosnapshot.v1.Updated
+	(*Sample)(nil),     // 0: example.app.samplenosnapshot.v1.Sample
+	(*SampleList)(nil), // 1: example.app.samplenosnapshot.v1.SampleList
+	(*Create)(nil),     // 2: example.app.samplenosnapshot.v1.Create
+	(*Update)(nil),     // 3: example.app.samplenosnapshot.v1.Update
+	(*Created)(nil),    // 4: example.app.samplenosnapshot.v1.Created
+	(*Updated)(nil),    // 5: example.app.samplenosnapshot.v1.Updated
 }
 var file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	0, // 0: example.app.samplenosnapshot.v1.SampleList.items:type_name -> example.app.samplenosnapshot.v1.Sample
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_init() }
@@ -472,7 +521,7 @@ func file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDesc), len(file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

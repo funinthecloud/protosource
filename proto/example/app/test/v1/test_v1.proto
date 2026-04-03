@@ -33,6 +33,10 @@ message Test {
   State  state     = 8;
 }
 
+message TestList {
+  repeated Test items = 1;
+}
+
 // Create is the command that is used to create a test.
 // Emits Created (domain fields) then Unlocked (initial state).
 message Create {

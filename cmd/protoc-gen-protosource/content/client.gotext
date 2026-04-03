@@ -12,13 +12,11 @@ package {{ package . }}
 
 import (
     "context"
-    "encoding/json"
     "fmt"
     "strconv"
 
     historyv1 "github.com/funinthecloud/protosource/history/v1"
     "github.com/funinthecloud/protosource/httpclient"
-    "google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "{{ $route }}"
@@ -70,7 +68,11 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
     params := map[string]string{
 {{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}    }
-    return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
+    list := &{{ $aggregate }}List{}
+    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+        return nil, err
+    }
+    return list.Items, nil
 }
 
 {{ if $gsi.HasSK }}
@@ -85,7 +87,11 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
 {{ end }}        "sk_op": skOp,
 {{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}    }
-    return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
+    list := &{{ $aggregate }}List{}
+    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+        return nil, err
+    }
+    return list.Items, nil
 }
 
 // QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a between sort key condition (inclusive range).
@@ -96,25 +102,15 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
 {{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (printf "%sFrom" (unexport (name $fm.Field).String)) }},
         "{{ opaqueFieldNameLower $fm.Field }}2": {{ queryFormatExpr $fm.Field (printf "%sTo" (unexport (name $fm.Field).String)) }},
 {{ end }}    }
-    return unmarshalQueryResults{{ $aggregate }}(c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params))
-}
-{{ end }}
-{{ end }}
-
-// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
-var _ = strconv.FormatInt
-
-func unmarshalQueryResults{{ $aggregate }}(raw []json.RawMessage, err error) ([]*{{ $aggregate }}, error) {
-    if err != nil {
+    list := &{{ $aggregate }}List{}
+    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
         return nil, err
     }
-    results := make([]*{{ $aggregate }}, 0, len(raw))
-    for _, item := range raw {
-        agg := &{{ $aggregate }}{}
-        if err := protojson.Unmarshal(item, agg); err != nil {
-            return nil, fmt.Errorf("unmarshal query result: %w", err)
-        }
-        results = append(results, agg)
-    }
-    return results, nil
+    return list.Items, nil
 }
+{{ end }}
+{{ end }}
+
+// Ensure strconv and fmt are used.
+var _ = strconv.FormatInt
+var _ = fmt.Errorf

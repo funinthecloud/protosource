@@ -1118,6 +1118,14 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 		}
 	}
 
+	// Validate that {Aggregate}List message exists with repeated {Aggregate} items = 1.
+	if agg != nil {
+		if err := p.validateAggregateList(f, agg); err != nil {
+			p.Fail(err.Error())
+			return
+		}
+	}
+
 	if hasOpaque {
 		if err := p.validateMessageNamesAgainstOpaque(f); err != nil {
 			p.Fail(err.Error())
@@ -1519,6 +1527,47 @@ func (p *ProtosourceModule) validateProjectionFields(proj pgs.Message, agg pgs.M
 	}
 	if len(errs) > 0 {
 		return fmt.Errorf("projection %s: %s", proj.Name(), strings.Join(errs, "; "))
+	}
+	return nil
+}
+
+// validateAggregateList checks that a {Aggregate}List message exists with
+// a single field: repeated {Aggregate} items = 1.
+func (p *ProtosourceModule) validateAggregateList(f pgs.File, agg pgs.Message) error {
+	listName := agg.Name().String() + "List"
+	var listMsg pgs.Message
+	for _, m := range f.Messages() {
+		if m.Name().String() == listName {
+			listMsg = m
+			break
+		}
+	}
+	if listMsg == nil {
+		return fmt.Errorf("missing required message %s: aggregates must have a corresponding "+
+			"%s message with `repeated %s items = 1` for query result serialization",
+			listName, listName, agg.Name())
+	}
+	fields := listMsg.Fields()
+	if len(fields) != 1 {
+		return fmt.Errorf("%s must have exactly 1 field, got %d", listName, len(fields))
+	}
+	f0 := fields[0]
+	if f0.Name().String() != "items" {
+		return fmt.Errorf("%s field must be named \"items\", got %q", listName, f0.Name())
+	}
+	if !f0.Type().IsRepeated() {
+		return fmt.Errorf("%s.items must be repeated", listName)
+	}
+	if f0.Descriptor().GetNumber() != 1 {
+		return fmt.Errorf("%s.items must be field number 1, got %d", listName, f0.Descriptor().GetNumber())
+	}
+	elem := f0.Type().Element()
+	if elem == nil || !elem.IsEmbed() {
+		return fmt.Errorf("%s.items must be a message type (repeated %s)", listName, agg.Name())
+	}
+	if elem.Embed().FullyQualifiedName() != agg.FullyQualifiedName() {
+		return fmt.Errorf("%s.items must be repeated %s, got %s",
+			listName, agg.Name(), f0.Type().Element().Embed().Name())
 	}
 	return nil
 }

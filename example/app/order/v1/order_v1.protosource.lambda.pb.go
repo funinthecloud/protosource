@@ -305,7 +305,7 @@ func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosour
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}
-		return marshalQueryResults(results)
+		return queryResponse(request, results)
 	}
 
 	op, ok := parseSortOperator(skOp)
@@ -342,14 +342,14 @@ func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosour
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}
-		return marshalQueryResults(results)
+		return queryResponse(request, results)
 	}
 
 	results, err := h.client.SelectOrderByCustomerIdWithCreateAt(ctx, customer_id, op, skVal)
 	if err != nil {
 		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 	}
-	return marshalQueryResults(results)
+	return queryResponse(request, results)
 
 }
 
@@ -408,26 +408,18 @@ func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, st
 	return b, "application/json", err
 }
 
-// marshalQueryResults serializes a slice of proto messages as a JSON array
-// using protojson encoding. Query results are always returned as JSON because
-// there is no standard protobuf envelope for multi-item responses.
-func marshalQueryResults[T proto.Message](results []T) protosource.Response {
-	items := make([]json.RawMessage, 0, len(results))
-	for _, r := range results {
-		b, err := protojson.Marshal(r)
-		if err != nil {
-			return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize result", err)
-		}
-		items = append(items, b)
-	}
-	body, err := json.Marshal(items)
+// queryResponse wraps query results in the OrderList message and
+// serializes using content negotiation (protobuf or JSON based on Accept header).
+func queryResponse(request protosource.Request, results []*Order) protosource.Response {
+	list := &OrderList{Items: results}
+	body, contentType, err := marshalResponse(request, list)
 	if err != nil {
 		return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
 	}
 	return protosource.Response{
 		StatusCode: http.StatusOK,
 		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": "application/json"},
+		Headers:    map[string]string{"Content-Type": contentType},
 	}
 }
 
