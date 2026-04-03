@@ -176,6 +176,50 @@ func (x *Test) GetState() State {
 	return State_STATE_UNSPECIFIED
 }
 
+type TestList struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Test                `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TestList) Reset() {
+	*x = TestList{}
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TestList) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TestList) ProtoMessage() {}
+
+func (x *TestList) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TestList.ProtoReflect.Descriptor instead.
+func (*TestList) Descriptor() ([]byte, []int) {
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *TestList) GetItems() []*Test {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
 // Create is the command that is used to create a test.
 // Emits Created (domain fields) then Unlocked (initial state).
 type Create struct {
@@ -189,7 +233,7 @@ type Create struct {
 
 func (x *Create) Reset() {
 	*x = Create{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[1]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -201,7 +245,7 @@ func (x *Create) String() string {
 func (*Create) ProtoMessage() {}
 
 func (x *Create) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[1]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -214,7 +258,7 @@ func (x *Create) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Create.ProtoReflect.Descriptor instead.
 func (*Create) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{1}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *Create) GetId() string {
@@ -250,7 +294,7 @@ type Update struct {
 
 func (x *Update) Reset() {
 	*x = Update{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[2]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -262,7 +306,7 @@ func (x *Update) String() string {
 func (*Update) ProtoMessage() {}
 
 func (x *Update) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[2]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -275,7 +319,7 @@ func (x *Update) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Update.ProtoReflect.Descriptor instead.
 func (*Update) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{2}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *Update) GetId() string {
@@ -310,7 +354,7 @@ type Lock struct {
 
 func (x *Lock) Reset() {
 	*x = Lock{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[3]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +366,7 @@ func (x *Lock) String() string {
 func (*Lock) ProtoMessage() {}
 
 func (x *Lock) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[3]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -335,7 +379,7 @@ func (x *Lock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Lock.ProtoReflect.Descriptor instead.
 func (*Lock) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{3}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Lock) GetId() string {
@@ -363,7 +407,7 @@ type Unlock struct {
 
 func (x *Unlock) Reset() {
 	*x = Unlock{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[4]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -375,7 +419,7 @@ func (x *Unlock) String() string {
 func (*Unlock) ProtoMessage() {}
 
 func (x *Unlock) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[4]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -388,7 +432,7 @@ func (x *Unlock) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unlock.ProtoReflect.Descriptor instead.
 func (*Unlock) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{4}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Unlock) GetId() string {
@@ -419,7 +463,7 @@ type Created struct {
 
 func (x *Created) Reset() {
 	*x = Created{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[5]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -431,7 +475,7 @@ func (x *Created) String() string {
 func (*Created) ProtoMessage() {}
 
 func (x *Created) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[5]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -444,7 +488,7 @@ func (x *Created) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Created.ProtoReflect.Descriptor instead.
 func (*Created) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{5}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *Created) GetId() string {
@@ -496,7 +540,7 @@ type Updated struct {
 
 func (x *Updated) Reset() {
 	*x = Updated{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[6]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -508,7 +552,7 @@ func (x *Updated) String() string {
 func (*Updated) ProtoMessage() {}
 
 func (x *Updated) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[6]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -521,7 +565,7 @@ func (x *Updated) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Updated.ProtoReflect.Descriptor instead.
 func (*Updated) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{6}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Updated) GetId() string {
@@ -572,7 +616,7 @@ type Locked struct {
 
 func (x *Locked) Reset() {
 	*x = Locked{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[7]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -584,7 +628,7 @@ func (x *Locked) String() string {
 func (*Locked) ProtoMessage() {}
 
 func (x *Locked) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[7]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +641,7 @@ func (x *Locked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Locked.ProtoReflect.Descriptor instead.
 func (*Locked) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{7}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Locked) GetId() string {
@@ -641,7 +685,7 @@ type Unlocked struct {
 
 func (x *Unlocked) Reset() {
 	*x = Unlocked{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[8]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -653,7 +697,7 @@ func (x *Unlocked) String() string {
 func (*Unlocked) ProtoMessage() {}
 
 func (x *Unlocked) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[8]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -666,7 +710,7 @@ func (x *Unlocked) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Unlocked.ProtoReflect.Descriptor instead.
 func (*Unlocked) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{8}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Unlocked) GetId() string {
@@ -711,7 +755,7 @@ type Snapshot struct {
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[9]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +767,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[9]
+	mi := &file_example_app_test_v1_test_v1_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +780,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{9}
+	return file_example_app_test_v1_test_v1_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Snapshot) GetId() string {
@@ -788,7 +832,9 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
 	"\x04body\x18\a \x01(\tR\x04body\x120\n" +
 	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateR\x05state:\n" +
-	"ʬ\x1d\x06\x1a\x04\x10\x80\xa3\x05\"z\n" +
+	"ʬ\x1d\x06\x1a\x04\x10\x80\xa3\x05\";\n" +
+	"\bTestList\x12/\n" +
+	"\x05items\x18\x01 \x03(\v2\x19.example.app.test.v1.TestR\x05items\"z\n" +
 	"\x06Create\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05actor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\x12\x1b\n" +
@@ -859,28 +905,30 @@ func file_example_app_test_v1_test_v1_proto_rawDescGZIP() []byte {
 }
 
 var file_example_app_test_v1_test_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_example_app_test_v1_test_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_example_app_test_v1_test_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_example_app_test_v1_test_v1_proto_goTypes = []any{
 	(State)(0),       // 0: example.app.test.v1.State
 	(*Test)(nil),     // 1: example.app.test.v1.Test
-	(*Create)(nil),   // 2: example.app.test.v1.Create
-	(*Update)(nil),   // 3: example.app.test.v1.Update
-	(*Lock)(nil),     // 4: example.app.test.v1.Lock
-	(*Unlock)(nil),   // 5: example.app.test.v1.Unlock
-	(*Created)(nil),  // 6: example.app.test.v1.Created
-	(*Updated)(nil),  // 7: example.app.test.v1.Updated
-	(*Locked)(nil),   // 8: example.app.test.v1.Locked
-	(*Unlocked)(nil), // 9: example.app.test.v1.Unlocked
-	(*Snapshot)(nil), // 10: example.app.test.v1.Snapshot
+	(*TestList)(nil), // 2: example.app.test.v1.TestList
+	(*Create)(nil),   // 3: example.app.test.v1.Create
+	(*Update)(nil),   // 4: example.app.test.v1.Update
+	(*Lock)(nil),     // 5: example.app.test.v1.Lock
+	(*Unlock)(nil),   // 6: example.app.test.v1.Unlock
+	(*Created)(nil),  // 7: example.app.test.v1.Created
+	(*Updated)(nil),  // 8: example.app.test.v1.Updated
+	(*Locked)(nil),   // 9: example.app.test.v1.Locked
+	(*Unlocked)(nil), // 10: example.app.test.v1.Unlocked
+	(*Snapshot)(nil), // 11: example.app.test.v1.Snapshot
 }
 var file_example_app_test_v1_test_v1_proto_depIdxs = []int32{
 	0, // 0: example.app.test.v1.Test.state:type_name -> example.app.test.v1.State
-	1, // 1: example.app.test.v1.Snapshot.snapshot:type_name -> example.app.test.v1.Test
-	2, // [2:2] is the sub-list for method output_type
-	2, // [2:2] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1, // 1: example.app.test.v1.TestList.items:type_name -> example.app.test.v1.Test
+	1, // 2: example.app.test.v1.Snapshot.snapshot:type_name -> example.app.test.v1.Test
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_example_app_test_v1_test_v1_proto_init() }
@@ -894,7 +942,7 @@ func file_example_app_test_v1_test_v1_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_example_app_test_v1_test_v1_proto_rawDesc), len(file_example_app_test_v1_test_v1_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

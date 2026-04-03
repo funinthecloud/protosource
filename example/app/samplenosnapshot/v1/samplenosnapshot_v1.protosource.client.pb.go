@@ -4,13 +4,11 @@ package samplenoprefixv1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "example/app/samplenosnapshot/v1"
@@ -59,20 +57,6 @@ func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History
 	return c.c.History(ctx, routePath, id)
 }
 
-// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
+// Ensure strconv and fmt are used.
 var _ = strconv.FormatInt
-
-func unmarshalQueryResultsSample(raw []json.RawMessage, err error) ([]*Sample, error) {
-	if err != nil {
-		return nil, err
-	}
-	results := make([]*Sample, 0, len(raw))
-	for _, item := range raw {
-		agg := &Sample{}
-		if err := protojson.Unmarshal(item, agg); err != nil {
-			return nil, fmt.Errorf("unmarshal query result: %w", err)
-		}
-		results = append(results, agg)
-	}
-	return results, nil
-}
+var _ = fmt.Errorf

@@ -4,13 +4,11 @@ package orderv1
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
-	"google.golang.org/protobuf/encoding/protojson"
 )
 
 const routePath = "example/app/order/v1"
@@ -119,7 +117,11 @@ func (c *HTTPClient) QueryByCustomerId(ctx context.Context, customerId string) (
 	params := map[string]string{
 		"customer_id": customerId,
 	}
-	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+	list := &OrderList{}
+	if err := c.c.Query(ctx, routePath, "by-customer-id", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
 
 // QueryByCustomerIdWithCreateAt queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
@@ -133,7 +135,11 @@ func (c *HTTPClient) QueryByCustomerIdWithCreateAt(ctx context.Context, customer
 		"sk_op":       skOp,
 		"create_at":   strconv.FormatInt(createAt, 10),
 	}
-	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
+	list := &OrderList{}
+	if err := c.c.Query(ctx, routePath, "by-customer-id", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
 
 // QueryByCustomerIdBetweenCreateAt queries with a between sort key condition (inclusive range).
@@ -144,23 +150,13 @@ func (c *HTTPClient) QueryByCustomerIdBetweenCreateAt(ctx context.Context, custo
 		"create_at":   strconv.FormatInt(createAtFrom, 10),
 		"create_at2":  strconv.FormatInt(createAtTo, 10),
 	}
-	return unmarshalQueryResultsOrder(c.c.Query(ctx, routePath, "by-customer-id", params))
-}
-
-// Ensure strconv is used (suppresses unused import when no numeric GSI fields exist).
-var _ = strconv.FormatInt
-
-func unmarshalQueryResultsOrder(raw []json.RawMessage, err error) ([]*Order, error) {
-	if err != nil {
+	list := &OrderList{}
+	if err := c.c.Query(ctx, routePath, "by-customer-id", params, list); err != nil {
 		return nil, err
 	}
-	results := make([]*Order, 0, len(raw))
-	for _, item := range raw {
-		agg := &Order{}
-		if err := protojson.Unmarshal(item, agg); err != nil {
-			return nil, fmt.Errorf("unmarshal query result: %w", err)
-		}
-		results = append(results, agg)
-	}
-	return results, nil
+	return list.Items, nil
 }
+
+// Ensure strconv and fmt are used.
+var _ = strconv.FormatInt
+var _ = fmt.Errorf

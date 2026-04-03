@@ -32,6 +32,10 @@ message Sample {
   string body      = 7;
 }
 
+message SampleList {
+  repeated Sample items = 1;
+}
+
 // PUT THE COMMANDS IN THIS SECTION
 // What are commands?
 // Commands are present tense verbs use to describe an action to be

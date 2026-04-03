@@ -25,7 +25,7 @@ type Doer interface {
 	Apply(ctx context.Context, routePath string, cmd proto.Message) (*ApplyResult, error)
 	Load(ctx context.Context, routePath string, id string, target proto.Message) error
 	History(ctx context.Context, routePath string, id string) (*historyv1.History, error)
-	Query(ctx context.Context, routePath string, queryPath string, params map[string]string) ([]json.RawMessage, error)
+	Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error
 }
 
 // AuthProvider decorates outgoing HTTP requests with authentication.
@@ -194,10 +194,11 @@ func (c *Client) History(ctx context.Context, routePath string, id string) (*his
 	return history, nil
 }
 
-// Query sends a GET request to a query endpoint and returns the raw JSON items.
+// Query sends a GET request to a query endpoint and unmarshals the response
+// into the target proto.Message (typically an {Aggregate}List).
 // The queryPath is appended to {baseURL}/{routePath}/query/{queryPath}.
 // Params are sent as URL query parameters.
-func (c *Client) Query(ctx context.Context, routePath string, queryPath string, params map[string]string) ([]json.RawMessage, error) {
+func (c *Client) Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error {
 	u := c.baseURL + "/" + routePath + "/query/" + queryPath
 	if len(params) > 0 {
 		v := url.Values{}
@@ -209,33 +210,30 @@ func (c *Client) Query(ctx context.Context, routePath string, queryPath string, 
 
 	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
 	if err != nil {
-		return nil, fmt.Errorf("httpclient: create request: %w", err)
+		return fmt.Errorf("httpclient: create request: %w", err)
 	}
+	req.Header.Set("Accept", c.acceptHeader())
 
 	if err := c.auth.Authenticate(req); err != nil {
-		return nil, fmt.Errorf("httpclient: authenticate: %w", err)
+		return fmt.Errorf("httpclient: authenticate: %w", err)
 	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("httpclient: do request: %w", err)
+		return fmt.Errorf("httpclient: do request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("httpclient: read response: %w", err)
+		return fmt.Errorf("httpclient: read response: %w", err)
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, parseAPIError(resp.StatusCode, respBody)
+		return parseAPIError(resp.StatusCode, respBody)
 	}
 
-	var items []json.RawMessage
-	if err := json.Unmarshal(respBody, &items); err != nil {
-		return nil, fmt.Errorf("httpclient: unmarshal query results: %w", err)
-	}
-	return items, nil
+	return c.unmarshal(respBody, resp.Header.Get("Content-Type"), target)
 }
 
 func (c *Client) marshal(msg proto.Message) (body []byte, contentType, accept string, err error) {

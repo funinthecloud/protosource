@@ -48,6 +48,10 @@ message Order {
   map<string, Tag>      tags             = 15;
 }
 
+message OrderList {
+  repeated Order items = 1;
+}
+
 // LineItem is a value type representing a single item in an order.
 message LineItem {
   string item_id     = 1;
