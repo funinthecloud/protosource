@@ -21,6 +21,16 @@ go vet ./...                             # static analysis
 
 **IMPORTANT**: After modifying the plugin template (`cmd/protoc-gen-protosource/content/*.gotext`) or plugin code (`cmd/protoc-gen-protosource/protosourceify.go`), you MUST run `go install ./cmd/protoc-gen-protosource` before `buf generate`. The `buf generate` command invokes `protoc-gen-protosource` as a local plugin from `$GOPATH/bin`, so `go build` alone is not enough — the binary must be installed.
 
+### TypeScript Client Generation
+
+```bash
+go install ./cmd/protoc-gen-protosource-ts  # install TS plugin to $GOPATH/bin
+buf generate --template buf.gen.ts.yaml     # generate TS client files
+cd ts/client && npm install && npm run build # build @protosource/client runtime
+```
+
+The same rule applies: after modifying `cmd/protoc-gen-protosource-ts/content/*.tstext` or `cmd/protoc-gen-protosource-ts/protosourceify.go`, you MUST run `go install ./cmd/protoc-gen-protosource-ts` before `buf generate --template buf.gen.ts.yaml`.
+
 ## Architecture
 
 ### Runtime Core (`protosource.go`)
@@ -44,6 +54,24 @@ The buf plugin reads proto annotations and generates four files per domain packa
 - `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); generates a no-op stub when commands have non-scalar fields
 
 The plugin logic is in `protosourceify.go`; templates are in `content/`.
+
+### TypeScript Client Generation (`cmd/protoc-gen-protosource-ts/`)
+
+A separate buf plugin that generates one TypeScript client file per domain package:
+- `*.protosource.client.ts` — typed HTTP client class with command, load, history, and query methods (from `client.tstext`)
+
+Uses a copied subset of the Go plugin's annotation-reading logic (message classification, opaque/GSI extraction, route prefix) plus TS-specific functions (`tsType`, `tsFieldName`, `tsQueryFormatExpr`).
+
+### TypeScript Runtime (`ts/client/`)
+
+Published as `@protosource/client`. Mirrors Go's `httpclient/` package:
+- **`ProtosourceClient`** — generic HTTP client with `apply()`, `load()`, `history()`, `query()` methods
+- **`AuthProvider`** interface with `BearerTokenAuth` and `NoAuth` implementations
+- **`APIError`** — structured error from server responses
+- Content negotiation: protobuf binary default, `useJSON` option for debug mode
+- Uses `fetch` API (browser + Node 18+) and `@bufbuild/protobuf` v2 for serialization
+
+Generated TS clients import from `@protosource/client` (runtime) and sibling `*_pb.js` files (protoc-gen-es types).
 
 ### Transport Layer
 
@@ -243,4 +271,4 @@ git checkout -b <branch-name> origin/main
 - [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)
 - [x] Make all dependencies more Wire-friendly: shared `aws/dynamoclient` interface, generated `providers.go` with Repository wrapper types, `wire.Bind`, interface params, shared infra in `dynamodbstore/providers.go` (PR #35)
 - [ ] Extract Go client library from `*mgr` CLI commands: reusable HTTP client for command submission, Get, and History — currently the CLI (`cli.gotext`) generates a standalone `main.go` with inline HTTP logic; extract the request/response handling into a generated client package that other Go applications can import
-- [ ] Generate TypeScript client for React frontends: a buf plugin or codegen step that produces typed TS/JS client code from proto definitions — methods for each command, Get, and History with proper request/response types, suitable for use with React Query or similar data-fetching libraries
+- [x] Generate TypeScript client for React frontends: `protoc-gen-protosource-ts` buf plugin + `@protosource/client` runtime (`ts/client/`). Generates typed TS client per aggregate with command, load, history, and query methods. Uses `@bufbuild/protobuf` v2 for serialization, `fetch` for HTTP.
