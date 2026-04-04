@@ -29,15 +29,22 @@ func TestSnakeToCamel(t *testing.T) {
 	}
 }
 
-func TestProtoFileName(t *testing.T) {
-	// protoFileName takes a pgs.File, so we test the underlying logic directly.
-	// The function derives: "sample_v1.proto" -> "./sample_v1_pb.js"
-	// Since we can't easily construct a pgs.File in unit tests without protoc,
-	// we test the string manipulation logic.
-	input := "sample_v1"
-	expected := "./" + input + "_pb.js"
-	got := "./" + input + "_pb.js"
-	if got != expected {
-		t.Errorf("protoFileName derivation: got %q, want %q", got, expected)
+func TestProtoFileNameFromBase(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected string
+	}{
+		{"sample_v1.proto", "./sample_v1_pb.js"},
+		{"order_v1.proto", "./order_v1_pb.js"},
+		{"history_v1.proto", "./history_v1_pb.js"},
+		{"my_domain.proto", "./my_domain_pb.js"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := protoFileNameFromBase(tt.input)
+			if got != tt.expected {
+				t.Errorf("protoFileNameFromBase(%q) = %q, want %q", tt.input, got, tt.expected)
+			}
+		})
 	}
 }

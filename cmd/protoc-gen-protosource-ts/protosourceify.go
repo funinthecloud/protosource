@@ -61,6 +61,9 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 }
 
 func (p *ProtosourceModule) WalkTemplates(path string, d fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
 	if d.IsDir() {
 		return nil
 	}
@@ -406,6 +409,10 @@ func tsQueryFormatExpr(f pgs.Field, varName string) string {
 // protoFileName derives the protoc-gen-es import path from the proto file name.
 // e.g., "sample_v1.proto" -> "./sample_v1_pb.js"
 func protoFileName(f pgs.File) string {
-	base := strings.TrimSuffix(f.InputPath().Base(), ".proto")
-	return "./" + base + "_pb.js"
+	return protoFileNameFromBase(f.InputPath().Base())
+}
+
+// protoFileNameFromBase converts a proto filename to a protoc-gen-es import path.
+func protoFileNameFromBase(base string) string {
+	return "./" + strings.TrimSuffix(base, ".proto") + "_pb.js"
 }

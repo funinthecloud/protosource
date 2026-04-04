@@ -12,6 +12,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		defer stdinFile.Close()
 		os.Stdin = stdinFile
 	}
 	pgs.Init(
