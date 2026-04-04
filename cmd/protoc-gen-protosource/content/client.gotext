@@ -17,6 +17,7 @@ import (
 
     historyv1 "github.com/funinthecloud/protosource/history/v1"
     "github.com/funinthecloud/protosource/httpclient"
+    responsev1 "github.com/funinthecloud/protosource/response/v1"
 )
 
 const routePath = "{{ $route }}"
@@ -37,7 +38,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 {{ if isCommand $message }}
 {{ $fields := cliCommandFields $message.Fields }}
 // {{ $message.Name }} sends the {{ $message.Name }} command.
-func (c *HTTPClient) {{ $message.Name }}(ctx context.Context, id string{{ range $f := $fields }}, {{ unexport (name $f).String }} {{ gotype $f }}{{ end }}) (*httpclient.ApplyResult, error) {
+func (c *HTTPClient) {{ $message.Name }}(ctx context.Context, id string{{ range $f := $fields }}, {{ unexport (name $f).String }} {{ gotype $f }}{{ end }}) (*responsev1.CommandResponse, error) {
     cmd := &{{ $message.Name }}{
         Id: id,
 {{ range $f := $fields }}        {{ name $f }}: {{ unexport (name $f).String }},

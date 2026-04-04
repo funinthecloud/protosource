@@ -1,0 +1,11 @@
+export { ProtosourceClient } from "./client.js";
+export type { ClientOptions } from "./client.js";
+export type { AuthProvider } from "./auth.js";
+export { BearerTokenAuth, NoAuth } from "./auth.js";
+export { APIError } from "./errors.js";
+export type { CommandResponse } from "./gen/response_v1_pb.js";
+export { CommandResponseSchema } from "./gen/response_v1_pb.js";
+export type { History } from "./gen/history_v1_pb.js";
+export { HistorySchema } from "./gen/history_v1_pb.js";
+export type { Record } from "./gen/record_v1_pb.js";
+export { RecordSchema } from "./gen/record_v1_pb.js";

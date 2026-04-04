@@ -33,6 +33,13 @@
 ## Get templates in there.
 !*.tpl
 !*.tmpl
+!*.tstext
+
+## TypeScript client
+!*.ts
+!*.json
+ts/client/node_modules/
+ts/client/dist/
 
 ## yaml
 !*.yaml
