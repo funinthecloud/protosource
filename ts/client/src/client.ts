@@ -10,7 +10,8 @@ import {
 } from "@bufbuild/protobuf";
 import type { AuthProvider } from "./auth.js";
 import { parseAPIError } from "./errors.js";
-import type { ApplyResult } from "./types.js";
+import type { CommandResponse } from "./gen/response_v1_pb.js";
+import { CommandResponseSchema } from "./gen/response_v1_pb.js";
 import type { History } from "./gen/history_v1_pb.js";
 import { HistorySchema } from "./gen/history_v1_pb.js";
 
@@ -46,7 +47,7 @@ export class ProtosourceClient {
     routePath: string,
     schema: Desc,
     data: MessageInitShape<Desc>,
-  ): Promise<ApplyResult> {
+  ): Promise<CommandResponse> {
     const msg = create(schema, data);
     setActorField(msg, this.auth.actor());
 
@@ -57,24 +58,32 @@ export class ProtosourceClient {
     this.auth.authenticate(headers);
 
     let body: BodyInit;
+    let accept: string;
     if (this.useJSON) {
       body = JSON.stringify(toJson(schema, msg));
       headers.set("Content-Type", "application/json");
-      headers.set("Accept", "application/json");
+      accept = "application/json";
     } else {
       body = toBinary(schema, msg);
       headers.set("Content-Type", "application/protobuf");
-      headers.set("Accept", "application/protobuf");
+      accept = "application/protobuf";
     }
+    headers.set("Accept", accept);
 
     const resp = await this.fetch(url, { method: "POST", headers, body });
-    const respBody = await resp.text();
 
     if (!resp.ok) {
-      throw parseAPIError(resp.status, respBody);
+      const text = await resp.text();
+      throw parseAPIError(resp.status, text);
     }
 
-    return JSON.parse(respBody) as ApplyResult;
+    const contentType = resp.headers.get("Content-Type") ?? "";
+    if (contentType.includes("json")) {
+      const text = await resp.text();
+      return fromJson(CommandResponseSchema, JSON.parse(text)) as CommandResponse;
+    }
+    const buf = await resp.arrayBuffer();
+    return fromBinary(CommandResponseSchema, new Uint8Array(buf)) as CommandResponse;
   }
 
   /** Retrieve the current state of an aggregate by ID. */

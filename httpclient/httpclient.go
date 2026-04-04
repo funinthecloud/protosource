@@ -5,7 +5,6 @@ package httpclient
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
+	responsev1 "github.com/funinthecloud/protosource/response/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -22,7 +22,7 @@ import (
 // Doer is the interface that generated per-aggregate clients depend on.
 // *Client satisfies it. Consumers can mock this for testing.
 type Doer interface {
-	Apply(ctx context.Context, routePath string, cmd proto.Message) (*ApplyResult, error)
+	Apply(ctx context.Context, routePath string, cmd proto.Message) (*responsev1.CommandResponse, error)
 	Load(ctx context.Context, routePath string, id string, target proto.Message) error
 	History(ctx context.Context, routePath string, id string) (*historyv1.History, error)
 	Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error
@@ -34,12 +34,6 @@ type Doer interface {
 type AuthProvider interface {
 	Authenticate(req *http.Request) error
 	Actor() string
-}
-
-// ApplyResult is the response from a command application.
-type ApplyResult struct {
-	ID      string `json:"id"`
-	Version int64  `json:"version"`
 }
 
 // Client is a generic protosource HTTP client with content negotiation.
@@ -81,7 +75,7 @@ func WithJSON() Option {
 
 // Apply sends a command to the server and returns the result.
 // The actor field is set from the AuthProvider before serialization.
-func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message) (*ApplyResult, error) {
+func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message) (*responsev1.CommandResponse, error) {
 	// Set actor via proto reflection.
 	setActorField(cmd, c.auth.Actor())
 
@@ -119,11 +113,11 @@ func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message)
 		return nil, parseAPIError(resp.StatusCode, respBody)
 	}
 
-	var result ApplyResult
-	if err := json.Unmarshal(respBody, &result); err != nil {
-		return nil, fmt.Errorf("httpclient: unmarshal apply result: %w", err)
+	result := &responsev1.CommandResponse{}
+	if err := c.unmarshal(respBody, resp.Header.Get("Content-Type"), result); err != nil {
+		return nil, err
 	}
-	return &result, nil
+	return result, nil
 }
 
 // Load retrieves an aggregate by ID, unmarshaling into the provided message.

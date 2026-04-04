@@ -82,7 +82,7 @@ func main() {
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
-		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 
 	case "update":
 		if len(os.Args) != 4 {
@@ -92,7 +92,7 @@ func main() {
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
-		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 
 	case "lock":
 		if len(os.Args) != 3 {
@@ -102,7 +102,7 @@ func main() {
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
-		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 
 	case "unlock":
 		if len(os.Args) != 3 {
@@ -112,7 +112,7 @@ func main() {
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
-		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 
 	case "load":
 		if len(os.Args) != 3 {

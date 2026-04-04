@@ -9,6 +9,7 @@ import (
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	responsev1 "github.com/funinthecloud/protosource/response/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -37,8 +38,8 @@ func TestApply_JSON(t *testing.T) {
 	result, err := c.Apply(context.Background(), "sample/v1", cmd)
 
 	require.NoError(t, err)
-	assert.Equal(t, "abc", result.ID)
-	assert.Equal(t, int64(3), result.Version)
+	assert.Equal(t, "abc", result.GetId())
+	assert.Equal(t, int64(3), result.GetVersion())
 	assert.Equal(t, "application/json", gotContentType)
 	assert.Equal(t, "application/json", gotAccept)
 	assert.Equal(t, "Bearer tok123", gotAuth)
@@ -48,9 +49,14 @@ func TestApply_JSON(t *testing.T) {
 func TestApply_Protobuf(t *testing.T) {
 	var gotContentType string
 
+	resp := &responsev1.CommandResponse{Id: "xyz", Version: 1}
+	respBytes, err := proto.Marshal(resp)
+	require.NoError(t, err)
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotContentType = r.Header.Get("Content-Type")
-		w.Write([]byte(`{"id":"xyz","version":1}`))
+		w.Header().Set("Content-Type", "application/protobuf")
+		w.Write(respBytes)
 	}))
 	defer server.Close()
 
@@ -58,8 +64,8 @@ func TestApply_Protobuf(t *testing.T) {
 	result, err := c.Apply(context.Background(), "test/v1", &historyv1.History{})
 
 	require.NoError(t, err)
-	assert.Equal(t, "xyz", result.ID)
-	assert.Equal(t, int64(1), result.Version)
+	assert.Equal(t, "xyz", result.GetId())
+	assert.Equal(t, int64(1), result.GetVersion())
 	assert.Equal(t, "application/protobuf", gotContentType)
 }
 

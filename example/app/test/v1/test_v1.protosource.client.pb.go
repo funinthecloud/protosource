@@ -9,6 +9,7 @@ import (
 
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource/httpclient"
+	responsev1 "github.com/funinthecloud/protosource/response/v1"
 )
 
 const routePath = "example/app/test/v1"
@@ -26,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 }
 
 // Create sends the Create command.
-func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
+func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*responsev1.CommandResponse, error) {
 	cmd := &Create{
 		Id:   id,
 		Body: body,
@@ -35,7 +36,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*httpc
 }
 
 // Update sends the Update command.
-func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpclient.ApplyResult, error) {
+func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*responsev1.CommandResponse, error) {
 	cmd := &Update{
 		Id:   id,
 		Body: body,
@@ -44,7 +45,7 @@ func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*httpc
 }
 
 // Lock sends the Lock command.
-func (c *HTTPClient) Lock(ctx context.Context, id string) (*httpclient.ApplyResult, error) {
+func (c *HTTPClient) Lock(ctx context.Context, id string) (*responsev1.CommandResponse, error) {
 	cmd := &Lock{
 		Id: id,
 	}
@@ -52,7 +53,7 @@ func (c *HTTPClient) Lock(ctx context.Context, id string) (*httpclient.ApplyResu
 }
 
 // Unlock sends the Unlock command.
-func (c *HTTPClient) Unlock(ctx context.Context, id string) (*httpclient.ApplyResult, error) {
+func (c *HTTPClient) Unlock(ctx context.Context, id string) (*responsev1.CommandResponse, error) {
 	cmd := &Unlock{
 		Id: id,
 	}

@@ -13,6 +13,7 @@ import (
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/opaquedata"
+	responsev1 "github.com/funinthecloud/protosource/response/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 )
@@ -68,7 +69,16 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 		return commandErrorResponse(err)
 	}
 
-	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
+	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
+	body, contentType, err := marshalResponse(request, resp)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+	}
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
+	}
 }
 
 // HandleUpdate processes a Update command.
@@ -90,7 +100,16 @@ func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request)
 		return commandErrorResponse(err)
 	}
 
-	return jsonResponse(http.StatusOK, map[string]any{"id": cmd.GetId(), "version": version})
+	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
+	body, contentType, err := marshalResponse(request, resp)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+	}
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
+	}
 }
 
 // HandleGet retrieves the current state of a Sample aggregate.
@@ -317,19 +336,6 @@ func errorResponse(statusCode int, code, message string, cause error) protosourc
 		body["detail"] = cause.Error()
 	}
 	b, _ := json.Marshal(body)
-	return protosource.Response{
-		StatusCode: statusCode,
-		Body:       string(b),
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
-}
-
-// jsonResponse marshals a value as JSON and returns a protosource.Response.
-func jsonResponse(statusCode int, v any) protosource.Response {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "JSON_MARSHAL", "failed to serialize response", err)
-	}
 	return protosource.Response{
 		StatusCode: statusCode,
 		Body:       string(b),

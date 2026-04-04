@@ -112,7 +112,7 @@ func main() {
         if err != nil {
             fatal(fmt.Sprintf("error: %v", err))
         }
-        fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.ID, result.Version)
+        fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 {{ end }}
 {{ end }}
     case "load":
