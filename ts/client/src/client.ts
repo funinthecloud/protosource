@@ -10,7 +10,9 @@ import {
 } from "@bufbuild/protobuf";
 import type { AuthProvider } from "./auth.js";
 import { parseAPIError } from "./errors.js";
-import type { ApplyResult, History } from "./types.js";
+import type { ApplyResult } from "./types.js";
+import type { History } from "./gen/history_v1_pb.js";
+import { HistorySchema } from "./gen/history_v1_pb.js";
 
 export interface ClientOptions {
   /** Use JSON serialization instead of protobuf binary. */
@@ -88,19 +90,7 @@ export class ProtosourceClient {
   /** Retrieve the full event history for an aggregate. */
   async history(routePath: string, id: string): Promise<History> {
     const url = `${this.baseURL}/${routePath}/${encodeURIComponent(id)}/history`;
-
-    const headers = new Headers();
-    headers.set("Accept", "application/json");
-    this.auth.authenticate(headers);
-
-    const resp = await this.fetch(url, { method: "GET", headers });
-    const respBody = await resp.text();
-
-    if (!resp.ok) {
-      throw parseAPIError(resp.status, respBody);
-    }
-
-    return JSON.parse(respBody) as History;
+    return this.getProto(url, HistorySchema) as Promise<History>;
   }
 
   /** Query aggregates via a GSI index. */

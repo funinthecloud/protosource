@@ -24,7 +24,7 @@
   },
   "devDependencies": {
     "@bufbuild/protobuf": "^2.2.3",
-    "typescript": "^5.7.0",
+"typescript": "^5.7.0",
     "vitest": "^3.0.0"
   },
   "license": "MIT"
