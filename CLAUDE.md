@@ -264,24 +264,13 @@ git checkout -b <branch-name> origin/main
 
 ## Releasing
 
-A git tag (`v*`) triggers `.github/workflows/release.yml` which publishes all three artifacts:
+A git tag (`v*`) triggers `.github/workflows/release.yml` which pushes the proto module to BSR:
 
-1. **Proto module** -- `buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
-2. **Go plugin image** -- Docker build + push to `plugins.buf.build/funinthecloud/protosource:${VERSION}`
-3. **TS plugin image** -- Docker build + push to `plugins.buf.build/funinthecloud/protosource-ts:${VERSION}`
+`buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
 
 Requires `BUF_TOKEN` in GitHub Actions secrets.
 
-Consumers use remote plugins:
-```yaml
-plugins:
-  - remote: buf.build/funinthecloud/protosource:v0.1.0
-    out: .
-    opt: [module=github.com/their/module]
-  - remote: buf.build/funinthecloud/protosource-ts:v0.1.0
-    out: ts-gen
-    opt: [module=github.com/their/module]
-```
+Hosted buf plugins require a pro account, so plugins are not published to BSR. Consumers build from source using local plugin mode (`buf.gen.yaml` with `local:` pointing to the installed binary).
 
 ## TODO
 
