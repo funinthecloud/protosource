@@ -57,7 +57,7 @@ var usage = "Usage: {{ $aggregateLower }}mgr [-json] <command> [args]\n\nFlags:\
     "  history  <id>\n" +
 {{ $agg2 := aggregateForFile . -}}
 {{ range $gsi := opaqueUsedGSIs $agg2 -}}
-    "  query {{ queryRoutePath $gsi.PKFields }}{{ range $fm := $gsi.PKFields }} <{{ opaqueFieldNameLower $fm.Field }}>{{ end }}{{ if $gsi.HasSK }} [--sk-op=OP{{ range $fm := $gsi.SKFields }} --{{ opaqueFieldNameLower $fm.Field }}=VAL{{ end }}]\n" +{{ else }}\n" +{{ end }}
+    "  query {{ queryRoutePath $gsi.PKFields }}{{ range $fm := $gsi.PKFields }} <{{ opaqueFieldNameLower $fm.Field }}>{{ end }}{{ if $gsi.HasSK }} [--sk-op=OP{{ range $fm := $gsi.SKFields }} --{{ opaqueFieldNameLower $fm.Field }}=VAL [--{{ opaqueFieldNameLower $fm.Field }}2=VAL]{{ end }}]\n" +{{ else }}\n" +{{ end }}
 {{ end -}}
     "\nActor is derived automatically from the current user and hostname.\n\n" +
     "Environment variables:\n" +
@@ -318,6 +318,7 @@ func mustParseBool(s, field string) bool {
     return v
 }
 
+{{ if opaqueUsedGSIs $agg2 }}
 func printResults(results []*pkg.{{ $aggregate }}) {
     fmt.Println("[")
     for i, r := range results {
@@ -380,6 +381,7 @@ func (f cliFlags) require(key string) string {
     }
     return v
 }
+{{ end }}
 
 func mustReadFile(path, field string) []byte {
     b, err := os.ReadFile(path)

@@ -257,69 +257,6 @@ func mustParseBool(s, field string) bool {
 	return v
 }
 
-func printResults(results []*pkg.Test) {
-	fmt.Println("[")
-	for i, r := range results {
-		b, err := jsonFormatter.Marshal(r)
-		if err != nil {
-			fatal(fmt.Sprintf("error formatting result: %v", err))
-		}
-		if i < len(results)-1 {
-			fmt.Printf("  %s,\n", string(b))
-		} else {
-			fmt.Printf("  %s\n", string(b))
-		}
-	}
-	fmt.Println("]")
-}
-
-// cliFlags parses --key=value flags and positional args from CLI arguments.
-type cliFlags struct {
-	positionals []string
-	named       map[string]string
-}
-
-func parseFlags(args []string) cliFlags {
-	f := cliFlags{named: make(map[string]string)}
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "--") {
-			kv := strings.TrimPrefix(arg, "--")
-			if i := strings.IndexByte(kv, '='); i >= 0 {
-				f.named[kv[:i]] = kv[i+1:]
-			} else {
-				f.named[kv] = ""
-			}
-		} else {
-			f.positionals = append(f.positionals, arg)
-		}
-	}
-	return f
-}
-
-func (f cliFlags) positional(i int, name string) string {
-	if i >= len(f.positionals) {
-		fatal(fmt.Sprintf("missing required positional argument: %s", name))
-	}
-	return f.positionals[i]
-}
-
-func (f cliFlags) get(key string) string {
-	return f.named[key]
-}
-
-func (f cliFlags) has(key string) bool {
-	_, ok := f.named[key]
-	return ok
-}
-
-func (f cliFlags) require(key string) string {
-	v, ok := f.named[key]
-	if !ok || v == "" {
-		fatal(fmt.Sprintf("missing required flag: --%s", key))
-	}
-	return v
-}
-
 func mustReadFile(path, field string) []byte {
 	b, err := os.ReadFile(path)
 	if err != nil {

@@ -25,7 +25,7 @@ var usage = "Usage: samplemgr [-json] <command> [args]\n\nFlags:\n" +
 	"  get      <id>\n" +
 	"  load     <id>\n" +
 	"  history  <id>\n" +
-	"  query by-create-by <create_by> [--sk-op=OP --create_at=VAL]\n" +
+	"  query by-create-by <create_by> [--sk-op=OP --create_at=VAL [--create_at2=VAL]]\n" +
 	"\nActor is derived automatically from the current user and hostname.\n\n" +
 	"Environment variables:\n" +
 	"  API_DOMAIN      Base domain for API endpoint (pattern: sample-v1.API_DOMAIN)\n" +
