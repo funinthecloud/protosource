@@ -698,26 +698,25 @@ func cliParseExpr(f pgs.Field, argIdx int) string {
 
 // cliQueryParseExpr returns a Go expression to parse a string variable into
 // the correct type for a query parameter. Like cliParseExpr but takes a
-// variable name instead of an os.Args index.
-func cliQueryParseExpr(f pgs.Field, varName string) string {
-	name := strings.ToLower(f.Name().String())
+// variable name and explicit label for error messages.
+func cliQueryParseExpr(f pgs.Field, varName string, label string) string {
 	switch f.Type().ProtoType() {
 	case pgs.StringT:
 		return varName
 	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
-		return fmt.Sprintf("mustParseInt32(%s, %q)", varName, name)
+		return fmt.Sprintf("mustParseInt32(%s, %q)", varName, label)
 	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
-		return fmt.Sprintf("mustParseInt64(%s, %q)", varName, name)
+		return fmt.Sprintf("mustParseInt64(%s, %q)", varName, label)
 	case pgs.UInt32T, pgs.Fixed32T:
-		return fmt.Sprintf("mustParseUint32(%s, %q)", varName, name)
+		return fmt.Sprintf("mustParseUint32(%s, %q)", varName, label)
 	case pgs.UInt64T, pgs.Fixed64T:
-		return fmt.Sprintf("mustParseUint64(%s, %q)", varName, name)
+		return fmt.Sprintf("mustParseUint64(%s, %q)", varName, label)
 	case pgs.FloatT:
-		return fmt.Sprintf("float32(mustParseFloat(%s, 32, %q))", varName, name)
+		return fmt.Sprintf("float32(mustParseFloat(%s, 32, %q))", varName, label)
 	case pgs.DoubleT:
-		return fmt.Sprintf("mustParseFloat(%s, 64, %q)", varName, name)
+		return fmt.Sprintf("mustParseFloat(%s, 64, %q)", varName, label)
 	case pgs.BoolT:
-		return fmt.Sprintf("mustParseBool(%s, %q)", varName, name)
+		return fmt.Sprintf("mustParseBool(%s, %q)", varName, label)
 	default:
 		return varName
 	}

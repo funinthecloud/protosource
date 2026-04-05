@@ -138,6 +138,10 @@ func main() {
 			skOp := flags.get("sk-op")
 
 			if skOp == "" {
+				// Validate no stray SK flags when no --sk-op is provided.
+				if flags.get("create_at") != "" {
+					fatal("--create_at requires --sk-op to be set")
+				}
 				results, err := client.QueryByCreateBy(ctx, create_by)
 				if err != nil {
 					fatal(fmt.Sprintf("error: %v", err))
@@ -146,7 +150,7 @@ func main() {
 			} else if skOp == "between" {
 				create_atVal := flags.require("create_at")
 				create_atVal2 := flags.require("create_at2")
-				results, err := client.QueryByCreateByBetweenCreateAt(ctx, create_by, mustParseInt64(create_atVal, "create_at"), mustParseInt64(create_atVal2, "create_at"))
+				results, err := client.QueryByCreateByBetweenCreateAt(ctx, create_by, mustParseInt64(create_atVal, "create_at"), mustParseInt64(create_atVal2, "create_at2"))
 				if err != nil {
 					fatal(fmt.Sprintf("error: %v", err))
 				}

@@ -123,7 +123,7 @@ func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message)
 
 // Load retrieves an aggregate by ID, unmarshaling into the provided message.
 func (c *Client) Load(ctx context.Context, routePath string, id string, target proto.Message) error {
-	url := c.baseURL + "/" + routePath + "/" + id
+	url := c.baseURL + "/" + routePath + "/" + url.PathEscape(id)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -155,7 +155,7 @@ func (c *Client) Load(ctx context.Context, routePath string, id string, target p
 
 // Get retrieves a materialized aggregate by ID from the aggregate store.
 func (c *Client) Get(ctx context.Context, routePath string, id string, target proto.Message) error {
-	url := c.baseURL + "/" + routePath + "/get/" + id
+	url := c.baseURL + "/" + routePath + "/get/" + url.PathEscape(id)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -187,7 +187,7 @@ func (c *Client) Get(ctx context.Context, routePath string, id string, target pr
 
 // History retrieves the event history for an aggregate.
 func (c *Client) History(ctx context.Context, routePath string, id string) (*historyv1.History, error) {
-	url := c.baseURL + "/" + routePath + "/" + id + "/history"
+	url := c.baseURL + "/" + routePath + "/" + url.PathEscape(id) + "/history"
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

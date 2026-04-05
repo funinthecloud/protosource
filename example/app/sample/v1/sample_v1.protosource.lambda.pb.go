@@ -149,6 +149,9 @@ func (h *Handler) HandleGetMaterialized(ctx context.Context, request protosource
 
 	aggregate, err := h.client.GetSample(ctx, id)
 	if err != nil {
+		if errors.Is(err, opaquedata.ErrNotFound) {
+			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
+		}
 		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
 	}
 
