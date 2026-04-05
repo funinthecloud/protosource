@@ -86,13 +86,23 @@ export class ProtosourceClient {
     return fromBinary(CommandResponseSchema, new Uint8Array(buf)) as CommandResponse;
   }
 
-  /** Retrieve the current state of an aggregate by ID. */
+  /** Retrieve the current state of an aggregate by ID via event replay. */
   async load<Desc extends DescMessage>(
     routePath: string,
     id: string,
     schema: Desc,
   ): Promise<MessageShape<Desc>> {
     const url = `${this.baseURL}/${routePath}/${encodeURIComponent(id)}`;
+    return this.getProto(url, schema);
+  }
+
+  /** Retrieve an aggregate by ID from the materialized store. */
+  async get<Desc extends DescMessage>(
+    routePath: string,
+    id: string,
+    schema: Desc,
+  ): Promise<MessageShape<Desc>> {
+    const url = `${this.baseURL}/${routePath}/get/${encodeURIComponent(id)}`;
     return this.getProto(url, schema);
   }
 

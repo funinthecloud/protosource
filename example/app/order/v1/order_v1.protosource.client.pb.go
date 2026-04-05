@@ -99,10 +99,19 @@ func (c *HTTPClient) Cancel(ctx context.Context, id string, reason string) (*res
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of the Order aggregate.
+// Load retrieves the current state of the Order aggregate via event replay.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Order, error) {
 	agg := &Order{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
+		return nil, err
+	}
+	return agg, nil
+}
+
+// Get retrieves the Order aggregate from the materialized store.
+func (c *HTTPClient) Get(ctx context.Context, id string) (*Order, error) {
+	agg := &Order{}
+	if err := c.c.Get(ctx, routePath, id, agg); err != nil {
 		return nil, err
 	}
 	return agg, nil

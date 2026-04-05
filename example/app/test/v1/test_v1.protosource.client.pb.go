@@ -60,10 +60,19 @@ func (c *HTTPClient) Unlock(ctx context.Context, id string) (*responsev1.Command
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of the Test aggregate.
+// Load retrieves the current state of the Test aggregate via event replay.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Test, error) {
 	agg := &Test{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
+		return nil, err
+	}
+	return agg, nil
+}
+
+// Get retrieves the Test aggregate from the materialized store.
+func (c *HTTPClient) Get(ctx context.Context, id string) (*Test, error) {
+	agg := &Test{}
+	if err := c.c.Get(ctx, routePath, id, agg); err != nil {
 		return nil, err
 	}
 	return agg, nil

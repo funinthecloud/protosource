@@ -49,7 +49,8 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 {{ range $message := .AllMessages }}
 {{ if isCommand $message }}    router.Handle("POST", "{{ routePrefix $ }}/{{ lower $message.Name.String }}", h.Handle{{ $message.Name }})
 {{ end }}
-{{ end }}    router.Handle("GET", "{{ routePrefix $ }}/{id}", h.HandleGet)
+{{ end }}    router.Handle("GET", "{{ routePrefix $ }}/get/{id}", h.HandleGetMaterialized)
+    router.Handle("GET", "{{ routePrefix $ }}/{id}", h.HandleGet)
     router.Handle("GET", "{{ routePrefix $ }}/{id}/history", h.HandleHistory)
 {{ $agg := aggregateForFile . }}
 {{ range $gsi := opaqueUsedGSIs $agg }}    router.Handle("GET", "{{ routePrefix $ }}/query/{{ queryRoutePath $gsi.PKFields }}", h.HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }})
@@ -103,6 +104,30 @@ func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) pr
         if errors.Is(err, protosource.ErrAggregateNotFound) {
             return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
         }
+        return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
+    }
+
+    body, contentType, err := marshalResponse(request, aggregate)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
+    }
+
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": contentType},
+    }
+}
+
+// HandleGetMaterialized retrieves a {{ $aggregate }} aggregate from the materialized store.
+func (h *Handler) HandleGetMaterialized(ctx context.Context, request protosource.Request) protosource.Response {
+    id := extractID(request)
+    if id == "" {
+        return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+    }
+
+    aggregate, err := h.client.Get{{ $aggregate }}(ctx, id)
+    if err != nil {
         return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
     }
 

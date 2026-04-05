@@ -24,6 +24,7 @@ import (
 type Doer interface {
 	Apply(ctx context.Context, routePath string, cmd proto.Message) (*responsev1.CommandResponse, error)
 	Load(ctx context.Context, routePath string, id string, target proto.Message) error
+	Get(ctx context.Context, routePath string, id string, target proto.Message) error
 	History(ctx context.Context, routePath string, id string) (*historyv1.History, error)
 	Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error
 }
@@ -123,6 +124,38 @@ func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message)
 // Load retrieves an aggregate by ID, unmarshaling into the provided message.
 func (c *Client) Load(ctx context.Context, routePath string, id string, target proto.Message) error {
 	url := c.baseURL + "/" + routePath + "/" + id
+
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return fmt.Errorf("httpclient: create request: %w", err)
+	}
+	req.Header.Set("Accept", c.acceptHeader())
+
+	if err := c.auth.Authenticate(req); err != nil {
+		return fmt.Errorf("httpclient: authenticate: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("httpclient: do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("httpclient: read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return parseAPIError(resp.StatusCode, respBody)
+	}
+
+	return c.unmarshal(respBody, resp.Header.Get("Content-Type"), target)
+}
+
+// Get retrieves a materialized aggregate by ID from the aggregate store.
+func (c *Client) Get(ctx context.Context, routePath string, id string, target proto.Message) error {
+	url := c.baseURL + "/" + routePath + "/get/" + id
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {

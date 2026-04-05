@@ -47,6 +47,10 @@ export class {{ $aggregate }}HTTPClient {
     return this.client.load(routePath, id, {{ $aggregate }}Schema);
   }
 
+  async get(id: string): Promise<{{ $aggregate }}> {
+    return this.client.get(routePath, id, {{ $aggregate }}Schema);
+  }
+
   async history(id: string): Promise<History> {
     return this.client.history(routePath, id);
   }

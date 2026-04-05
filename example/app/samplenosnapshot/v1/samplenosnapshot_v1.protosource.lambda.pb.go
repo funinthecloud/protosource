@@ -43,6 +43,7 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("POST", "example/app/samplenosnapshot/v1/update", h.HandleUpdate)
 
+	router.Handle("GET", "example/app/samplenosnapshot/v1/get/{id}", h.HandleGetMaterialized)
 	router.Handle("GET", "example/app/samplenosnapshot/v1/{id}", h.HandleGet)
 	router.Handle("GET", "example/app/samplenosnapshot/v1/{id}/history", h.HandleHistory)
 
@@ -122,6 +123,30 @@ func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) pr
 		if errors.Is(err, protosource.ErrAggregateNotFound) {
 			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
 		}
+		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
+	}
+
+	body, contentType, err := marshalResponse(request, aggregate)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
+	}
+
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
+	}
+}
+
+// HandleGetMaterialized retrieves a Sample aggregate from the materialized store.
+func (h *Handler) HandleGetMaterialized(ctx context.Context, request protosource.Request) protosource.Response {
+	id := extractID(request)
+	if id == "" {
+		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+	}
+
+	aggregate, err := h.client.GetSample(ctx, id)
+	if err != nil {
 		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
 	}
 
