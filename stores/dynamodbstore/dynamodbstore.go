@@ -2,6 +2,7 @@ package dynamodbstore
 
 import (
 	"context"
+	"math"
 	"fmt"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/funinthecloud/protosource/aws/dynamoclient"
 	historyv1 "github.com/funinthecloud/protosource/history/v1"
+	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/opaquedata"
 	recordv1 "github.com/funinthecloud/protosource/record/v1"
 	"google.golang.org/protobuf/proto"
@@ -276,7 +278,15 @@ func (s *DynamoDBStore) SaveAggregate(ctx context.Context, aggregate proto.Messa
 	if !ok {
 		return fmt.Errorf("dynamodbstore.SaveAggregate: aggregate %T does not implement opaquedata.AutoPKSK", aggregate)
 	}
-	od, err := opaquedata.NewOpaqueDataFromProto(apk)
+	var opts []opaquedata.Option
+	if ttler, ok := aggregate.(protosource.EventTTLer); ok && ttler.EventTTLSeconds() > 0 {
+		ttlSec := ttler.EventTTLSeconds()
+		if ttlSec > math.MaxInt64/int64(time.Second) {
+			return fmt.Errorf("dynamodbstore.SaveAggregate: event_ttl_seconds %d overflows time.Duration", ttlSec)
+		}
+		opts = append(opts, opaquedata.WithTTL(time.Duration(ttlSec)*time.Second))
+	}
+	od, err := opaquedata.NewOpaqueDataFromProto(apk, opts...)
 	if err != nil {
 		return fmt.Errorf("dynamodbstore.SaveAggregate: opaquedata: %w", err)
 	}
