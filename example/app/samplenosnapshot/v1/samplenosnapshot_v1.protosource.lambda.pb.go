@@ -138,24 +138,24 @@ func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) pr
 	}
 }
 
-// HandleGetMaterialized retrieves a Sample aggregate from the materialized store.
+// HandleGetMaterialized retrieves the Sample aggregate from the materialized store.
 func (h *Handler) HandleGetMaterialized(ctx context.Context, request protosource.Request) protosource.Response {
 	id := extractID(request)
 	if id == "" {
-		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+		return errorResponse(http.StatusBadRequest, "GET_MAT_NO_ID", "missing required parameter: id", nil)
 	}
 
 	aggregate, err := h.client.GetSample(ctx, id)
 	if err != nil {
 		if errors.Is(err, opaquedata.ErrNotFound) {
-			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
+			return errorResponse(http.StatusNotFound, "GET_MAT_NOT_FOUND", "aggregate not found", nil)
 		}
-		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
+		return errorResponse(http.StatusInternalServerError, "GET_MAT_LOAD", "failed to load aggregate", err)
 	}
 
 	body, contentType, err := marshalResponse(request, aggregate)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
+		return errorResponse(http.StatusInternalServerError, "GET_MAT_MARSHAL", "failed to serialize aggregate", err)
 	}
 
 	return protosource.Response{

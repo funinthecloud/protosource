@@ -139,7 +139,7 @@ func main() {
 
 			if skOp == "" {
 				// Validate no stray SK flags when no --sk-op is provided.
-				if flags.has("create_at") {
+				if flags.has("create_at") || flags.has("create_at2") {
 					fatal("--create_at requires --sk-op to be set")
 				}
 				results, err := client.QueryByCreateBy(ctx, create_by)
