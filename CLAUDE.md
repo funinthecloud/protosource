@@ -262,6 +262,27 @@ git fetch origin
 git checkout -b <branch-name> origin/main
 ```
 
+## Releasing
+
+A git tag (`v*`) triggers `.github/workflows/release.yml` which publishes all three artifacts:
+
+1. **Proto module** -- `buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
+2. **Go plugin image** -- Docker build + push to `plugins.buf.build/funinthecloud/protosource:${VERSION}`
+3. **TS plugin image** -- Docker build + push to `plugins.buf.build/funinthecloud/protosource-ts:${VERSION}`
+
+Requires `BUF_TOKEN` in GitHub Actions secrets.
+
+Consumers use remote plugins:
+```yaml
+plugins:
+  - remote: buf.build/funinthecloud/protosource:v0.1.0
+    out: .
+    opt: [module=github.com/their/module]
+  - remote: buf.build/funinthecloud/protosource-ts:v0.1.0
+    out: ts-gen
+    opt: [module=github.com/their/module]
+```
+
 ## TODO
 
 - [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)

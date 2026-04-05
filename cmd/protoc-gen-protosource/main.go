@@ -4,7 +4,6 @@ import (
 	"os"
 
 	pgs "github.com/lyft/protoc-gen-star/v2"
-	pgsgo "github.com/lyft/protoc-gen-star/v2/lang/go"
 )
 
 func main() {
@@ -13,13 +12,12 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
+		defer stdinFile.Close()
 		os.Stdin = stdinFile
 	}
 	pgs.Init(
 		pgs.DebugEnv("DEBUG"),
 	).RegisterModule(
 		Protosourceify(),
-	).RegisterPostProcessor(
-		pgsgo.GoFmt(),
 	).Render()
 }

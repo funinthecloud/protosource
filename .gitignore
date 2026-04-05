@@ -26,6 +26,7 @@
 
 ## Dockerfiles
 !Dockerfile
+!Dockerfile.*
 
 ## Markdown docs
 !*.md
@@ -43,6 +44,7 @@ ts/client/dist/
 
 ## yaml
 !*.yaml
+!*.yml
 
 ## GitHub config
 !CODEOWNERS

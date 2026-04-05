@@ -2,173 +2,244 @@
 
 package samplev1
 
+
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
 import (
-	"context"
-	"fmt"
-	"sync"
+"context"
+"fmt"
+    "sync"
 
-	"buf.build/go/protovalidate"
-	"github.com/funinthecloud/protosource"
+    "buf.build/go/protovalidate"
+    "github.com/funinthecloud/protosource"
 
-	"github.com/funinthecloud/protosource/opaquedata"
-	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-	"google.golang.org/protobuf/proto"
+    "github.com/funinthecloud/protosource/opaquedata"
+    opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
+    "google.golang.org/protobuf/proto"
+
 )
 
 var (
-	_validatorOnce sync.Once
-	_validator     protovalidate.Validator
+    _validatorOnce sync.Once
+    _validator     protovalidate.Validator
 )
 
 func validator() protovalidate.Validator {
-	_validatorOnce.Do(func() {
-		var err error
-		_validator, err = protovalidate.New()
-		if err != nil {
-			panic(fmt.Sprintf("protovalidate.New: %v", err))
-		}
-	})
-	return _validator
+    _validatorOnce.Do(func() {
+        var err error
+        _validator, err = protovalidate.New()
+        if err != nil {
+            panic(fmt.Sprintf("protovalidate.New: %v", err))
+        }
+    })
+    return _validator
 }
 
 type Builder struct {
-	id      string
-	version int64
-	Events  []protosource.Event
+    id      string
+    version int64
+    Events  []protosource.Event
 }
 
 func NewBuilder(id string, version int64) *Builder {
-	return &Builder{
-		id:      id,
-		version: version,
-	}
+    return &Builder {
+        id:      id,
+        version: version,
+    }
 }
 
 func (b *Builder) nextVersion() int64 {
-	b.version++
-	return b.version
+    b.version++
+    return b.version
 }
+
+
+
+
+
+
+
+
+
+    
+        
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+        
+    
+
 
 // SnapshotEveryNEvents is the snapshot interval from the proto annotation.
 const SnapshotEveryNEvents int32 = 50
-
 // NewRepository creates a new protosource.Repository for the Sample aggregate.
 func NewRepository(store protosource.Store, serializer protosource.Serializer, opts ...protosource.Option) *protosource.Repository {
-	return protosource.New(&Sample{}, store, serializer, opts...)
+    return protosource.New(&Sample{}, store, serializer, opts...)
 }
 
+
+
+
+    
+        
 func (aggregate *Sample) Snapshot(version int64) protosource.Event {
-	return &Snapshot{
-		Id:       aggregate.GetId(),
-		Version:  version + 1,
-		At:       protosource.NowMicros(),
-		Actor:    "snapshot@system",
-		Snapshot: aggregate,
-	}
+    return &Snapshot{
+        Id:      aggregate.GetId(),
+        Version: version + 1,
+        At:      protosource.NowMicros(),
+        Actor:   "snapshot@system",
+        Snapshot: aggregate,
+    }
 }
 func (aggregate *Sample) SnapshotInterval() int32 {
-	return SnapshotEveryNEvents
+    return SnapshotEveryNEvents
 }
 func (aggregate *Sample) RestoreSnapshot(snapshot *Snapshot) {
-	aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
-	aggregate.CreateBy = snapshot.GetSnapshot().GetCreateBy()
-	aggregate.ModifyAt = snapshot.GetSnapshot().GetModifyAt()
-	aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
-	aggregate.Body = snapshot.GetSnapshot().GetBody()
-	aggregate.Version = snapshot.GetVersion()
+    aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
+    aggregate.CreateBy = snapshot.GetSnapshot().GetCreateBy()
+    aggregate.ModifyAt = snapshot.GetSnapshot().GetModifyAt()
+    aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
+    aggregate.Body = snapshot.GetSnapshot().GetBody()
+    aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Sample) {
-	if b.version%int64(50) == 0 {
-		if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
-			hook.AfterOn()
-		}
-		event := &Snapshot{
-			Id:       b.id,
-			Snapshot: proto.Clone(aggregate).(*Sample),
-			Version:  b.nextVersion(),
-			At:       protosource.NowMicros(),
-			Actor:    "snapshot@system",
-		}
-		b.Events = append(b.Events, event)
-	}
+    if b.version % int64(50) == 0 {
+        if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+            hook.AfterOn()
+        }
+        event := &Snapshot{
+            Id:       b.id,
+            Snapshot: proto.Clone(aggregate).(*Sample),
+            Version:  b.nextVersion(),
+            At:       protosource.NowMicros(),
+            Actor:    "snapshot@system",
+        }
+        b.Events = append(b.Events, event)
+    }
 }
-func (aggregate *Sample) setCreated(event protosource.Event) {
-	aggregate.CreateAt = event.GetAt()
-	aggregate.CreateBy = event.GetActor()
+        func (aggregate *Sample) setCreated(event protosource.Event) {
+    aggregate.CreateAt = event.GetAt()
+    aggregate.CreateBy = event.GetActor()
 }
 func (aggregate *Sample) setModified(event protosource.Event) {
-	aggregate.ModifyAt = event.GetAt()
-	aggregate.ModifyBy = event.GetActor()
+    aggregate.ModifyAt = event.GetAt()
+    aggregate.ModifyBy = event.GetActor()
 }
 
 // On applies an event to the aggregate, rebuilding its state.
 // This method is called during Repository.Load to reconstruct from stored events,
 // and during test scenarios. Events represent facts — never reject based on business rules.
 func (aggregate *Sample) On(event protosource.Event) error {
-	aggregate.Id = event.GetId()
-	aggregate.Version = event.GetVersion()
+    aggregate.Id = event.GetId()
+    aggregate.Version = event.GetVersion()
 
-	switch e := event.(type) {
-	case *Created:
-		aggregate.setCreated(e)
-		aggregate.setModified(e)
-		aggregate.Body = e.GetBody()
-	case *Updated:
-		aggregate.setModified(e)
-		aggregate.Body = e.GetBody()
-	case *Snapshot:
-		aggregate.RestoreSnapshot(e)
-	default:
-		return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
-	}
+    switch e := event.(type) {
+    case *Created:
+        aggregate.setCreated(e)
+        aggregate.setModified(e)
+        aggregate.Body = e.GetBody()
+    case *Updated:
+        aggregate.setModified(e)
+        aggregate.Body = e.GetBody()
+    case *Snapshot:
+        aggregate.RestoreSnapshot(e)
+default:
+        return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
+    }
 
-	return nil
+    return nil
 }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ── AutoPKSK methods for Sample ──
 
 // PK is automatic: package#aggregate#id#<id_value>
 func (m *Sample) PK() string {
-	if m == nil {
-		return ""
-	}
-	return fmt.Sprintf("example_app_sample_v1#sample#id#%v", m.GetId())
+    if m == nil {
+        return ""
+    }
+    return fmt.Sprintf("example_app_sample_v1#sample#id#%v", m.GetId())
 }
 
 func (m *Sample) SK() string { return "AGG" }
 
 func (m *Sample) GSI1PK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#create_by#%v", m.GetCreateBy())
-	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#create_by#%v", m.GetCreateBy())
+return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
 }
 func (m *Sample) GSI1SK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
-	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
+return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
 }
-func (m *Sample) GSI2PK() string  { return "NA" }
-func (m *Sample) GSI2SK() string  { return "NA" }
-func (m *Sample) GSI3PK() string  { return "NA" }
-func (m *Sample) GSI3SK() string  { return "NA" }
-func (m *Sample) GSI4PK() string  { return "NA" }
-func (m *Sample) GSI4SK() string  { return "NA" }
-func (m *Sample) GSI5PK() string  { return "NA" }
-func (m *Sample) GSI5SK() string  { return "NA" }
-func (m *Sample) GSI6PK() string  { return "NA" }
-func (m *Sample) GSI6SK() string  { return "NA" }
-func (m *Sample) GSI7PK() string  { return "NA" }
-func (m *Sample) GSI7SK() string  { return "NA" }
-func (m *Sample) GSI8PK() string  { return "NA" }
-func (m *Sample) GSI8SK() string  { return "NA" }
-func (m *Sample) GSI9PK() string  { return "NA" }
-func (m *Sample) GSI9SK() string  { return "NA" }
+func (m *Sample) GSI2PK() string { return "NA" }
+func (m *Sample) GSI2SK() string { return "NA" }
+func (m *Sample) GSI3PK() string { return "NA" }
+func (m *Sample) GSI3SK() string { return "NA" }
+func (m *Sample) GSI4PK() string { return "NA" }
+func (m *Sample) GSI4SK() string { return "NA" }
+func (m *Sample) GSI5PK() string { return "NA" }
+func (m *Sample) GSI5SK() string { return "NA" }
+func (m *Sample) GSI6PK() string { return "NA" }
+func (m *Sample) GSI6SK() string { return "NA" }
+func (m *Sample) GSI7PK() string { return "NA" }
+func (m *Sample) GSI7SK() string { return "NA" }
+func (m *Sample) GSI8PK() string { return "NA" }
+func (m *Sample) GSI8SK() string { return "NA" }
+func (m *Sample) GSI9PK() string { return "NA" }
+func (m *Sample) GSI9SK() string { return "NA" }
 func (m *Sample) GSI10PK() string { return "NA" }
 func (m *Sample) GSI10SK() string { return "NA" }
 func (m *Sample) GSI11PK() string { return "NA" }
@@ -192,204 +263,279 @@ func (m *Sample) GSI19SK() string { return "NA" }
 func (m *Sample) GSI20PK() string { return "NA" }
 func (m *Sample) GSI20SK() string { return "NA" }
 
+
 // ── Hydrater for Sample ──
 
 func (m *Sample) Hydrate(body []byte) error {
-	return proto.Unmarshal(body, m)
+    return proto.Unmarshal(body, m)
 }
 
 // ── Typed GSI SK value structs for Sample ──
 
 type SampleGSI1SK struct {
-	CreateAt int64
+    CreateAt int64
 }
 
 func (v SampleGSI1SK) String() string {
-	var fields string
-	fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
-	return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
+    var fields string
+    fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
+return fmt.Sprintf("example_app_sample_v1#sample%s", fields)
 }
+
 
 // ── Client for Sample ──
 
 type SampleClient struct {
-	store opaquedata.OpaqueStore
+    store opaquedata.OpaqueStore
 }
 
 func NewSampleClient(store opaquedata.OpaqueStore) *SampleClient {
-	return &SampleClient{store: store}
+    return &SampleClient{store: store}
 }
 
 func (c *SampleClient) AddSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) error {
-	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
-	if err != nil {
-		return fmt.Errorf("SampleClient.AddSample: %w", err)
-	}
-	return c.store.Put(ctx, od)
+    od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+    if err != nil {
+        return fmt.Errorf("SampleClient.AddSample: %w", err)
+    }
+    return c.store.Put(ctx, od)
 }
 
 func (c *SampleClient) GetSample(ctx context.Context, id string) (*Sample, error) {
-	key := &Sample{
-		Id: id,
-	}
-	od, err := c.store.Get(ctx, key.PK(), key.SK())
-	if err != nil {
-		return nil, fmt.Errorf("SampleClient.GetSample: %w", err)
-	}
-	target := &Sample{}
-	if err := opaquedata.ReHydrate(od, target); err != nil {
-		return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
-	}
-	return target, nil
+    key := &Sample{
+        Id: id,
+    }
+    od, err := c.store.Get(ctx, key.PK(), key.SK())
+    if err != nil {
+        return nil, fmt.Errorf("SampleClient.GetSample: %w", err)
+    }
+    target := &Sample{}
+    if err := opaquedata.ReHydrate(od, target); err != nil {
+        return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
+    }
+    return target, nil
 }
 
 func (c *SampleClient) UpdateSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) error {
-	return c.AddSample(ctx, d, opts...)
+    return c.AddSample(ctx, d, opts...)
 }
 
 func (c *SampleClient) DeleteSample(ctx context.Context, id string) error {
-	key := &Sample{
-		Id: id,
-	}
-	return c.store.Delete(ctx, key.PK(), key.SK())
+    key := &Sample{
+        Id: id,
+    }
+    return c.store.Delete(ctx, key.PK(), key.SK())
 }
+
 
 // SelectSampleByCreateBy queries GSI1 by partition key.
 func (c *SampleClient) SelectSampleByCreateBy(ctx context.Context, create_by string) ([]*Sample, error) {
-	pk := &Sample{
-		CreateBy: create_by,
-	}
-	pkValue := pk.GSI1PK()
-	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
-	if err != nil {
-		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateBy: %w", err)
-	}
-	return rehydrateSample(results)
+    pk := &Sample{
+        CreateBy: create_by,
+    }
+    pkValue := pk.GSI1PK()
+    results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
+    if err != nil {
+        return nil, fmt.Errorf("SampleClient.SelectSampleByCreateBy: %w", err)
+    }
+    return rehydrateSample(results)
 }
 
 // SelectSampleByCreateByWithCreateAt queries GSI1 with a sort key condition.
 func (c *SampleClient) SelectSampleByCreateByWithCreateAt(ctx context.Context, create_by string, op opaquedata.SortOperator, vals ...SampleGSI1SK) ([]*Sample, error) {
-	if op == opaquedata.Between {
-		if len(vals) != 2 {
-			return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
-		}
-	} else if len(vals) != 1 {
-		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
-	}
-	pk := &Sample{
-		CreateBy: create_by,
-	}
-	pkValue := pk.GSI1PK()
-	sort := &opaquedata.SortCondition{
-		Operator: op,
-		Value:    vals[0].String(),
-	}
-	if op == opaquedata.Between {
-		sort.Value2 = vals[1].String()
-	}
-	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
-	if err != nil {
-		return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: %w", err)
-	}
-	return rehydrateSample(results)
+    if op == opaquedata.Between {
+        if len(vals) != 2 {
+            return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
+        }
+    } else if len(vals) != 1 {
+        return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
+    }
+    pk := &Sample{
+        CreateBy: create_by,
+    }
+    pkValue := pk.GSI1PK()
+    sort := &opaquedata.SortCondition{
+        Operator: op,
+        Value:    vals[0].String(),
+    }
+    if op == opaquedata.Between {
+        sort.Value2 = vals[1].String()
+    }
+    results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
+    if err != nil {
+        return nil, fmt.Errorf("SampleClient.SelectSampleByCreateByWithCreateAt: %w", err)
+    }
+    return rehydrateSample(results)
 }
+
 
 func rehydrateSample(results []*opaquedatav1.OpaqueData) ([]*Sample, error) {
-	out := make([]*Sample, 0, len(results))
-	for _, od := range results {
-		m := &Sample{}
-		if err := opaquedata.ReHydrate(od, m); err != nil {
-			return nil, fmt.Errorf("Sample: rehydrate: %w", err)
-		}
-		out = append(out, m)
-	}
-	return out, nil
+    out := make([]*Sample, 0, len(results))
+    for _, od := range results {
+        m := &Sample{}
+        if err := opaquedata.ReHydrate(od, m); err != nil {
+            return nil, fmt.Errorf("Sample: rehydrate: %w", err)
+        }
+        out = append(out, m)
+    }
+    return out, nil
 }
 
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Create) CommandName() string {
-	return "Create"
+    return "Create"
 }
 
 func (m *Create) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Create) ValidateVersion(version int64) error {
-	if version != 0 {
-		return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
-	}
-	return nil
+    if version != 0 {
+        return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
+    }
+    return nil
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Sample)
-	b.Created(m.GetActor(), m.GetBody())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Sample)
+    b.Created( m.GetActor(),  m.GetBody(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Update) CommandName() string {
-	return "Update"
+    return "Update"
 }
 
 func (m *Update) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Update) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Sample)
-	b.Updated(m.GetActor(), m.GetBody())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Sample)
+    b.Updated( m.GetActor(),  m.GetBody(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Created) EventName() string {
-	return "Created"
+    return "Created"
 }
 
-func (b *Builder) Created(Actor string, Body string) {
-	event := &Created{
-		Id:    b.id,
-		Actor: Actor,
-		Body:  Body,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Created( Actor string,  Body string, ) {
+    event := &Created{
+		Id:      b.id,
+        	Actor: Actor,
+        	Body: Body,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Updated) EventName() string {
-	return "Updated"
+    return "Updated"
 }
 
-func (b *Builder) Updated(Actor string, Body string) {
-	event := &Updated{
-		Id:    b.id,
-		Actor: Actor,
-		Body:  Body,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Updated( Actor string,  Body string, ) {
+    event := &Updated{
+		Id:      b.id,
+        	Actor: Actor,
+        	Body: Body,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
+
 
 func (m *Snapshot) EventName() string {
-	return "Snapshot"
+    return "Snapshot"
 }
+
+
+
+
+

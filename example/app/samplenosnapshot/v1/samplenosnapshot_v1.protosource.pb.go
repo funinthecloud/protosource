@@ -2,119 +2,183 @@
 
 package samplenoprefixv1
 
+
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
 import (
-	"context"
-	"fmt"
-	"sync"
+"context"
+"fmt"
+    "sync"
 
-	"buf.build/go/protovalidate"
-	"github.com/funinthecloud/protosource"
+    "buf.build/go/protovalidate"
+    "github.com/funinthecloud/protosource"
 
-	"github.com/funinthecloud/protosource/opaquedata"
-	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-	"google.golang.org/protobuf/proto"
+    "github.com/funinthecloud/protosource/opaquedata"
+    opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
+    "google.golang.org/protobuf/proto"
+
 )
 
 var (
-	_validatorOnce sync.Once
-	_validator     protovalidate.Validator
+    _validatorOnce sync.Once
+    _validator     protovalidate.Validator
 )
 
 func validator() protovalidate.Validator {
-	_validatorOnce.Do(func() {
-		var err error
-		_validator, err = protovalidate.New()
-		if err != nil {
-			panic(fmt.Sprintf("protovalidate.New: %v", err))
-		}
-	})
-	return _validator
+    _validatorOnce.Do(func() {
+        var err error
+        _validator, err = protovalidate.New()
+        if err != nil {
+            panic(fmt.Sprintf("protovalidate.New: %v", err))
+        }
+    })
+    return _validator
 }
 
 type Builder struct {
-	id      string
-	version int64
-	Events  []protosource.Event
+    id      string
+    version int64
+    Events  []protosource.Event
 }
 
 func NewBuilder(id string, version int64) *Builder {
-	return &Builder{
-		id:      id,
-		version: version,
-	}
+    return &Builder {
+        id:      id,
+        version: version,
+    }
 }
 
 func (b *Builder) nextVersion() int64 {
-	b.version++
-	return b.version
+    b.version++
+    return b.version
 }
+
+
+
+
+
+
+
+
+
+    
+        
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
 
 // NewRepository creates a new protosource.Repository for the Sample aggregate.
 func NewRepository(store protosource.Store, serializer protosource.Serializer, opts ...protosource.Option) *protosource.Repository {
-	return protosource.New(&Sample{}, store, serializer, opts...)
+    return protosource.New(&Sample{}, store, serializer, opts...)
 }
 
-func (aggregate *Sample) setCreated(event protosource.Event) {
-	aggregate.CreateAt = event.GetAt()
-	aggregate.CreateBy = event.GetActor()
+
+
+
+    
+        func (aggregate *Sample) setCreated(event protosource.Event) {
+    aggregate.CreateAt = event.GetAt()
+    aggregate.CreateBy = event.GetActor()
 }
 func (aggregate *Sample) setModified(event protosource.Event) {
-	aggregate.ModifyAt = event.GetAt()
-	aggregate.ModifyBy = event.GetActor()
+    aggregate.ModifyAt = event.GetAt()
+    aggregate.ModifyBy = event.GetActor()
 }
 
 // On applies an event to the aggregate, rebuilding its state.
 // This method is called during Repository.Load to reconstruct from stored events,
 // and during test scenarios. Events represent facts — never reject based on business rules.
 func (aggregate *Sample) On(event protosource.Event) error {
-	aggregate.Id = event.GetId()
-	aggregate.Version = event.GetVersion()
+    aggregate.Id = event.GetId()
+    aggregate.Version = event.GetVersion()
 
-	switch e := event.(type) {
-	case *Created:
-		aggregate.setCreated(e)
-		aggregate.setModified(e)
-		aggregate.Body = e.GetBody()
-	case *Updated:
-		aggregate.setModified(e)
-		aggregate.Body = e.GetBody()
-	default:
-		return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
-	}
+    switch e := event.(type) {
+    case *Created:
+        aggregate.setCreated(e)
+        aggregate.setModified(e)
+        aggregate.Body = e.GetBody()
+    case *Updated:
+        aggregate.setModified(e)
+        aggregate.Body = e.GetBody()
+default:
+        return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
+    }
 
-	return nil
+    return nil
 }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ── AutoPKSK methods for Sample ──
 
 // PK is automatic: package#aggregate#id#<id_value>
 func (m *Sample) PK() string {
-	if m == nil {
-		return ""
-	}
-	return fmt.Sprintf("example_app_samplenosnapshot_v1#sample#id#%v", m.GetId())
+    if m == nil {
+        return ""
+    }
+    return fmt.Sprintf("example_app_samplenosnapshot_v1#sample#id#%v", m.GetId())
 }
 
 func (m *Sample) SK() string { return "AGG" }
 
-func (m *Sample) GSI1PK() string  { return "NA" }
-func (m *Sample) GSI1SK() string  { return "NA" }
-func (m *Sample) GSI2PK() string  { return "NA" }
-func (m *Sample) GSI2SK() string  { return "NA" }
-func (m *Sample) GSI3PK() string  { return "NA" }
-func (m *Sample) GSI3SK() string  { return "NA" }
-func (m *Sample) GSI4PK() string  { return "NA" }
-func (m *Sample) GSI4SK() string  { return "NA" }
-func (m *Sample) GSI5PK() string  { return "NA" }
-func (m *Sample) GSI5SK() string  { return "NA" }
-func (m *Sample) GSI6PK() string  { return "NA" }
-func (m *Sample) GSI6SK() string  { return "NA" }
-func (m *Sample) GSI7PK() string  { return "NA" }
-func (m *Sample) GSI7SK() string  { return "NA" }
-func (m *Sample) GSI8PK() string  { return "NA" }
-func (m *Sample) GSI8SK() string  { return "NA" }
-func (m *Sample) GSI9PK() string  { return "NA" }
-func (m *Sample) GSI9SK() string  { return "NA" }
+func (m *Sample) GSI1PK() string { return "NA" }
+func (m *Sample) GSI1SK() string { return "NA" }
+func (m *Sample) GSI2PK() string { return "NA" }
+func (m *Sample) GSI2SK() string { return "NA" }
+func (m *Sample) GSI3PK() string { return "NA" }
+func (m *Sample) GSI3SK() string { return "NA" }
+func (m *Sample) GSI4PK() string { return "NA" }
+func (m *Sample) GSI4SK() string { return "NA" }
+func (m *Sample) GSI5PK() string { return "NA" }
+func (m *Sample) GSI5SK() string { return "NA" }
+func (m *Sample) GSI6PK() string { return "NA" }
+func (m *Sample) GSI6SK() string { return "NA" }
+func (m *Sample) GSI7PK() string { return "NA" }
+func (m *Sample) GSI7SK() string { return "NA" }
+func (m *Sample) GSI8PK() string { return "NA" }
+func (m *Sample) GSI8SK() string { return "NA" }
+func (m *Sample) GSI9PK() string { return "NA" }
+func (m *Sample) GSI9SK() string { return "NA" }
 func (m *Sample) GSI10PK() string { return "NA" }
 func (m *Sample) GSI10SK() string { return "NA" }
 func (m *Sample) GSI11PK() string { return "NA" }
@@ -138,144 +202,209 @@ func (m *Sample) GSI19SK() string { return "NA" }
 func (m *Sample) GSI20PK() string { return "NA" }
 func (m *Sample) GSI20SK() string { return "NA" }
 
+
 // ── Hydrater for Sample ──
 
 func (m *Sample) Hydrate(body []byte) error {
-	return proto.Unmarshal(body, m)
+    return proto.Unmarshal(body, m)
 }
 
 // ── Typed GSI SK value structs for Sample ──
 
+
+
 // ── Client for Sample ──
 
 type SampleClient struct {
-	store opaquedata.OpaqueStore
+    store opaquedata.OpaqueStore
 }
 
 func NewSampleClient(store opaquedata.OpaqueStore) *SampleClient {
-	return &SampleClient{store: store}
+    return &SampleClient{store: store}
 }
 
 func (c *SampleClient) AddSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) error {
-	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
-	if err != nil {
-		return fmt.Errorf("SampleClient.AddSample: %w", err)
-	}
-	return c.store.Put(ctx, od)
+    od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+    if err != nil {
+        return fmt.Errorf("SampleClient.AddSample: %w", err)
+    }
+    return c.store.Put(ctx, od)
 }
 
 func (c *SampleClient) GetSample(ctx context.Context, id string) (*Sample, error) {
-	key := &Sample{
-		Id: id,
-	}
-	od, err := c.store.Get(ctx, key.PK(), key.SK())
-	if err != nil {
-		return nil, fmt.Errorf("SampleClient.GetSample: %w", err)
-	}
-	target := &Sample{}
-	if err := opaquedata.ReHydrate(od, target); err != nil {
-		return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
-	}
-	return target, nil
+    key := &Sample{
+        Id: id,
+    }
+    od, err := c.store.Get(ctx, key.PK(), key.SK())
+    if err != nil {
+        return nil, fmt.Errorf("SampleClient.GetSample: %w", err)
+    }
+    target := &Sample{}
+    if err := opaquedata.ReHydrate(od, target); err != nil {
+        return nil, fmt.Errorf("SampleClient.GetSample: rehydrate: %w", err)
+    }
+    return target, nil
 }
 
 func (c *SampleClient) UpdateSample(ctx context.Context, d *Sample, opts ...opaquedata.Option) error {
-	return c.AddSample(ctx, d, opts...)
+    return c.AddSample(ctx, d, opts...)
 }
 
 func (c *SampleClient) DeleteSample(ctx context.Context, id string) error {
-	key := &Sample{
-		Id: id,
-	}
-	return c.store.Delete(ctx, key.PK(), key.SK())
+    key := &Sample{
+        Id: id,
+    }
+    return c.store.Delete(ctx, key.PK(), key.SK())
 }
+
+
 
 func rehydrateSample(results []*opaquedatav1.OpaqueData) ([]*Sample, error) {
-	out := make([]*Sample, 0, len(results))
-	for _, od := range results {
-		m := &Sample{}
-		if err := opaquedata.ReHydrate(od, m); err != nil {
-			return nil, fmt.Errorf("Sample: rehydrate: %w", err)
-		}
-		out = append(out, m)
-	}
-	return out, nil
+    out := make([]*Sample, 0, len(results))
+    for _, od := range results {
+        m := &Sample{}
+        if err := opaquedata.ReHydrate(od, m); err != nil {
+            return nil, fmt.Errorf("Sample: rehydrate: %w", err)
+        }
+        out = append(out, m)
+    }
+    return out, nil
 }
 
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Create) CommandName() string {
-	return "Create"
+    return "Create"
 }
 
 func (m *Create) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Create) ValidateVersion(version int64) error {
-	if version != 0 {
-		return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
-	}
-	return nil
+    if version != 0 {
+        return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
+    }
+    return nil
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	b.Created(m.GetActor(), m.GetBody())
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    b.Created( m.GetActor(),  m.GetBody(), )
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Update) CommandName() string {
-	return "Update"
+    return "Update"
 }
 
 func (m *Update) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Update) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	b.Updated(m.GetActor(), m.GetBody())
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    b.Updated( m.GetActor(),  m.GetBody(), )
+    return b.Events
 }
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Created) EventName() string {
-	return "Created"
+    return "Created"
 }
 
-func (b *Builder) Created(Actor string, Body string) {
-	event := &Created{
-		Id:    b.id,
-		Actor: Actor,
-		Body:  Body,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Created( Actor string,  Body string, ) {
+    event := &Created{
+		Id:      b.id,
+        	Actor: Actor,
+        	Body: Body,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Updated) EventName() string {
-	return "Updated"
+    return "Updated"
 }
 
-func (b *Builder) Updated(Actor string, Body string) {
-	event := &Updated{
-		Id:    b.id,
-		Actor: Actor,
-		Body:  Body,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Updated( Actor string,  Body string, ) {
+    event := &Updated{
+		Id:      b.id,
+        	Actor: Actor,
+        	Body: Body,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+

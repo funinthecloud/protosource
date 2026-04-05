@@ -3,364 +3,413 @@
 package samplev1
 
 import (
-	"context"
-	"encoding/json"
-	"errors"
-	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
+    "context"
+    "encoding/json"
+    "errors"
+    "fmt"
+    "net/http"
+    "strconv"
+    "strings"
 
-	"github.com/funinthecloud/protosource"
-	"github.com/funinthecloud/protosource/opaquedata"
-	responsev1 "github.com/funinthecloud/protosource/response/v1"
-	"google.golang.org/protobuf/encoding/protojson"
-	"google.golang.org/protobuf/proto"
+    "github.com/funinthecloud/protosource"
+    "github.com/funinthecloud/protosource/opaquedata"
+    responsev1 "github.com/funinthecloud/protosource/response/v1"
+    "google.golang.org/protobuf/encoding/protojson"
+    "google.golang.org/protobuf/proto"
 )
+
+
+
+    
+        
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
 
 // Repo is a package-specific interface for dependency injection.
 // It embeds protosource.Repo so that *protosource.Repository satisfies it,
 // while giving each aggregate package a distinct type for Wire.
 type Repo interface {
-	protosource.Repo
+    protosource.Repo
 }
 
 // Handler provides request handler functions for the Sample aggregate.
 type Handler struct {
-	repo   Repo
-	client *SampleClient
+    repo   Repo
+    client *SampleClient
 }
 
 // NewHandler creates a new Handler instance with the given repository and client.
 func NewHandler(repo Repo, client *SampleClient) *Handler {
-	return &Handler{repo: repo, client: client}
+    return &Handler{repo: repo, client: client}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
 func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
-	router.Handle("POST", "example/app/sample/v1/create", h.HandleCreate)
 
-	router.Handle("POST", "example/app/sample/v1/update", h.HandleUpdate)
 
-	router.Handle("GET", "example/app/sample/v1/{id}", h.HandleGet)
-	router.Handle("GET", "example/app/sample/v1/{id}/history", h.HandleHistory)
 
-	router.Handle("GET", "example/app/sample/v1/query/by-create-by", h.HandleQueryByCreateBy)
+
+    router.Handle("POST", "example/app/sample/v1/create", h.HandleCreate)
+
+
+    router.Handle("POST", "example/app/sample/v1/update", h.HandleUpdate)
+
+
+
+
+
+
+
+    router.Handle("GET", "example/app/sample/v1/{id}", h.HandleGet)
+    router.Handle("GET", "example/app/sample/v1/{id}/history", h.HandleHistory)
+
+    router.Handle("GET", "example/app/sample/v1/query/by-create-by", h.HandleQueryByCreateBy)
 
 }
+
+
+
+
+
+
 
 // HandleCreate processes a Create command.
 func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
-	if request.Actor == "" {
-		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
-	}
+    if request.Actor == "" {
+        return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
+    }
 
-	cmd := &Create{}
-	if err := unmarshalCommand(request, cmd); err != nil {
-		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
-	}
+    cmd := &Create{}
+    if err := unmarshalCommand(request, cmd); err != nil {
+        return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
+    }
 
-	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+    // Override actor from auth context to prevent spoofing.
+    cmd.Actor = request.Actor
 
-	version, err := h.repo.Apply(ctx, cmd)
-	if err != nil {
-		return commandErrorResponse(err)
-	}
+    version, err := h.repo.Apply(ctx, cmd)
+    if err != nil {
+        return commandErrorResponse(err)
+    }
 
-	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
-	body, contentType, err := marshalResponse(request, resp)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
-	}
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": contentType},
-	}
+    resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
+    body, contentType, err := marshalResponse(request, resp)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+    }
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": contentType},
+    }
 }
+
+
 
 // HandleUpdate processes a Update command.
 func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request) protosource.Response {
-	if request.Actor == "" {
-		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
-	}
+    if request.Actor == "" {
+        return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
+    }
 
-	cmd := &Update{}
-	if err := unmarshalCommand(request, cmd); err != nil {
-		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
-	}
+    cmd := &Update{}
+    if err := unmarshalCommand(request, cmd); err != nil {
+        return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
+    }
 
-	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+    // Override actor from auth context to prevent spoofing.
+    cmd.Actor = request.Actor
 
-	version, err := h.repo.Apply(ctx, cmd)
-	if err != nil {
-		return commandErrorResponse(err)
-	}
+    version, err := h.repo.Apply(ctx, cmd)
+    if err != nil {
+        return commandErrorResponse(err)
+    }
 
-	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
-	body, contentType, err := marshalResponse(request, resp)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
-	}
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": contentType},
-	}
+    resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
+    body, contentType, err := marshalResponse(request, resp)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+    }
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": contentType},
+    }
 }
+
+
+
+
+
+
+
+
 
 // HandleGet retrieves the current state of a Sample aggregate.
 func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
-	id := extractID(request)
-	if id == "" {
-		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
-	}
+    id := extractID(request)
+    if id == "" {
+        return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+    }
 
-	aggregate, err := h.repo.Load(ctx, id)
-	if err != nil {
-		if errors.Is(err, protosource.ErrAggregateNotFound) {
-			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
-		}
-		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
-	}
+    aggregate, err := h.repo.Load(ctx, id)
+    if err != nil {
+        if errors.Is(err, protosource.ErrAggregateNotFound) {
+            return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
+        }
+        return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
+    }
 
-	body, contentType, err := marshalResponse(request, aggregate)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
-	}
+    body, contentType, err := marshalResponse(request, aggregate)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
+    }
 
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": contentType},
-	}
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": contentType},
+    }
 }
 
 // HandleHistory retrieves the full event history for a Sample aggregate.
 func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
-	id := extractID(request)
-	if id == "" {
-		return errorResponse(http.StatusBadRequest, "HIST_NO_ID", "missing required parameter: id", nil)
-	}
+    id := extractID(request)
+    if id == "" {
+        return errorResponse(http.StatusBadRequest, "HIST_NO_ID", "missing required parameter: id", nil)
+    }
 
-	history, err := h.repo.History(ctx, id)
-	if err != nil {
-		if errors.Is(err, protosource.ErrAggregateNotFound) {
-			return errorResponse(http.StatusNotFound, "HIST_NOT_FOUND", "aggregate not found", nil)
-		}
-		return errorResponse(http.StatusInternalServerError, "HIST_LOAD", "failed to load history", err)
-	}
+    history, err := h.repo.History(ctx, id)
+    if err != nil {
+        if errors.Is(err, protosource.ErrAggregateNotFound) {
+            return errorResponse(http.StatusNotFound, "HIST_NOT_FOUND", "aggregate not found", nil)
+        }
+        return errorResponse(http.StatusInternalServerError, "HIST_LOAD", "failed to load history", err)
+    }
 
-	body, contentType, err := marshalResponse(request, history)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "HIST_MARSHAL", "failed to serialize history", err)
-	}
+    body, contentType, err := marshalResponse(request, history)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "HIST_MARSHAL", "failed to serialize history", err)
+    }
 
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": contentType},
-	}
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": contentType},
+    }
 }
+
+
 
 // HandleQueryByCreateBy queries GSI1 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByCreateBy(ctx context.Context, request protosource.Request) protosource.Response {
-	create_by := request.QueryParameters["create_by"]
-	if create_by == "" {
-		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: create_by", nil)
-	}
+    create_by := request.QueryParameters["create_by"]
+    if create_by == "" {
+        return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: create_by", nil)
+    }
 
-	skOp := request.QueryParameters["sk_op"]
+    skOp := request.QueryParameters["sk_op"]
 
-	if skOp == "" {
-		results, err := h.client.SelectSampleByCreateBy(ctx, create_by)
-		if err != nil {
-			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
-		}
-		return queryResponse(request, results)
-	}
+    if skOp == "" {
+        results, err := h.client.SelectSampleByCreateBy(ctx, create_by)
+        if err != nil {
+            return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+        }
+        return queryResponse(request, results)
+    }
 
-	op, ok := parseSortOperator(skOp)
-	if !ok {
-		return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
-	}
+    op, ok := parseSortOperator(skOp)
+    if !ok {
+        return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+    }
 
-	create_atRaw := request.QueryParameters["create_at"]
-	if create_atRaw == "" {
-		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at", nil)
-	}
-	create_atVal, create_atErr := parseQueryParamInt64(create_atRaw)
-	if create_atErr != nil {
-		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at: %v", create_atErr), nil)
-	}
+    create_atRaw := request.QueryParameters["create_at"]
+    if create_atRaw == "" {
+        return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at", nil)
+    }
+    create_atVal, create_atErr := parseQueryParamInt64(create_atRaw)
+    if create_atErr != nil {
+        return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at: %v", create_atErr), nil)
+    }
 
-	skVal := SampleGSI1SK{
-		CreateAt: create_atVal,
-	}
+    skVal := SampleGSI1SK{
+        CreateAt: create_atVal,
+    }
 
-	if op == opaquedata.Between {
-		create_atRaw2 := request.QueryParameters["create_at2"]
-		if create_atRaw2 == "" {
-			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at2 (required for between)", nil)
-		}
-		create_atVal2, create_atErr2 := parseQueryParamInt64(create_atRaw2)
-		if create_atErr2 != nil {
-			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at2: %v", create_atErr2), nil)
-		}
-		skVal2 := SampleGSI1SK{
-			CreateAt: create_atVal2,
-		}
-		results, err := h.client.SelectSampleByCreateByWithCreateAt(ctx, create_by, op, skVal, skVal2)
-		if err != nil {
-			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
-		}
-		return queryResponse(request, results)
-	}
+    if op == opaquedata.Between {
+        create_atRaw2 := request.QueryParameters["create_at2"]
+        if create_atRaw2 == "" {
+            return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_at2 (required for between)", nil)
+        }
+        create_atVal2, create_atErr2 := parseQueryParamInt64(create_atRaw2)
+        if create_atErr2 != nil {
+            return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_at2: %v", create_atErr2), nil)
+        }
+        skVal2 := SampleGSI1SK{
+            CreateAt: create_atVal2,
+        }
+        results, err := h.client.SelectSampleByCreateByWithCreateAt(ctx, create_by, op, skVal, skVal2)
+        if err != nil {
+            return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+        }
+        return queryResponse(request, results)
+    }
 
-	results, err := h.client.SelectSampleByCreateByWithCreateAt(ctx, create_by, op, skVal)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
-	}
-	return queryResponse(request, results)
+    results, err := h.client.SelectSampleByCreateByWithCreateAt(ctx, create_by, op, skVal)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+    }
+    return queryResponse(request, results)
 
 }
+
 
 // ── Helpers ──
 
 // acceptsProtobuf checks the Accept header: protobuf wins if present,
 // then JSON if present, otherwise defaults to protobuf.
 func acceptsProtobuf(request protosource.Request) bool {
-	accept := request.Headers["Accept"]
-	if accept == "" {
-		accept = request.Headers["accept"]
-	}
-	if strings.Contains(accept, "application/protobuf") {
-		return true
-	}
-	if strings.Contains(accept, "application/json") {
-		return false
-	}
-	return true
+    accept := request.Headers["Accept"]
+    if accept == "" {
+        accept = request.Headers["accept"]
+    }
+    if strings.Contains(accept, "application/protobuf") {
+        return true
+    }
+    if strings.Contains(accept, "application/json") {
+        return false
+    }
+    return true
 }
 
 // isProtobufContent checks the Content-Type header: protobuf wins if present,
 // then JSON if present, otherwise defaults to protobuf.
 func isProtobufContent(request protosource.Request) bool {
-	ct := request.Headers["Content-Type"]
-	if ct == "" {
-		ct = request.Headers["content-type"]
-	}
-	if strings.Contains(ct, "application/protobuf") {
-		return true
-	}
-	if strings.Contains(ct, "application/json") {
-		return false
-	}
-	return true
+    ct := request.Headers["Content-Type"]
+    if ct == "" {
+        ct = request.Headers["content-type"]
+    }
+    if strings.Contains(ct, "application/protobuf") {
+        return true
+    }
+    if strings.Contains(ct, "application/json") {
+        return false
+    }
+    return true
 }
 
 // unmarshalCommand decodes the request body into a proto message, using
 // Content-Type to select protobuf binary or JSON deserialization.
 func unmarshalCommand(request protosource.Request, msg proto.Message) error {
-	if isProtobufContent(request) {
-		return proto.Unmarshal([]byte(request.Body), msg)
-	}
-	return protojson.Unmarshal([]byte(request.Body), msg)
+    if isProtobufContent(request) {
+        return proto.Unmarshal([]byte(request.Body), msg)
+    }
+    return protojson.Unmarshal([]byte(request.Body), msg)
 }
 
 // marshalResponse encodes a proto message for the response, using the Accept
 // header to select protobuf binary or JSON serialization. Returns the
 // serialized bytes and the appropriate Content-Type.
 func marshalResponse(request protosource.Request, msg proto.Message) ([]byte, string, error) {
-	if acceptsProtobuf(request) {
-		b, err := proto.Marshal(msg)
-		return b, "application/protobuf", err
-	}
-	b, err := protojson.Marshal(msg)
-	return b, "application/json", err
+    if acceptsProtobuf(request) {
+        b, err := proto.Marshal(msg)
+        return b, "application/protobuf", err
+    }
+    b, err := protojson.Marshal(msg)
+    return b, "application/json", err
 }
 
 // queryResponse wraps query results in the SampleList message and
 // serializes using content negotiation (protobuf or JSON based on Accept header).
 func queryResponse(request protosource.Request, results []*Sample) protosource.Response {
-	list := &SampleList{Items: results}
-	body, contentType, err := marshalResponse(request, list)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
-	}
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": contentType},
-	}
+    list := &SampleList{Items: results}
+    body, contentType, err := marshalResponse(request, list)
+    if err != nil {
+        return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
+    }
+    return protosource.Response{
+        StatusCode: http.StatusOK,
+        Body:       string(body),
+        Headers:    map[string]string{"Content-Type": contentType},
+    }
 }
 
 // extractID extracts the aggregate ID from path parameters or query string.
 func extractID(request protosource.Request) string {
-	if id, ok := request.PathParameters["id"]; ok && id != "" {
-		return id
-	}
-	return request.QueryParameters["id"]
+    if id, ok := request.PathParameters["id"]; ok && id != "" {
+        return id
+    }
+    return request.QueryParameters["id"]
 }
 
 // parseSortOperator maps a query parameter value to an opaquedata.SortOperator.
 func parseSortOperator(s string) (opaquedata.SortOperator, bool) {
-	switch strings.ToLower(s) {
-	case "eq":
-		return opaquedata.Equal, true
-	case "lt":
-		return opaquedata.Lt, true
-	case "le":
-		return opaquedata.Le, true
-	case "gt":
-		return opaquedata.Gt, true
-	case "ge":
-		return opaquedata.Ge, true
-	case "begins_with":
-		return opaquedata.BeginsWith, true
-	case "between":
-		return opaquedata.Between, true
-	default:
-		return 0, false
-	}
+    switch strings.ToLower(s) {
+    case "eq":
+        return opaquedata.Equal, true
+    case "lt":
+        return opaquedata.Lt, true
+    case "le":
+        return opaquedata.Le, true
+    case "gt":
+        return opaquedata.Gt, true
+    case "ge":
+        return opaquedata.Ge, true
+    case "begins_with":
+        return opaquedata.BeginsWith, true
+    case "between":
+        return opaquedata.Between, true
+    default:
+        return 0, false
+    }
 }
 
 // errorResponse builds a JSON error response with a code for tracing.
 // If cause is non-nil, its message is included in the detail field.
 func errorResponse(statusCode int, code, message string, cause error) protosource.Response {
-	body := map[string]string{"error": message, "code": code}
-	if cause != nil {
-		body["detail"] = cause.Error()
-	}
-	b, _ := json.Marshal(body)
-	return protosource.Response{
-		StatusCode: statusCode,
-		Body:       string(b),
-		Headers:    map[string]string{"Content-Type": "application/json"},
-	}
+    body := map[string]string{"error": message, "code": code}
+    if cause != nil {
+        body["detail"] = cause.Error()
+    }
+    b, _ := json.Marshal(body)
+    return protosource.Response{
+        StatusCode: statusCode,
+        Body:       string(b),
+        Headers:    map[string]string{"Content-Type": "application/json"},
+    }
 }
 
 // commandErrorResponse maps protosource errors to appropriate HTTP responses.
 func commandErrorResponse(err error) protosource.Response {
-	switch {
-	case errors.Is(err, protosource.ErrValidationFailed):
-		return errorResponse(http.StatusBadRequest, "CMD_VALIDATION", err.Error(), nil)
-	case errors.Is(err, protosource.ErrEmptyAggregateId):
-		return errorResponse(http.StatusBadRequest, "CMD_EMPTY_ID", "aggregate id is required", nil)
-	case errors.Is(err, protosource.ErrAlreadyCreated):
-		return errorResponse(http.StatusConflict, "CMD_ALREADY_CREATED", "aggregate already exists", nil)
-	case errors.Is(err, protosource.ErrNotCreatedYet):
-		return errorResponse(http.StatusNotFound, "CMD_NOT_CREATED", "aggregate not found", nil)
-	case errors.Is(err, protosource.ErrAggregateNotFound):
-		return errorResponse(http.StatusNotFound, "CMD_NOT_FOUND", "aggregate not found", nil)
-	case errors.Is(err, protosource.ErrUnauthorized):
-		return errorResponse(http.StatusForbidden, "CMD_UNAUTHORIZED", "command not authorized", nil)
-	default:
-		return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
-	}
+    switch {
+    case errors.Is(err, protosource.ErrValidationFailed):
+        return errorResponse(http.StatusBadRequest, "CMD_VALIDATION", err.Error(), nil)
+    case errors.Is(err, protosource.ErrEmptyAggregateId):
+        return errorResponse(http.StatusBadRequest, "CMD_EMPTY_ID", "aggregate id is required", nil)
+    case errors.Is(err, protosource.ErrAlreadyCreated):
+        return errorResponse(http.StatusConflict, "CMD_ALREADY_CREATED", "aggregate already exists", nil)
+    case errors.Is(err, protosource.ErrNotCreatedYet):
+        return errorResponse(http.StatusNotFound, "CMD_NOT_CREATED", "aggregate not found", nil)
+    case errors.Is(err, protosource.ErrAggregateNotFound):
+        return errorResponse(http.StatusNotFound, "CMD_NOT_FOUND", "aggregate not found", nil)
+    case errors.Is(err, protosource.ErrUnauthorized):
+        return errorResponse(http.StatusForbidden, "CMD_UNAUTHORIZED", "command not authorized", nil)
+    default:
+        return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
+    }
 }
 
 // ── Query parameter parsers ──
@@ -368,57 +417,57 @@ func commandErrorResponse(err error) protosource.Response {
 func parseQueryParamString(s string) (string, error) { return s, nil }
 
 func parseQueryParamInt32(s string) (int32, error) {
-	v, err := strconv.ParseInt(s, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("invalid int32: %w", err)
-	}
-	return int32(v), nil
+    v, err := strconv.ParseInt(s, 10, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid int32: %w", err)
+    }
+    return int32(v), nil
 }
 
 func parseQueryParamInt64(s string) (int64, error) {
-	v, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid int64: %w", err)
-	}
-	return v, nil
+    v, err := strconv.ParseInt(s, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid int64: %w", err)
+    }
+    return v, nil
 }
 
 func parseQueryParamUint32(s string) (uint32, error) {
-	v, err := strconv.ParseUint(s, 10, 32)
-	if err != nil {
-		return 0, fmt.Errorf("invalid uint32: %w", err)
-	}
-	return uint32(v), nil
+    v, err := strconv.ParseUint(s, 10, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid uint32: %w", err)
+    }
+    return uint32(v), nil
 }
 
 func parseQueryParamUint64(s string) (uint64, error) {
-	v, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid uint64: %w", err)
-	}
-	return v, nil
+    v, err := strconv.ParseUint(s, 10, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid uint64: %w", err)
+    }
+    return v, nil
 }
 
 func parseQueryParamBool(s string) (bool, error) {
-	v, err := strconv.ParseBool(s)
-	if err != nil {
-		return false, fmt.Errorf("invalid bool: %w", err)
-	}
-	return v, nil
+    v, err := strconv.ParseBool(s)
+    if err != nil {
+        return false, fmt.Errorf("invalid bool: %w", err)
+    }
+    return v, nil
 }
 
 func parseQueryParamFloat32(s string) (float32, error) {
-	v, err := strconv.ParseFloat(s, 32)
-	if err != nil {
-		return 0, fmt.Errorf("invalid float32: %w", err)
-	}
-	return float32(v), nil
+    v, err := strconv.ParseFloat(s, 32)
+    if err != nil {
+        return 0, fmt.Errorf("invalid float32: %w", err)
+    }
+    return float32(v), nil
 }
 
 func parseQueryParamFloat64(s string) (float64, error) {
-	v, err := strconv.ParseFloat(s, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid float64: %w", err)
-	}
-	return v, nil
+    v, err := strconv.ParseFloat(s, 64)
+    if err != nil {
+        return 0, fmt.Errorf("invalid float64: %w", err)
+    }
+    return v, nil
 }

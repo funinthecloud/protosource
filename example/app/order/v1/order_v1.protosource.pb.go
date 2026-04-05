@@ -2,212 +2,358 @@
 
 package orderv1
 
+
+
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+
 import (
-	"context"
-	"fmt"
-	"sync"
+"context"
+"fmt"
+    "sync"
 
-	"buf.build/go/protovalidate"
-	"github.com/funinthecloud/protosource"
+    "buf.build/go/protovalidate"
+    "github.com/funinthecloud/protosource"
 
-	"github.com/funinthecloud/protosource/opaquedata"
-	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-	"google.golang.org/protobuf/proto"
+    "github.com/funinthecloud/protosource/opaquedata"
+    opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
+    "google.golang.org/protobuf/proto"
+
 )
 
 var (
-	_validatorOnce sync.Once
-	_validator     protovalidate.Validator
+    _validatorOnce sync.Once
+    _validator     protovalidate.Validator
 )
 
 func validator() protovalidate.Validator {
-	_validatorOnce.Do(func() {
-		var err error
-		_validator, err = protovalidate.New()
-		if err != nil {
-			panic(fmt.Sprintf("protovalidate.New: %v", err))
-		}
-	})
-	return _validator
+    _validatorOnce.Do(func() {
+        var err error
+        _validator, err = protovalidate.New()
+        if err != nil {
+            panic(fmt.Sprintf("protovalidate.New: %v", err))
+        }
+    })
+    return _validator
 }
 
 type Builder struct {
-	id      string
-	version int64
-	Events  []protosource.Event
+    id      string
+    version int64
+    Events  []protosource.Event
 }
 
 func NewBuilder(id string, version int64) *Builder {
-	return &Builder{
-		id:      id,
-		version: version,
-	}
+    return &Builder {
+        id:      id,
+        version: version,
+    }
 }
 
 func (b *Builder) nextVersion() int64 {
-	b.version++
-	return b.version
+    b.version++
+    return b.version
 }
+
+
+
+
+
+
+
+
+
+    
+        
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+
+    
+    
+        
+    
+
 
 // SnapshotEveryNEvents is the snapshot interval from the proto annotation.
 const SnapshotEveryNEvents int32 = 50
-
 // NewRepository creates a new protosource.Repository for the Order aggregate.
 func NewRepository(store protosource.Store, serializer protosource.Serializer, opts ...protosource.Option) *protosource.Repository {
-	return protosource.New(&Order{}, store, serializer, opts...)
+    return protosource.New(&Order{}, store, serializer, opts...)
 }
 
+
+
+
+    
+        
 func (aggregate *Order) Snapshot(version int64) protosource.Event {
-	return &Snapshot{
-		Id:       aggregate.GetId(),
-		Version:  version + 1,
-		At:       protosource.NowMicros(),
-		Actor:    "snapshot@system",
-		Snapshot: aggregate,
-	}
+    return &Snapshot{
+        Id:      aggregate.GetId(),
+        Version: version + 1,
+        At:      protosource.NowMicros(),
+        Actor:   "snapshot@system",
+        Snapshot: aggregate,
+    }
 }
 func (aggregate *Order) SnapshotInterval() int32 {
-	return SnapshotEveryNEvents
+    return SnapshotEveryNEvents
 }
 func (aggregate *Order) RestoreSnapshot(snapshot *Snapshot) {
-	aggregate.State = snapshot.GetSnapshot().GetState()
-	aggregate.CustomerId = snapshot.GetSnapshot().GetCustomerId()
-	aggregate.CustomerName = snapshot.GetSnapshot().GetCustomerName()
-	aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
-	aggregate.CreateBy = snapshot.GetSnapshot().GetCreateBy()
-	aggregate.ModifyAt = snapshot.GetSnapshot().GetModifyAt()
-	aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
-	aggregate.TotalCents = snapshot.GetSnapshot().GetTotalCents()
-	aggregate.ItemCount = snapshot.GetSnapshot().GetItemCount()
-	aggregate.ShippingAddress = snapshot.GetSnapshot().GetShippingAddress()
-	aggregate.PlacedAt = snapshot.GetSnapshot().GetPlacedAt()
-	aggregate.Items = snapshot.GetSnapshot().GetItems()
-	aggregate.Tags = snapshot.GetSnapshot().GetTags()
-	aggregate.Version = snapshot.GetVersion()
+    aggregate.State = snapshot.GetSnapshot().GetState()
+    aggregate.CustomerId = snapshot.GetSnapshot().GetCustomerId()
+    aggregate.CustomerName = snapshot.GetSnapshot().GetCustomerName()
+    aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
+    aggregate.CreateBy = snapshot.GetSnapshot().GetCreateBy()
+    aggregate.ModifyAt = snapshot.GetSnapshot().GetModifyAt()
+    aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
+    aggregate.TotalCents = snapshot.GetSnapshot().GetTotalCents()
+    aggregate.ItemCount = snapshot.GetSnapshot().GetItemCount()
+    aggregate.ShippingAddress = snapshot.GetSnapshot().GetShippingAddress()
+    aggregate.PlacedAt = snapshot.GetSnapshot().GetPlacedAt()
+    aggregate.Items = snapshot.GetSnapshot().GetItems()
+    aggregate.Tags = snapshot.GetSnapshot().GetTags()
+    aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Order) {
-	if b.version%int64(50) == 0 {
-		if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
-			hook.AfterOn()
-		}
-		event := &Snapshot{
-			Id:       b.id,
-			Snapshot: proto.Clone(aggregate).(*Order),
-			Version:  b.nextVersion(),
-			At:       protosource.NowMicros(),
-			Actor:    "snapshot@system",
-		}
-		b.Events = append(b.Events, event)
-	}
+    if b.version % int64(50) == 0 {
+        if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+            hook.AfterOn()
+        }
+        event := &Snapshot{
+            Id:       b.id,
+            Snapshot: proto.Clone(aggregate).(*Order),
+            Version:  b.nextVersion(),
+            At:       protosource.NowMicros(),
+            Actor:    "snapshot@system",
+        }
+        b.Events = append(b.Events, event)
+    }
 }
-func (aggregate *Order) setCreated(event protosource.Event) {
-	aggregate.CreateAt = event.GetAt()
-	aggregate.CreateBy = event.GetActor()
+        func (aggregate *Order) setCreated(event protosource.Event) {
+    aggregate.CreateAt = event.GetAt()
+    aggregate.CreateBy = event.GetActor()
 }
 func (aggregate *Order) setModified(event protosource.Event) {
-	aggregate.ModifyAt = event.GetAt()
-	aggregate.ModifyBy = event.GetActor()
+    aggregate.ModifyAt = event.GetAt()
+    aggregate.ModifyBy = event.GetActor()
 }
 
 // On applies an event to the aggregate, rebuilding its state.
 // This method is called during Repository.Load to reconstruct from stored events,
 // and during test scenarios. Events represent facts — never reject based on business rules.
 func (aggregate *Order) On(event protosource.Event) error {
-	aggregate.Id = event.GetId()
-	aggregate.Version = event.GetVersion()
+    aggregate.Id = event.GetId()
+    aggregate.Version = event.GetVersion()
 
-	switch e := event.(type) {
-	case *Created:
-		aggregate.setCreated(e)
-		aggregate.setModified(e)
-		aggregate.CustomerId = e.GetCustomerId()
-		aggregate.CustomerName = e.GetCustomerName()
-		aggregate.State = State_STATE_DRAFT
-	case *ItemAdded:
-		aggregate.setModified(e)
-		if elem := e.GetItem(); elem != nil {
-			if aggregate.Items == nil {
-				aggregate.Items = make(map[string]*LineItem)
-			}
-			aggregate.Items[elem.GetItemId()] = elem
-		}
-	case *ItemRemoved:
-		aggregate.setModified(e)
-		delete(aggregate.Items, e.GetItemId())
-	case *TagAdded:
-		aggregate.setModified(e)
-		if elem := e.GetTag(); elem != nil {
-			if aggregate.Tags == nil {
-				aggregate.Tags = make(map[string]*Tag)
-			}
-			aggregate.Tags[elem.GetKey()] = elem
-		}
-	case *TagRemoved:
-		aggregate.setModified(e)
-		delete(aggregate.Tags, e.GetKey())
-	case *ShippingSet:
-		aggregate.setModified(e)
-		aggregate.ShippingAddress = e.GetShippingAddress()
-	case *Placed:
-		aggregate.setModified(e)
-		aggregate.PlacedAt = e.GetPlacedAt()
-		aggregate.State = State_STATE_PLACED
-	case *Cancelled:
-		aggregate.setModified(e)
-		aggregate.State = State_STATE_CANCELLED
-	case *Snapshot:
-		aggregate.RestoreSnapshot(e)
-	default:
-		return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
-	}
+    switch e := event.(type) {
+    case *Created:
+        aggregate.setCreated(e)
+        aggregate.setModified(e)
+        aggregate.CustomerId = e.GetCustomerId()
+        aggregate.CustomerName = e.GetCustomerName()
+        aggregate.State = State_STATE_DRAFT
+    case *ItemAdded:
+        aggregate.setModified(e)
+if elem := e.GetItem(); elem != nil {
+            if aggregate.Items == nil {
+                aggregate.Items = make(map[string]*LineItem)
+            }
+            aggregate.Items[elem.GetItemId()] = elem
+        }
+    case *ItemRemoved:
+        aggregate.setModified(e)
+delete(aggregate.Items, e.GetItemId())
+    case *TagAdded:
+        aggregate.setModified(e)
+if elem := e.GetTag(); elem != nil {
+            if aggregate.Tags == nil {
+                aggregate.Tags = make(map[string]*Tag)
+            }
+            aggregate.Tags[elem.GetKey()] = elem
+        }
+    case *TagRemoved:
+        aggregate.setModified(e)
+delete(aggregate.Tags, e.GetKey())
+    case *ShippingSet:
+        aggregate.setModified(e)
+        aggregate.ShippingAddress = e.GetShippingAddress()
+    case *Placed:
+        aggregate.setModified(e)
+        aggregate.PlacedAt = e.GetPlacedAt()
+        aggregate.State = State_STATE_PLACED
+    case *Cancelled:
+        aggregate.setModified(e)
+        aggregate.State = State_STATE_CANCELLED
+    case *Snapshot:
+        aggregate.RestoreSnapshot(e)
+default:
+        return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
+    }
 
-	return nil
+    return nil
 }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 // ── AutoPKSK methods for Order ──
 
 // PK is automatic: package#aggregate#id#<id_value>
 func (m *Order) PK() string {
-	if m == nil {
-		return ""
-	}
-	return fmt.Sprintf("example_app_order_v1#order#id#%v", m.GetId())
+    if m == nil {
+        return ""
+    }
+    return fmt.Sprintf("example_app_order_v1#order#id#%v", m.GetId())
 }
 
 func (m *Order) SK() string { return "AGG" }
 
 func (m *Order) GSI1PK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#customer_id#%v", m.GetCustomerId())
-	return fmt.Sprintf("example_app_order_v1#order%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#customer_id#%v", m.GetCustomerId())
+return fmt.Sprintf("example_app_order_v1#order%s", fields)
 }
 func (m *Order) GSI1SK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
-	return fmt.Sprintf("example_app_order_v1#order%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
+return fmt.Sprintf("example_app_order_v1#order%s", fields)
 }
-func (m *Order) GSI2PK() string  { return "NA" }
-func (m *Order) GSI2SK() string  { return "NA" }
-func (m *Order) GSI3PK() string  { return "NA" }
-func (m *Order) GSI3SK() string  { return "NA" }
-func (m *Order) GSI4PK() string  { return "NA" }
-func (m *Order) GSI4SK() string  { return "NA" }
-func (m *Order) GSI5PK() string  { return "NA" }
-func (m *Order) GSI5SK() string  { return "NA" }
-func (m *Order) GSI6PK() string  { return "NA" }
-func (m *Order) GSI6SK() string  { return "NA" }
-func (m *Order) GSI7PK() string  { return "NA" }
-func (m *Order) GSI7SK() string  { return "NA" }
-func (m *Order) GSI8PK() string  { return "NA" }
-func (m *Order) GSI8SK() string  { return "NA" }
-func (m *Order) GSI9PK() string  { return "NA" }
-func (m *Order) GSI9SK() string  { return "NA" }
+func (m *Order) GSI2PK() string { return "NA" }
+func (m *Order) GSI2SK() string { return "NA" }
+func (m *Order) GSI3PK() string { return "NA" }
+func (m *Order) GSI3SK() string { return "NA" }
+func (m *Order) GSI4PK() string { return "NA" }
+func (m *Order) GSI4SK() string { return "NA" }
+func (m *Order) GSI5PK() string { return "NA" }
+func (m *Order) GSI5SK() string { return "NA" }
+func (m *Order) GSI6PK() string { return "NA" }
+func (m *Order) GSI6SK() string { return "NA" }
+func (m *Order) GSI7PK() string { return "NA" }
+func (m *Order) GSI7SK() string { return "NA" }
+func (m *Order) GSI8PK() string { return "NA" }
+func (m *Order) GSI8SK() string { return "NA" }
+func (m *Order) GSI9PK() string { return "NA" }
+func (m *Order) GSI9SK() string { return "NA" }
 func (m *Order) GSI10PK() string { return "NA" }
 func (m *Order) GSI10SK() string { return "NA" }
 func (m *Order) GSI11PK() string { return "NA" }
@@ -231,601 +377,838 @@ func (m *Order) GSI19SK() string { return "NA" }
 func (m *Order) GSI20PK() string { return "NA" }
 func (m *Order) GSI20SK() string { return "NA" }
 
+
 // ── Hydrater for Order ──
 
 func (m *Order) Hydrate(body []byte) error {
-	return proto.Unmarshal(body, m)
+    return proto.Unmarshal(body, m)
 }
 
 // ── Typed GSI SK value structs for Order ──
 
 type OrderGSI1SK struct {
-	CreateAt int64
+    CreateAt int64
 }
 
 func (v OrderGSI1SK) String() string {
-	var fields string
-	fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
-	return fmt.Sprintf("example_app_order_v1#order%s", fields)
+    var fields string
+    fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
+return fmt.Sprintf("example_app_order_v1#order%s", fields)
 }
+
 
 // ── Client for Order ──
 
 type OrderClient struct {
-	store opaquedata.OpaqueStore
+    store opaquedata.OpaqueStore
 }
 
 func NewOrderClient(store opaquedata.OpaqueStore) *OrderClient {
-	return &OrderClient{store: store}
+    return &OrderClient{store: store}
 }
 
 func (c *OrderClient) AddOrder(ctx context.Context, d *Order, opts ...opaquedata.Option) error {
-	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
-	if err != nil {
-		return fmt.Errorf("OrderClient.AddOrder: %w", err)
-	}
-	return c.store.Put(ctx, od)
+    od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+    if err != nil {
+        return fmt.Errorf("OrderClient.AddOrder: %w", err)
+    }
+    return c.store.Put(ctx, od)
 }
 
 func (c *OrderClient) GetOrder(ctx context.Context, id string) (*Order, error) {
-	key := &Order{
-		Id: id,
-	}
-	od, err := c.store.Get(ctx, key.PK(), key.SK())
-	if err != nil {
-		return nil, fmt.Errorf("OrderClient.GetOrder: %w", err)
-	}
-	target := &Order{}
-	if err := opaquedata.ReHydrate(od, target); err != nil {
-		return nil, fmt.Errorf("OrderClient.GetOrder: rehydrate: %w", err)
-	}
-	return target, nil
+    key := &Order{
+        Id: id,
+    }
+    od, err := c.store.Get(ctx, key.PK(), key.SK())
+    if err != nil {
+        return nil, fmt.Errorf("OrderClient.GetOrder: %w", err)
+    }
+    target := &Order{}
+    if err := opaquedata.ReHydrate(od, target); err != nil {
+        return nil, fmt.Errorf("OrderClient.GetOrder: rehydrate: %w", err)
+    }
+    return target, nil
 }
 
 func (c *OrderClient) UpdateOrder(ctx context.Context, d *Order, opts ...opaquedata.Option) error {
-	return c.AddOrder(ctx, d, opts...)
+    return c.AddOrder(ctx, d, opts...)
 }
 
 func (c *OrderClient) DeleteOrder(ctx context.Context, id string) error {
-	key := &Order{
-		Id: id,
-	}
-	return c.store.Delete(ctx, key.PK(), key.SK())
+    key := &Order{
+        Id: id,
+    }
+    return c.store.Delete(ctx, key.PK(), key.SK())
 }
+
 
 // SelectOrderByCustomerId queries GSI1 by partition key.
 func (c *OrderClient) SelectOrderByCustomerId(ctx context.Context, customer_id string) ([]*Order, error) {
-	pk := &Order{
-		CustomerId: customer_id,
-	}
-	pkValue := pk.GSI1PK()
-	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
-	if err != nil {
-		return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerId: %w", err)
-	}
-	return rehydrateOrder(results)
+    pk := &Order{
+        CustomerId: customer_id,
+    }
+    pkValue := pk.GSI1PK()
+    results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
+    if err != nil {
+        return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerId: %w", err)
+    }
+    return rehydrateOrder(results)
 }
 
 // SelectOrderByCustomerIdWithCreateAt queries GSI1 with a sort key condition.
 func (c *OrderClient) SelectOrderByCustomerIdWithCreateAt(ctx context.Context, customer_id string, op opaquedata.SortOperator, vals ...OrderGSI1SK) ([]*Order, error) {
-	if op == opaquedata.Between {
-		if len(vals) != 2 {
-			return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerIdWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
-		}
-	} else if len(vals) != 1 {
-		return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerIdWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
-	}
-	pk := &Order{
-		CustomerId: customer_id,
-	}
-	pkValue := pk.GSI1PK()
-	sort := &opaquedata.SortCondition{
-		Operator: op,
-		Value:    vals[0].String(),
-	}
-	if op == opaquedata.Between {
-		sort.Value2 = vals[1].String()
-	}
-	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
-	if err != nil {
-		return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerIdWithCreateAt: %w", err)
-	}
-	return rehydrateOrder(results)
+    if op == opaquedata.Between {
+        if len(vals) != 2 {
+            return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerIdWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
+        }
+    } else if len(vals) != 1 {
+        return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerIdWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
+    }
+    pk := &Order{
+        CustomerId: customer_id,
+    }
+    pkValue := pk.GSI1PK()
+    sort := &opaquedata.SortCondition{
+        Operator: op,
+        Value:    vals[0].String(),
+    }
+    if op == opaquedata.Between {
+        sort.Value2 = vals[1].String()
+    }
+    results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
+    if err != nil {
+        return nil, fmt.Errorf("OrderClient.SelectOrderByCustomerIdWithCreateAt: %w", err)
+    }
+    return rehydrateOrder(results)
 }
 
+
 func rehydrateOrder(results []*opaquedatav1.OpaqueData) ([]*Order, error) {
-	out := make([]*Order, 0, len(results))
-	for _, od := range results {
-		m := &Order{}
-		if err := opaquedata.ReHydrate(od, m); err != nil {
-			return nil, fmt.Errorf("Order: rehydrate: %w", err)
-		}
-		out = append(out, m)
-	}
-	return out, nil
+    out := make([]*Order, 0, len(results))
+    for _, od := range results {
+        m := &Order{}
+        if err := opaquedata.ReHydrate(od, m); err != nil {
+            return nil, fmt.Errorf("Order: rehydrate: %w", err)
+        }
+        out = append(out, m)
+    }
+    return out, nil
 }
 
 // ProjectOrderSummary builds a OrderSummary projection from the aggregate.
 func (m *Order) ProjectOrderSummary() *OrderSummary {
-	return &OrderSummary{
-		Id:           m.GetId(),
-		State:        m.GetState(),
-		CustomerId:   m.GetCustomerId(),
-		CustomerName: m.GetCustomerName(),
-		TotalCents:   m.GetTotalCents(),
-		ItemCount:    m.GetItemCount(),
-		PlacedAt:     m.GetPlacedAt(),
-		CreateAt:     m.GetCreateAt(),
-	}
+    return &OrderSummary{
+        Id: m.GetId(),
+        State: m.GetState(),
+        CustomerId: m.GetCustomerId(),
+        CustomerName: m.GetCustomerName(),
+        TotalCents: m.GetTotalCents(),
+        ItemCount: m.GetItemCount(),
+        PlacedAt: m.GetPlacedAt(),
+        CreateAt: m.GetCreateAt(),
+    }
 }
-
 // Projections returns all projection views derived from this aggregate.
 func (m *Order) Projections() []proto.Message {
-	return []proto.Message{
-		m.ProjectOrderSummary(),
-	}
+    return []proto.Message{
+        m.ProjectOrderSummary(),
+    }
 }
 
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Create) CommandName() string {
-	return "Create"
+    return "Create"
 }
 
 func (m *Create) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Create) ValidateVersion(version int64) error {
-	if version != 0 {
-		return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
-	}
-	return nil
+    if version != 0 {
+        return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
+    }
+    return nil
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.Created(m.GetActor(), m.GetCustomerId(), m.GetCustomerName())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.Created( m.GetActor(),  m.GetCustomerId(),  m.GetCustomerName(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *AddItem) CommandName() string {
-	return "AddItem"
+    return "AddItem"
 }
 
 func (m *AddItem) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *AddItem) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *AddItem) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *AddItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.ItemAdded(m.GetActor(), m.GetItem())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.ItemAdded( m.GetActor(),  m.GetItem(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *RemoveItem) CommandName() string {
-	return "RemoveItem"
+    return "RemoveItem"
 }
 
 func (m *RemoveItem) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *RemoveItem) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *RemoveItem) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *RemoveItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.ItemRemoved(m.GetActor(), m.GetItemId())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.ItemRemoved( m.GetActor(),  m.GetItemId(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *AddTag) CommandName() string {
-	return "AddTag"
+    return "AddTag"
 }
 
 func (m *AddTag) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *AddTag) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *AddTag) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *AddTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.TagAdded(m.GetActor(), m.GetTag())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.TagAdded( m.GetActor(),  m.GetTag(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *RemoveTag) CommandName() string {
-	return "RemoveTag"
+    return "RemoveTag"
 }
 
 func (m *RemoveTag) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *RemoveTag) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *RemoveTag) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *RemoveTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.TagRemoved(m.GetActor(), m.GetKey())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.TagRemoved( m.GetActor(),  m.GetKey(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *SetShipping) CommandName() string {
-	return "SetShipping"
+    return "SetShipping"
 }
 
 func (m *SetShipping) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *SetShipping) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *SetShipping) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *SetShipping) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.ShippingSet(m.GetActor(), m.GetShippingAddress())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.ShippingSet( m.GetActor(),  m.GetShippingAddress(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Place) CommandName() string {
-	return "Place"
+    return "Place"
 }
 
 func (m *Place) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Place) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *Place) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *Place) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.Placed(m.GetActor(), m.GetPlacedAt())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.Placed( m.GetActor(),  m.GetPlacedAt(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
 
+
+
+
+
+
+
+
+
+
+
+    
+
 func (m *Cancel) CommandName() string {
-	return "Cancel"
+    return "Cancel"
 }
 
 func (m *Cancel) ProtoValidate() error {
-	if err := validator().Validate(m); err != nil {
-		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-	}
-	return nil
+    if err := validator().Validate(m); err != nil {
+        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+    }
+    return nil
 }
 
 func (m *Cancel) ValidateVersion(version int64) error {
-	if version == 0 {
-		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-	}
-	return nil
+    if version == 0 {
+        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+    }
+    return nil
 }
 func (m *Cancel) Authorize(aggregate protosource.Aggregate) error {
-	a := aggregate.(*Order)
-	switch a.GetState() {
-	case State_STATE_DRAFT, State_STATE_PLACED, State_STATE_PAID:
-		return nil
-	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-	}
+    a := aggregate.(*Order)
+    switch a.GetState() {
+    case State_STATE_DRAFT, State_STATE_PLACED, State_STATE_PAID:
+        return nil
+    default:
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+    }
 }
 func (m *Cancel) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-	b := NewBuilder(m.GetId(), aggregate.GetVersion())
-	a := proto.Clone(aggregate).(*Order)
-	b.Cancelled(m.GetActor(), m.GetReason())
-	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-	return b.Events
+    b := NewBuilder(m.GetId(), aggregate.GetVersion())
+    a := proto.Clone(aggregate).(*Order)
+    b.Cancelled( m.GetActor(),  m.GetReason(), )
+    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+    return b.Events
 }
+
+
+
+
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Created) EventName() string {
-	return "Created"
+    return "Created"
 }
 
-func (b *Builder) Created(Actor string, CustomerId string, CustomerName string) {
-	event := &Created{
-		Id:           b.id,
-		Actor:        Actor,
-		CustomerId:   CustomerId,
-		CustomerName: CustomerName,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Created( Actor string,  CustomerId string,  CustomerName string, ) {
+    event := &Created{
+		Id:      b.id,
+        	Actor: Actor,
+        	CustomerId: CustomerId,
+        	CustomerName: CustomerName,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *ItemAdded) EventName() string {
-	return "ItemAdded"
+    return "ItemAdded"
 }
 
-func (b *Builder) ItemAdded(Actor string, Item *LineItem) {
-	event := &ItemAdded{
-		Id:    b.id,
-		Actor: Actor,
-		Item:  Item,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) ItemAdded( Actor string,  Item *LineItem, ) {
+    event := &ItemAdded{
+		Id:      b.id,
+        	Actor: Actor,
+        	Item: Item,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *ItemRemoved) EventName() string {
-	return "ItemRemoved"
+    return "ItemRemoved"
 }
 
-func (b *Builder) ItemRemoved(Actor string, ItemId string) {
-	event := &ItemRemoved{
-		Id:     b.id,
-		Actor:  Actor,
-		ItemId: ItemId,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) ItemRemoved( Actor string,  ItemId string, ) {
+    event := &ItemRemoved{
+		Id:      b.id,
+        	Actor: Actor,
+        	ItemId: ItemId,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *TagAdded) EventName() string {
-	return "TagAdded"
+    return "TagAdded"
 }
 
-func (b *Builder) TagAdded(Actor string, Tag *Tag) {
-	event := &TagAdded{
-		Id:    b.id,
-		Actor: Actor,
-		Tag:   Tag,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) TagAdded( Actor string,  Tag *Tag, ) {
+    event := &TagAdded{
+		Id:      b.id,
+        	Actor: Actor,
+        	Tag: Tag,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *TagRemoved) EventName() string {
-	return "TagRemoved"
+    return "TagRemoved"
 }
 
-func (b *Builder) TagRemoved(Actor string, Key string) {
-	event := &TagRemoved{
-		Id:    b.id,
-		Actor: Actor,
-		Key:   Key,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) TagRemoved( Actor string,  Key string, ) {
+    event := &TagRemoved{
+		Id:      b.id,
+        	Actor: Actor,
+        	Key: Key,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *ShippingSet) EventName() string {
-	return "ShippingSet"
+    return "ShippingSet"
 }
 
-func (b *Builder) ShippingSet(Actor string, ShippingAddress string) {
-	event := &ShippingSet{
-		Id:              b.id,
-		Actor:           Actor,
-		ShippingAddress: ShippingAddress,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) ShippingSet( Actor string,  ShippingAddress string, ) {
+    event := &ShippingSet{
+		Id:      b.id,
+        	Actor: Actor,
+        	ShippingAddress: ShippingAddress,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Placed) EventName() string {
-	return "Placed"
+    return "Placed"
 }
 
-func (b *Builder) Placed(Actor string, PlacedAt int64) {
-	event := &Placed{
-		Id:       b.id,
-		Actor:    Actor,
-		PlacedAt: PlacedAt,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Placed( Actor string,  PlacedAt int64, ) {
+    event := &Placed{
+		Id:      b.id,
+        	Actor: Actor,
+        	PlacedAt: PlacedAt,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
 
 func (m *Cancelled) EventName() string {
-	return "Cancelled"
+    return "Cancelled"
 }
 
-func (b *Builder) Cancelled(Actor string, Reason string) {
-	event := &Cancelled{
-		Id:     b.id,
-		Actor:  Actor,
-		Reason: Reason,
-
-		Version: b.nextVersion(),
-		At:      protosource.NowMicros(),
-	}
-	b.Events = append(b.Events, event)
+func (b *Builder) Cancelled( Actor string,  Reason string, ) {
+    event := &Cancelled{
+		Id:      b.id,
+        	Actor: Actor,
+        	Reason: Reason,
+        
+        Version: b.nextVersion(),
+        At:      protosource.NowMicros(),
+    }
+    b.Events = append(b.Events, event)
 }
+
+
+
+
+
+
+
+    
+
+
+
+
+
 
 // OrderSummary  is a projection
+
+
+
+
+
+
 
 // ── AutoPKSK methods for OrderSummary ──
 
 // PK is automatic: package#aggregate#id#<id_value>
 func (m *OrderSummary) PK() string {
-	if m == nil {
-		return ""
-	}
-	return fmt.Sprintf("example_app_order_v1#order#id#%v", m.GetId())
+    if m == nil {
+        return ""
+    }
+    return fmt.Sprintf("example_app_order_v1#order#id#%v", m.GetId())
 }
 
 func (m *OrderSummary) SK() string { return "PROJ#OrderSummary" }
 
 func (m *OrderSummary) GSI1PK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#customer_id#%v", m.GetCustomerId())
-	return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#customer_id#%v", m.GetCustomerId())
+return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
 }
 func (m *OrderSummary) GSI1SK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
-	return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
+return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
 }
 func (m *OrderSummary) GSI2PK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#state#%v", m.GetState())
-	return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#state#%v", m.GetState())
+return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
 }
 func (m *OrderSummary) GSI2SK() string {
-	if m == nil {
-		return ""
-	}
-	var fields string
-	fields += fmt.Sprintf("#placed_at#%v", m.GetPlacedAt())
-	return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
+    if m == nil {
+        return ""
+    }
+    var fields string
+    fields += fmt.Sprintf("#placed_at#%v", m.GetPlacedAt())
+return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
 }
-func (m *OrderSummary) GSI3PK() string  { return "NA" }
-func (m *OrderSummary) GSI3SK() string  { return "NA" }
-func (m *OrderSummary) GSI4PK() string  { return "NA" }
-func (m *OrderSummary) GSI4SK() string  { return "NA" }
-func (m *OrderSummary) GSI5PK() string  { return "NA" }
-func (m *OrderSummary) GSI5SK() string  { return "NA" }
-func (m *OrderSummary) GSI6PK() string  { return "NA" }
-func (m *OrderSummary) GSI6SK() string  { return "NA" }
-func (m *OrderSummary) GSI7PK() string  { return "NA" }
-func (m *OrderSummary) GSI7SK() string  { return "NA" }
-func (m *OrderSummary) GSI8PK() string  { return "NA" }
-func (m *OrderSummary) GSI8SK() string  { return "NA" }
-func (m *OrderSummary) GSI9PK() string  { return "NA" }
-func (m *OrderSummary) GSI9SK() string  { return "NA" }
+func (m *OrderSummary) GSI3PK() string { return "NA" }
+func (m *OrderSummary) GSI3SK() string { return "NA" }
+func (m *OrderSummary) GSI4PK() string { return "NA" }
+func (m *OrderSummary) GSI4SK() string { return "NA" }
+func (m *OrderSummary) GSI5PK() string { return "NA" }
+func (m *OrderSummary) GSI5SK() string { return "NA" }
+func (m *OrderSummary) GSI6PK() string { return "NA" }
+func (m *OrderSummary) GSI6SK() string { return "NA" }
+func (m *OrderSummary) GSI7PK() string { return "NA" }
+func (m *OrderSummary) GSI7SK() string { return "NA" }
+func (m *OrderSummary) GSI8PK() string { return "NA" }
+func (m *OrderSummary) GSI8SK() string { return "NA" }
+func (m *OrderSummary) GSI9PK() string { return "NA" }
+func (m *OrderSummary) GSI9SK() string { return "NA" }
 func (m *OrderSummary) GSI10PK() string { return "NA" }
 func (m *OrderSummary) GSI10SK() string { return "NA" }
 func (m *OrderSummary) GSI11PK() string { return "NA" }
@@ -849,170 +1232,186 @@ func (m *OrderSummary) GSI19SK() string { return "NA" }
 func (m *OrderSummary) GSI20PK() string { return "NA" }
 func (m *OrderSummary) GSI20SK() string { return "NA" }
 
+
 // ── Hydrater for OrderSummary ──
 
 func (m *OrderSummary) Hydrate(body []byte) error {
-	return proto.Unmarshal(body, m)
+    return proto.Unmarshal(body, m)
 }
 
 // ── Typed GSI SK value structs for OrderSummary ──
 
 type OrderSummaryGSI1SK struct {
-	CreateAt int64
+    CreateAt int64
 }
 
 func (v OrderSummaryGSI1SK) String() string {
-	var fields string
-	fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
-	return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
+    var fields string
+    fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
+return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
 }
-
 type OrderSummaryGSI2SK struct {
-	PlacedAt int64
+    PlacedAt int64
 }
 
 func (v OrderSummaryGSI2SK) String() string {
-	var fields string
-	fields += fmt.Sprintf("#placed_at#%v", v.PlacedAt)
-	return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
+    var fields string
+    fields += fmt.Sprintf("#placed_at#%v", v.PlacedAt)
+return fmt.Sprintf("example_app_order_v1#ordersummary%s", fields)
 }
+
 
 // ── Client for OrderSummary ──
 
 type OrderSummaryClient struct {
-	store opaquedata.OpaqueStore
+    store opaquedata.OpaqueStore
 }
 
 func NewOrderSummaryClient(store opaquedata.OpaqueStore) *OrderSummaryClient {
-	return &OrderSummaryClient{store: store}
+    return &OrderSummaryClient{store: store}
 }
 
 func (c *OrderSummaryClient) AddOrderSummary(ctx context.Context, d *OrderSummary, opts ...opaquedata.Option) error {
-	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
-	if err != nil {
-		return fmt.Errorf("OrderSummaryClient.AddOrderSummary: %w", err)
-	}
-	return c.store.Put(ctx, od)
+    od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+    if err != nil {
+        return fmt.Errorf("OrderSummaryClient.AddOrderSummary: %w", err)
+    }
+    return c.store.Put(ctx, od)
 }
 
 func (c *OrderSummaryClient) GetOrderSummary(ctx context.Context, id string) (*OrderSummary, error) {
-	key := &OrderSummary{
-		Id: id,
-	}
-	od, err := c.store.Get(ctx, key.PK(), key.SK())
-	if err != nil {
-		return nil, fmt.Errorf("OrderSummaryClient.GetOrderSummary: %w", err)
-	}
-	target := &OrderSummary{}
-	if err := opaquedata.ReHydrate(od, target); err != nil {
-		return nil, fmt.Errorf("OrderSummaryClient.GetOrderSummary: rehydrate: %w", err)
-	}
-	return target, nil
+    key := &OrderSummary{
+        Id: id,
+    }
+    od, err := c.store.Get(ctx, key.PK(), key.SK())
+    if err != nil {
+        return nil, fmt.Errorf("OrderSummaryClient.GetOrderSummary: %w", err)
+    }
+    target := &OrderSummary{}
+    if err := opaquedata.ReHydrate(od, target); err != nil {
+        return nil, fmt.Errorf("OrderSummaryClient.GetOrderSummary: rehydrate: %w", err)
+    }
+    return target, nil
 }
 
 func (c *OrderSummaryClient) UpdateOrderSummary(ctx context.Context, d *OrderSummary, opts ...opaquedata.Option) error {
-	return c.AddOrderSummary(ctx, d, opts...)
+    return c.AddOrderSummary(ctx, d, opts...)
 }
 
 func (c *OrderSummaryClient) DeleteOrderSummary(ctx context.Context, id string) error {
-	key := &OrderSummary{
-		Id: id,
-	}
-	return c.store.Delete(ctx, key.PK(), key.SK())
+    key := &OrderSummary{
+        Id: id,
+    }
+    return c.store.Delete(ctx, key.PK(), key.SK())
 }
+
 
 // SelectOrderSummaryByCustomerId queries GSI1 by partition key.
 func (c *OrderSummaryClient) SelectOrderSummaryByCustomerId(ctx context.Context, customer_id string) ([]*OrderSummary, error) {
-	pk := &OrderSummary{
-		CustomerId: customer_id,
-	}
-	pkValue := pk.GSI1PK()
-	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
-	if err != nil {
-		return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerId: %w", err)
-	}
-	return rehydrateOrderSummary(results)
+    pk := &OrderSummary{
+        CustomerId: customer_id,
+    }
+    pkValue := pk.GSI1PK()
+    results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
+    if err != nil {
+        return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerId: %w", err)
+    }
+    return rehydrateOrderSummary(results)
 }
 
 // SelectOrderSummaryByCustomerIdWithCreateAt queries GSI1 with a sort key condition.
 func (c *OrderSummaryClient) SelectOrderSummaryByCustomerIdWithCreateAt(ctx context.Context, customer_id string, op opaquedata.SortOperator, vals ...OrderSummaryGSI1SK) ([]*OrderSummary, error) {
-	if op == opaquedata.Between {
-		if len(vals) != 2 {
-			return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerIdWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
-		}
-	} else if len(vals) != 1 {
-		return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerIdWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
-	}
-	pk := &OrderSummary{
-		CustomerId: customer_id,
-	}
-	pkValue := pk.GSI1PK()
-	sort := &opaquedata.SortCondition{
-		Operator: op,
-		Value:    vals[0].String(),
-	}
-	if op == opaquedata.Between {
-		sort.Value2 = vals[1].String()
-	}
-	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
-	if err != nil {
-		return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerIdWithCreateAt: %w", err)
-	}
-	return rehydrateOrderSummary(results)
+    if op == opaquedata.Between {
+        if len(vals) != 2 {
+            return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerIdWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
+        }
+    } else if len(vals) != 1 {
+        return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerIdWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
+    }
+    pk := &OrderSummary{
+        CustomerId: customer_id,
+    }
+    pkValue := pk.GSI1PK()
+    sort := &opaquedata.SortCondition{
+        Operator: op,
+        Value:    vals[0].String(),
+    }
+    if op == opaquedata.Between {
+        sort.Value2 = vals[1].String()
+    }
+    results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
+    if err != nil {
+        return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByCustomerIdWithCreateAt: %w", err)
+    }
+    return rehydrateOrderSummary(results)
 }
 
 // SelectOrderSummaryByState queries GSI2 by partition key.
 func (c *OrderSummaryClient) SelectOrderSummaryByState(ctx context.Context, state State) ([]*OrderSummary, error) {
-	pk := &OrderSummary{
-		State: state,
-	}
-	pkValue := pk.GSI2PK()
-	results, err := c.store.Query(ctx, "gsi2pk", pkValue, "gsi2sk", nil, opaquedata.WithGSIIndex(2))
-	if err != nil {
-		return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByState: %w", err)
-	}
-	return rehydrateOrderSummary(results)
+    pk := &OrderSummary{
+        State: state,
+    }
+    pkValue := pk.GSI2PK()
+    results, err := c.store.Query(ctx, "gsi2pk", pkValue, "gsi2sk", nil, opaquedata.WithGSIIndex(2))
+    if err != nil {
+        return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByState: %w", err)
+    }
+    return rehydrateOrderSummary(results)
 }
 
 // SelectOrderSummaryByStateWithPlacedAt queries GSI2 with a sort key condition.
 func (c *OrderSummaryClient) SelectOrderSummaryByStateWithPlacedAt(ctx context.Context, state State, op opaquedata.SortOperator, vals ...OrderSummaryGSI2SK) ([]*OrderSummary, error) {
-	if op == opaquedata.Between {
-		if len(vals) != 2 {
-			return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByStateWithPlacedAt: Between requires exactly 2 values, got %d", len(vals))
-		}
-	} else if len(vals) != 1 {
-		return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByStateWithPlacedAt: operator %d requires exactly 1 value, got %d", op, len(vals))
-	}
-	pk := &OrderSummary{
-		State: state,
-	}
-	pkValue := pk.GSI2PK()
-	sort := &opaquedata.SortCondition{
-		Operator: op,
-		Value:    vals[0].String(),
-	}
-	if op == opaquedata.Between {
-		sort.Value2 = vals[1].String()
-	}
-	results, err := c.store.Query(ctx, "gsi2pk", pkValue, "gsi2sk", sort, opaquedata.WithGSIIndex(2))
-	if err != nil {
-		return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByStateWithPlacedAt: %w", err)
-	}
-	return rehydrateOrderSummary(results)
+    if op == opaquedata.Between {
+        if len(vals) != 2 {
+            return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByStateWithPlacedAt: Between requires exactly 2 values, got %d", len(vals))
+        }
+    } else if len(vals) != 1 {
+        return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByStateWithPlacedAt: operator %d requires exactly 1 value, got %d", op, len(vals))
+    }
+    pk := &OrderSummary{
+        State: state,
+    }
+    pkValue := pk.GSI2PK()
+    sort := &opaquedata.SortCondition{
+        Operator: op,
+        Value:    vals[0].String(),
+    }
+    if op == opaquedata.Between {
+        sort.Value2 = vals[1].String()
+    }
+    results, err := c.store.Query(ctx, "gsi2pk", pkValue, "gsi2sk", sort, opaquedata.WithGSIIndex(2))
+    if err != nil {
+        return nil, fmt.Errorf("OrderSummaryClient.SelectOrderSummaryByStateWithPlacedAt: %w", err)
+    }
+    return rehydrateOrderSummary(results)
 }
+
 
 func rehydrateOrderSummary(results []*opaquedatav1.OpaqueData) ([]*OrderSummary, error) {
-	out := make([]*OrderSummary, 0, len(results))
-	for _, od := range results {
-		m := &OrderSummary{}
-		if err := opaquedata.ReHydrate(od, m); err != nil {
-			return nil, fmt.Errorf("OrderSummary: rehydrate: %w", err)
-		}
-		out = append(out, m)
-	}
-	return out, nil
+    out := make([]*OrderSummary, 0, len(results))
+    for _, od := range results {
+        m := &OrderSummary{}
+        if err := opaquedata.ReHydrate(od, m); err != nil {
+            return nil, fmt.Errorf("OrderSummary: rehydrate: %w", err)
+        }
+        out = append(out, m)
+    }
+    return out, nil
 }
 
+
+
+    
+
+
+
+
+
 func (m *Snapshot) EventName() string {
-	return "Snapshot"
+    return "Snapshot"
 }
+
+
+
+
+
