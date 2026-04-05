@@ -4,7 +4,8 @@ on:
     tags: ['v*']
 
 jobs:
-  release:
+  proto:
+    name: Push proto module
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -20,3 +21,25 @@ jobs:
         env:
           BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
         run: buf push --label ${GITHUB_REF_NAME}
+
+  npm:
+    name: Publish @protosource/client
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Build and publish
+        working-directory: ts/client
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          npm ci
+          npm run build
+          npm publish --access public
