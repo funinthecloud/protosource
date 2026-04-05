@@ -22,6 +22,7 @@ var usage = "Usage: samplemgr [-json] <command> [args]\n\nFlags:\n" +
 	"Commands:\n" +
 	"  create  <id>  <body>\n" +
 	"  update  <id>  <body>\n" +
+	"  get      <id>\n" +
 	"  load     <id>\n" +
 	"  history  <id>\n" +
 	"\nActor is derived automatically from the current user and hostname.\n\n" +
@@ -91,6 +92,16 @@ func main() {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
 		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
+
+	case "get":
+		if len(os.Args) != 3 {
+			fatal("usage: samplemgr get <id>")
+		}
+		agg, err := client.Get(ctx, os.Args[2])
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
+		}
+		printProto(agg)
 
 	case "load":
 		if len(os.Args) != 3 {

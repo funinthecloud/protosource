@@ -137,6 +137,79 @@ func TestLoad_Protobuf(t *testing.T) {
 	assert.Equal(t, int64(5), target.Records[0].Version)
 }
 
+func TestGet_JSON(t *testing.T) {
+	history := &historyv1.History{
+		Records: []*recordv1.Record{
+			{Version: 1, Data: []byte("data")},
+		},
+	}
+	jsonBytes, err := protojson.Marshal(history)
+	require.NoError(t, err)
+
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "application/json", r.Header.Get("Accept"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(jsonBytes)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"), WithJSON())
+	target := &historyv1.History{}
+	err = c.Get(context.Background(), "test/v1", "id-123", target)
+
+	require.NoError(t, err)
+	assert.Equal(t, "/test/v1/get/id-123", gotPath)
+	assert.Len(t, target.Records, 1)
+}
+
+func TestGet_Protobuf(t *testing.T) {
+	history := &historyv1.History{
+		Records: []*recordv1.Record{
+			{Version: 5, Data: []byte("event-data")},
+		},
+	}
+	protoBytes, err := proto.Marshal(history)
+	require.NoError(t, err)
+
+	var gotPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		assert.Equal(t, "application/protobuf", r.Header.Get("Accept"))
+		w.Header().Set("Content-Type", "application/protobuf")
+		w.Write(protoBytes)
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"))
+	target := &historyv1.History{}
+	err = c.Get(context.Background(), "test/v1", "id-456", target)
+
+	require.NoError(t, err)
+	assert.Equal(t, "/test/v1/get/id-456", gotPath)
+	assert.Len(t, target.Records, 1)
+	assert.Equal(t, int64(5), target.Records[0].Version)
+}
+
+func TestGet_NotFound(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		w.Write([]byte(`{"code":"GET_MAT_NOT_FOUND","error":"aggregate not found"}`))
+	}))
+	defer server.Close()
+
+	c := New(server.URL, NewNoAuth("actor"))
+	err := c.Get(context.Background(), "test/v1", "missing", &historyv1.History{})
+
+	require.Error(t, err)
+	apiErr, ok := err.(*APIError)
+	require.True(t, ok)
+	assert.Equal(t, 404, apiErr.StatusCode)
+	assert.Equal(t, "GET_MAT_NOT_FOUND", apiErr.Code)
+}
+
 func TestLoad_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)

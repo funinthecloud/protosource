@@ -52,8 +52,13 @@ var usage = "Usage: {{ $aggregateLower }}mgr [-json] <command> [args]\n\nFlags:\
     "  {{ lower $message.Name.String }}  <id>{{ range $f := $fields }}  <{{ lower (name $f).String }}>{{ end }}\n" +
 {{ end -}}
 {{ end -}}
+    "  get      <id>\n" +
     "  load     <id>\n" +
     "  history  <id>\n" +
+{{ $agg2 := aggregateForFile . -}}
+{{ range $gsi := opaqueUsedGSIs $agg2 -}}
+    "  query {{ queryRoutePath $gsi.PKFields }}{{ range $fm := $gsi.PKFields }} <{{ opaqueFieldNameLower $fm.Field }}>{{ end }}{{ if $gsi.HasSK }} [--sk-op=OP{{ range $fm := $gsi.SKFields }} --{{ opaqueFieldNameLower $fm.Field }}=VAL [--{{ opaqueFieldNameLower $fm.Field }}2=VAL]{{ end }}]\n" +{{ else }}\n" +{{ end }}
+{{ end -}}
     "\nActor is derived automatically from the current user and hostname.\n\n" +
     "Environment variables:\n" +
     "  API_DOMAIN      Base domain for API endpoint (pattern: {{ $aggregateLower }}-{{ $version }}.API_DOMAIN)\n" +
@@ -115,6 +120,16 @@ func main() {
         fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 {{ end }}
 {{ end }}
+    case "get":
+        if len(os.Args) != 3 {
+            fatal("usage: {{ $aggregateLower }}mgr get <id>")
+        }
+        agg, err := client.Get(ctx, os.Args[2])
+        if err != nil {
+            fatal(fmt.Sprintf("error: %v", err))
+        }
+        printProto(agg)
+
     case "load":
         if len(os.Args) != 3 {
             fatal("usage: {{ $aggregateLower }}mgr load <id>")
@@ -135,6 +150,62 @@ func main() {
         }
         printHistory(history)
 
+{{ $agg3 := aggregateForFile . }}
+{{ if opaqueUsedGSIs $agg3 }}
+    case "query":
+        if len(os.Args) < 3 {
+            fatal("usage: {{ $aggregateLower }}mgr query <query-name> <pk-values...> [--sk-op=OP --field=VAL]")
+        }
+        queryName := os.Args[2]
+        flags := parseFlags(os.Args[3:])
+
+        switch queryName {
+{{ range $gsi := opaqueUsedGSIs $agg3 }}
+        case "{{ queryRoutePath $gsi.PKFields }}":
+            {{ range $i, $fm := $gsi.PKFields }}{{ opaqueFieldNameLower $fm.Field }} := flags.positional({{ $i }}, "{{ opaqueFieldNameLower $fm.Field }}")
+            {{ end }}skOp := flags.get("sk-op")
+{{ if $gsi.HasSK }}
+            if skOp == "" {
+                // Validate no stray SK flags when no --sk-op is provided.
+{{ range $fm := $gsi.SKFields }}                if flags.has("{{ opaqueFieldNameLower $fm.Field }}") || flags.has("{{ opaqueFieldNameLower $fm.Field }}2") {
+                    fatal("--{{ opaqueFieldNameLower $fm.Field }} requires --sk-op to be set")
+                }
+{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
+                if err != nil {
+                    fatal(fmt.Sprintf("error: %v", err))
+                }
+                printResults(results)
+            } else if skOp == "between" {
+{{ range $fm := $gsi.SKFields }}                {{ opaqueFieldNameLower $fm.Field }}Val := flags.require("{{ opaqueFieldNameLower $fm.Field }}")
+                {{ opaqueFieldNameLower $fm.Field }}Val2 := flags.require("{{ opaqueFieldNameLower $fm.Field }}2")
+{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal" (opaqueFieldNameLower $fm.Field)) (opaqueFieldNameLower $fm.Field) }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal2" (opaqueFieldNameLower $fm.Field)) (printf "%s2" (opaqueFieldNameLower $fm.Field)) }}{{ end }})
+                if err != nil {
+                    fatal(fmt.Sprintf("error: %v", err))
+                }
+                printResults(results)
+            } else {
+{{ range $fm := $gsi.SKFields }}                {{ opaqueFieldNameLower $fm.Field }}Val := flags.require("{{ opaqueFieldNameLower $fm.Field }}")
+{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }}, skOp{{ range $fm := $gsi.SKFields }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal" (opaqueFieldNameLower $fm.Field)) (opaqueFieldNameLower $fm.Field) }}{{ end }})
+                if err != nil {
+                    fatal(fmt.Sprintf("error: %v", err))
+                }
+                printResults(results)
+            }
+{{ else }}
+            if skOp != "" {
+                fatal("this query does not support sort key conditions")
+            }
+            results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
+            if err != nil {
+                fatal(fmt.Sprintf("error: %v", err))
+            }
+            printResults(results)
+{{ end }}
+{{ end }}
+        default:
+            fatal(fmt.Sprintf("unknown query: %s", queryName))
+        }
+{{ end }}
     default:
         fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s\n", subcmd, usage)
         os.Exit(1)
@@ -246,6 +317,71 @@ func mustParseBool(s, field string) bool {
     }
     return v
 }
+
+{{ if opaqueUsedGSIs $agg2 }}
+func printResults(results []*pkg.{{ $aggregate }}) {
+    fmt.Println("[")
+    for i, r := range results {
+        b, err := jsonFormatter.Marshal(r)
+        if err != nil {
+            fatal(fmt.Sprintf("error formatting result: %v", err))
+        }
+        if i < len(results)-1 {
+            fmt.Printf("  %s,\n", string(b))
+        } else {
+            fmt.Printf("  %s\n", string(b))
+        }
+    }
+    fmt.Println("]")
+}
+
+// cliFlags parses --key=value flags and positional args from CLI arguments.
+type cliFlags struct {
+    positionals []string
+    named       map[string]string
+}
+
+func parseFlags(args []string) cliFlags {
+    f := cliFlags{named: make(map[string]string)}
+    for _, arg := range args {
+        if strings.HasPrefix(arg, "--") {
+            kv := strings.TrimPrefix(arg, "--")
+            i := strings.IndexByte(kv, '=')
+            if i < 0 {
+                fatal(fmt.Sprintf("flag --%s requires a value (use --%s=VALUE)", kv, kv))
+            }
+            f.named[kv[:i]] = kv[i+1:]
+        } else {
+            f.positionals = append(f.positionals, arg)
+        }
+    }
+    return f
+}
+
+func (f cliFlags) positional(i int, name string) string {
+    if i >= len(f.positionals) {
+        fatal(fmt.Sprintf("missing required positional argument: %s", name))
+    }
+    return f.positionals[i]
+}
+
+func (f cliFlags) get(key string) string {
+    return f.named[key]
+}
+
+func (f cliFlags) has(key string) bool {
+    _, ok := f.named[key]
+    return ok
+}
+
+func (f cliFlags) require(key string) string {
+    v, ok := f.named[key]
+    if !ok || v == "" {
+        fatal(fmt.Sprintf("missing required flag: --%s", key))
+    }
+    return v
+}
+{{ end }}
 
 func mustReadFile(path, field string) []byte {
     b, err := os.ReadFile(path)

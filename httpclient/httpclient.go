@@ -24,6 +24,7 @@ import (
 type Doer interface {
 	Apply(ctx context.Context, routePath string, cmd proto.Message) (*responsev1.CommandResponse, error)
 	Load(ctx context.Context, routePath string, id string, target proto.Message) error
+	Get(ctx context.Context, routePath string, id string, target proto.Message) error
 	History(ctx context.Context, routePath string, id string) (*historyv1.History, error)
 	Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error
 }
@@ -120,69 +121,23 @@ func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message)
 	return result, nil
 }
 
-// Load retrieves an aggregate by ID, unmarshaling into the provided message.
+// Load retrieves an aggregate by ID via event replay, unmarshaling into the provided message.
 func (c *Client) Load(ctx context.Context, routePath string, id string, target proto.Message) error {
-	url := c.baseURL + "/" + routePath + "/" + id
+	reqURL := c.baseURL + "/" + routePath + "/" + url.PathEscape(id)
+	return c.getInto(ctx, reqURL, target)
+}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return fmt.Errorf("httpclient: create request: %w", err)
-	}
-	req.Header.Set("Accept", c.acceptHeader())
-
-	if err := c.auth.Authenticate(req); err != nil {
-		return fmt.Errorf("httpclient: authenticate: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("httpclient: do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("httpclient: read response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return parseAPIError(resp.StatusCode, respBody)
-	}
-
-	return c.unmarshal(respBody, resp.Header.Get("Content-Type"), target)
+// Get retrieves a materialized aggregate by ID from the aggregate store.
+func (c *Client) Get(ctx context.Context, routePath string, id string, target proto.Message) error {
+	reqURL := c.baseURL + "/" + routePath + "/get/" + url.PathEscape(id)
+	return c.getInto(ctx, reqURL, target)
 }
 
 // History retrieves the event history for an aggregate.
 func (c *Client) History(ctx context.Context, routePath string, id string) (*historyv1.History, error) {
-	url := c.baseURL + "/" + routePath + "/" + id + "/history"
-
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("httpclient: create request: %w", err)
-	}
-	req.Header.Set("Accept", c.acceptHeader())
-
-	if err := c.auth.Authenticate(req); err != nil {
-		return nil, fmt.Errorf("httpclient: authenticate: %w", err)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("httpclient: do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	respBody, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("httpclient: read response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return nil, parseAPIError(resp.StatusCode, respBody)
-	}
-
+	reqURL := c.baseURL + "/" + routePath + "/" + url.PathEscape(id) + "/history"
 	history := &historyv1.History{}
-	if err := c.unmarshal(respBody, resp.Header.Get("Content-Type"), history); err != nil {
+	if err := c.getInto(ctx, reqURL, history); err != nil {
 		return nil, err
 	}
 	return history, nil
@@ -193,16 +148,20 @@ func (c *Client) History(ctx context.Context, routePath string, id string) (*his
 // The queryPath is appended to {baseURL}/{routePath}/query/{queryPath}.
 // Params are sent as URL query parameters.
 func (c *Client) Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error {
-	u := c.baseURL + "/" + routePath + "/query/" + queryPath
+	reqURL := c.baseURL + "/" + routePath + "/query/" + url.PathEscape(queryPath)
 	if len(params) > 0 {
 		v := url.Values{}
 		for k, val := range params {
 			v.Set(k, val)
 		}
-		u += "?" + v.Encode()
+		reqURL += "?" + v.Encode()
 	}
+	return c.getInto(ctx, reqURL, target)
+}
 
-	req, err := http.NewRequestWithContext(ctx, "GET", u, nil)
+// getInto sends a GET request with content negotiation and unmarshals the response.
+func (c *Client) getInto(ctx context.Context, reqURL string, target proto.Message) error {
+	req, err := http.NewRequestWithContext(ctx, "GET", reqURL, nil)
 	if err != nil {
 		return fmt.Errorf("httpclient: create request: %w", err)
 	}

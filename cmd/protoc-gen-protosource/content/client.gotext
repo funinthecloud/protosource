@@ -48,10 +48,19 @@ func (c *HTTPClient) {{ $message.Name }}(ctx context.Context, id string{{ range 
 {{ end }}
 {{ end }}
 
-// Load retrieves the current state of the {{ $aggregate }} aggregate.
+// Load retrieves the current state of the {{ $aggregate }} aggregate via event replay.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*{{ $aggregate }}, error) {
     agg := &{{ $aggregate }}{}
     if err := c.c.Load(ctx, routePath, id, agg); err != nil {
+        return nil, err
+    }
+    return agg, nil
+}
+
+// Get retrieves the {{ $aggregate }} aggregate from the materialized store.
+func (c *HTTPClient) Get(ctx context.Context, id string) (*{{ $aggregate }}, error) {
+    agg := &{{ $aggregate }}{}
+    if err := c.c.Get(ctx, routePath, id, agg); err != nil {
         return nil, err
     }
     return agg, nil

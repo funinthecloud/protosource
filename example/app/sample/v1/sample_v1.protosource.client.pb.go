@@ -44,10 +44,19 @@ func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*respo
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
-// Load retrieves the current state of the Sample aggregate.
+// Load retrieves the current state of the Sample aggregate via event replay.
 func (c *HTTPClient) Load(ctx context.Context, id string) (*Sample, error) {
 	agg := &Sample{}
 	if err := c.c.Load(ctx, routePath, id, agg); err != nil {
+		return nil, err
+	}
+	return agg, nil
+}
+
+// Get retrieves the Sample aggregate from the materialized store.
+func (c *HTTPClient) Get(ctx context.Context, id string) (*Sample, error) {
+	agg := &Sample{}
+	if err := c.c.Get(ctx, routePath, id, agg); err != nil {
 		return nil, err
 	}
 	return agg, nil
