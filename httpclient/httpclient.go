@@ -148,7 +148,7 @@ func (c *Client) History(ctx context.Context, routePath string, id string) (*his
 // The queryPath is appended to {baseURL}/{routePath}/query/{queryPath}.
 // Params are sent as URL query parameters.
 func (c *Client) Query(ctx context.Context, routePath string, queryPath string, params map[string]string, target proto.Message) error {
-	reqURL := c.baseURL + "/" + routePath + "/query/" + queryPath
+	reqURL := c.baseURL + "/" + routePath + "/query/" + url.PathEscape(queryPath)
 	if len(params) > 0 {
 		v := url.Values{}
 		for k, val := range params {
