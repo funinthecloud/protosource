@@ -139,7 +139,7 @@ func main() {
 
 			if skOp == "" {
 				// Validate no stray SK flags when no --sk-op is provided.
-				if flags.get("create_at") != "" {
+				if flags.has("create_at") {
 					fatal("--create_at requires --sk-op to be set")
 				}
 				results, err := client.QueryByCreateBy(ctx, create_by)
@@ -328,6 +328,11 @@ func (f cliFlags) positional(i int, name string) string {
 
 func (f cliFlags) get(key string) string {
 	return f.named[key]
+}
+
+func (f cliFlags) has(key string) bool {
+	_, ok := f.named[key]
+	return ok
 }
 
 func (f cliFlags) require(key string) string {

@@ -285,6 +285,11 @@ func (f cliFlags) get(key string) string {
 	return f.named[key]
 }
 
+func (f cliFlags) has(key string) bool {
+	_, ok := f.named[key]
+	return ok
+}
+
 func (f cliFlags) require(key string) string {
 	v, ok := f.named[key]
 	if !ok || v == "" {

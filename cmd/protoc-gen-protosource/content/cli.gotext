@@ -167,7 +167,7 @@ func main() {
 {{ if $gsi.HasSK }}
             if skOp == "" {
                 // Validate no stray SK flags when no --sk-op is provided.
-{{ range $fm := $gsi.SKFields }}                if flags.get("{{ opaqueFieldNameLower $fm.Field }}") != "" {
+{{ range $fm := $gsi.SKFields }}                if flags.has("{{ opaqueFieldNameLower $fm.Field }}") {
                     fatal("--{{ opaqueFieldNameLower $fm.Field }} requires --sk-op to be set")
                 }
 {{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
@@ -366,6 +366,11 @@ func (f cliFlags) positional(i int, name string) string {
 
 func (f cliFlags) get(key string) string {
     return f.named[key]
+}
+
+func (f cliFlags) has(key string) bool {
+    _, ok := f.named[key]
+    return ok
 }
 
 func (f cliFlags) require(key string) string {
