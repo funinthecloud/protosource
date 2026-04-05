@@ -307,11 +307,11 @@ func parseFlags(args []string) cliFlags {
 	for _, arg := range args {
 		if strings.HasPrefix(arg, "--") {
 			kv := strings.TrimPrefix(arg, "--")
-			if i := strings.IndexByte(kv, '='); i >= 0 {
-				f.named[kv[:i]] = kv[i+1:]
-			} else {
-				f.named[kv] = ""
+			i := strings.IndexByte(kv, '=')
+			if i < 0 {
+				fatal(fmt.Sprintf("flag --%s requires a value (use --%s=VALUE)", kv, kv))
 			}
+			f.named[kv[:i]] = kv[i+1:]
 		} else {
 			f.positionals = append(f.positionals, arg)
 		}
