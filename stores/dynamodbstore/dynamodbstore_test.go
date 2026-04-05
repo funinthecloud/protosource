@@ -2,6 +2,7 @@ package dynamodbstore
 
 import (
 	"context"
+	"math"
 	"fmt"
 	"sort"
 	"strconv"
@@ -370,6 +371,48 @@ func TestSaveAggregate_WithOpaqueStore(t *testing.T) {
 	err = store.SaveAggregate(ctx, &testv1.Test{Id: "agg-1", Version: 5, Body: "state-data"})
 	require.NoError(t, err)
 	assert.Len(t, opaqueStore.items, 1)
+}
+
+func TestSaveAggregate_PropagatesTTL(t *testing.T) {
+	mock := newMockDynamoer()
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithOpaqueStore(opaqueStore))
+	require.NoError(t, err)
+	ctx := context.Background()
+
+	agg := &testv1.Test{Id: "agg-1", Version: 1, Body: "data"}
+	ttl := time.Duration(agg.EventTTLSeconds()) * time.Second
+	before := time.Now().Add(ttl).Unix()
+	err = store.SaveAggregate(ctx, agg)
+	after := time.Now().Add(ttl).Unix()
+	require.NoError(t, err)
+
+	require.Len(t, opaqueStore.items, 1)
+	for _, od := range opaqueStore.items {
+		assert.GreaterOrEqual(t, od.GetT(), before, "TTL should be at least now+86400s")
+		assert.LessOrEqual(t, od.GetT(), after, "TTL should be at most now+86400s")
+	}
+}
+
+// overflowTTLAggregate is a test-only aggregate that returns a TTL value
+// large enough to overflow time.Duration when multiplied by time.Second.
+type overflowTTLAggregate struct {
+	testv1.Test
+}
+
+func (o *overflowTTLAggregate) EventTTLSeconds() int64 { return math.MaxInt64 }
+
+func TestSaveAggregate_TTLOverflowReturnsError(t *testing.T) {
+	mock := newMockDynamoer()
+	opaqueStore := &mockOpaqueStore{}
+	store, err := New(mock, WithOpaqueStore(opaqueStore))
+	require.NoError(t, err)
+
+	err = store.SaveAggregate(context.Background(), &overflowTTLAggregate{
+		Test: testv1.Test{Id: "agg-1", Version: 1},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "overflows time.Duration")
 }
 
 // ---------------------------------------------------------------------------
