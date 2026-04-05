@@ -1,0 +1,11 @@
+FROM golang:1.25 AS build
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /protoc-gen-protosource-ts ./cmd/protoc-gen-protosource-ts
+
+FROM scratch
+COPY --from=build /protoc-gen-protosource-ts /
+USER 65532:65532
+ENTRYPOINT ["/protoc-gen-protosource-ts"]
