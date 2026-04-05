@@ -19,5 +19,7 @@ func main() {
 		pgs.DebugEnv("DEBUG"),
 	).RegisterModule(
 		Protosourceify(),
+	).RegisterPostProcessor(
+		GoFmtProcessor{},
 	).Render()
 }

@@ -7,7 +7,7 @@
 package main
 
 func main() {
-    // This is a placeholder. The generated CLI is not available because one or
-    // more commands have complex (non-scalar) fields. Write a hand-written CLI
-    // that constructs commands with the appropriate message types.
+	// This is a placeholder. The generated CLI is not available because one or
+	// more commands have complex (non-scalar) fields. Write a hand-written CLI
+	// that constructs commands with the appropriate message types.
 }

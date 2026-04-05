@@ -2,263 +2,173 @@
 
 package testv1
 
-
-
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-    
-
-
 import (
-"context"
-"fmt"
-    "sync"
+	"context"
+	"fmt"
+	"sync"
 
-    "buf.build/go/protovalidate"
-    "github.com/funinthecloud/protosource"
+	"buf.build/go/protovalidate"
+	"github.com/funinthecloud/protosource"
 
-    "github.com/funinthecloud/protosource/opaquedata"
-    opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-    "google.golang.org/protobuf/proto"
-
+	"github.com/funinthecloud/protosource/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
-    _validatorOnce sync.Once
-    _validator     protovalidate.Validator
+	_validatorOnce sync.Once
+	_validator     protovalidate.Validator
 )
 
 func validator() protovalidate.Validator {
-    _validatorOnce.Do(func() {
-        var err error
-        _validator, err = protovalidate.New()
-        if err != nil {
-            panic(fmt.Sprintf("protovalidate.New: %v", err))
-        }
-    })
-    return _validator
+	_validatorOnce.Do(func() {
+		var err error
+		_validator, err = protovalidate.New()
+		if err != nil {
+			panic(fmt.Sprintf("protovalidate.New: %v", err))
+		}
+	})
+	return _validator
 }
 
 type Builder struct {
-    id      string
-    version int64
-    Events  []protosource.Event
+	id      string
+	version int64
+	Events  []protosource.Event
 }
 
 func NewBuilder(id string, version int64) *Builder {
-    return &Builder {
-        id:      id,
-        version: version,
-    }
+	return &Builder{
+		id:      id,
+		version: version,
+	}
 }
 
 func (b *Builder) nextVersion() int64 {
-    b.version++
-    return b.version
+	b.version++
+	return b.version
 }
-
-
-
-
-
-
-
-
-
-    
-        
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-
-    
-    
-        
-    
-
 
 // SnapshotEveryNEvents is the snapshot interval from the proto annotation.
 const SnapshotEveryNEvents int32 = 3
+
 // EventTTLDuration is the event TTL from the proto annotation.
 const EventTTLDuration int64 = 86400
+
 // NewRepository creates a new protosource.Repository for the Test aggregate.
 func NewRepository(store protosource.Store, serializer protosource.Serializer, opts ...protosource.Option) *protosource.Repository {
-    return protosource.New(&Test{}, store, serializer, opts...)
+	return protosource.New(&Test{}, store, serializer, opts...)
 }
 
-
-
-
-    
-        
 func (aggregate *Test) Snapshot(version int64) protosource.Event {
-    return &Snapshot{
-        Id:      aggregate.GetId(),
-        Version: version + 1,
-        At:      protosource.NowMicros(),
-        Actor:   "snapshot@system",
-        Snapshot: aggregate,
-    }
+	return &Snapshot{
+		Id:       aggregate.GetId(),
+		Version:  version + 1,
+		At:       protosource.NowMicros(),
+		Actor:    "snapshot@system",
+		Snapshot: aggregate,
+	}
 }
 func (aggregate *Test) SnapshotInterval() int32 {
-    return SnapshotEveryNEvents
+	return SnapshotEveryNEvents
 }
 func (aggregate *Test) RestoreSnapshot(snapshot *Snapshot) {
-    aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
-    aggregate.CreateBy = snapshot.GetSnapshot().GetCreateBy()
-    aggregate.ModifyAt = snapshot.GetSnapshot().GetModifyAt()
-    aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
-    aggregate.Body = snapshot.GetSnapshot().GetBody()
-    aggregate.State = snapshot.GetSnapshot().GetState()
-    aggregate.Version = snapshot.GetVersion()
+	aggregate.CreateAt = snapshot.GetSnapshot().GetCreateAt()
+	aggregate.CreateBy = snapshot.GetSnapshot().GetCreateBy()
+	aggregate.ModifyAt = snapshot.GetSnapshot().GetModifyAt()
+	aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
+	aggregate.Body = snapshot.GetSnapshot().GetBody()
+	aggregate.State = snapshot.GetSnapshot().GetState()
+	aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Test) {
-    if b.version % int64(3) == 0 {
-        if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
-            hook.AfterOn()
-        }
-        event := &Snapshot{
-            Id:       b.id,
-            Snapshot: proto.Clone(aggregate).(*Test),
-            Version:  b.nextVersion(),
-            At:       protosource.NowMicros(),
-            Actor:    "snapshot@system",
-        }
-        b.Events = append(b.Events, event)
-    }
+	if b.version%int64(3) == 0 {
+		if hook, ok := protosource.Aggregate(aggregate).(protosource.PostApplyHook); ok {
+			hook.AfterOn()
+		}
+		event := &Snapshot{
+			Id:       b.id,
+			Snapshot: proto.Clone(aggregate).(*Test),
+			Version:  b.nextVersion(),
+			At:       protosource.NowMicros(),
+			Actor:    "snapshot@system",
+		}
+		b.Events = append(b.Events, event)
+	}
 }
-        func (aggregate *Test) setCreated(event protosource.Event) {
-    aggregate.CreateAt = event.GetAt()
-    aggregate.CreateBy = event.GetActor()
+func (aggregate *Test) setCreated(event protosource.Event) {
+	aggregate.CreateAt = event.GetAt()
+	aggregate.CreateBy = event.GetActor()
 }
 func (aggregate *Test) setModified(event protosource.Event) {
-    aggregate.ModifyAt = event.GetAt()
-    aggregate.ModifyBy = event.GetActor()
+	aggregate.ModifyAt = event.GetAt()
+	aggregate.ModifyBy = event.GetActor()
 }
 
 func (aggregate *Test) EventTTLSeconds() int64 {
-    return EventTTLDuration
+	return EventTTLDuration
 }
 
 // On applies an event to the aggregate, rebuilding its state.
 // This method is called during Repository.Load to reconstruct from stored events,
 // and during test scenarios. Events represent facts — never reject based on business rules.
 func (aggregate *Test) On(event protosource.Event) error {
-    aggregate.Id = event.GetId()
-    aggregate.Version = event.GetVersion()
+	aggregate.Id = event.GetId()
+	aggregate.Version = event.GetVersion()
 
-    switch e := event.(type) {
-    case *Created:
-        aggregate.setCreated(e)
-        aggregate.setModified(e)
-        aggregate.Body = e.GetBody()
-    case *Updated:
-        aggregate.setModified(e)
-        aggregate.Body = e.GetBody()
-    case *Locked:
-        aggregate.setModified(e)
-        aggregate.State = State_STATE_LOCKED
-    case *Unlocked:
-        aggregate.setModified(e)
-        aggregate.State = State_STATE_UNLOCKED
-    case *Snapshot:
-        aggregate.RestoreSnapshot(e)
-default:
-        return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
-    }
+	switch e := event.(type) {
+	case *Created:
+		aggregate.setCreated(e)
+		aggregate.setModified(e)
+		aggregate.Body = e.GetBody()
+	case *Updated:
+		aggregate.setModified(e)
+		aggregate.Body = e.GetBody()
+	case *Locked:
+		aggregate.setModified(e)
+		aggregate.State = State_STATE_LOCKED
+	case *Unlocked:
+		aggregate.setModified(e)
+		aggregate.State = State_STATE_UNLOCKED
+	case *Snapshot:
+		aggregate.RestoreSnapshot(e)
+	default:
+		return fmt.Errorf("%T: %w", e, protosource.ErrUnhandledEvent)
+	}
 
-    return nil
+	return nil
 }
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // ── AutoPKSK methods for Test ──
 
 // PK is automatic: package#aggregate#id#<id_value>
 func (m *Test) PK() string {
-    if m == nil {
-        return ""
-    }
-    return fmt.Sprintf("example_app_test_v1#test#id#%v", m.GetId())
+	if m == nil {
+		return ""
+	}
+	return fmt.Sprintf("example_app_test_v1#test#id#%v", m.GetId())
 }
 
 func (m *Test) SK() string { return "AGG" }
 
-func (m *Test) GSI1PK() string { return "NA" }
-func (m *Test) GSI1SK() string { return "NA" }
-func (m *Test) GSI2PK() string { return "NA" }
-func (m *Test) GSI2SK() string { return "NA" }
-func (m *Test) GSI3PK() string { return "NA" }
-func (m *Test) GSI3SK() string { return "NA" }
-func (m *Test) GSI4PK() string { return "NA" }
-func (m *Test) GSI4SK() string { return "NA" }
-func (m *Test) GSI5PK() string { return "NA" }
-func (m *Test) GSI5SK() string { return "NA" }
-func (m *Test) GSI6PK() string { return "NA" }
-func (m *Test) GSI6SK() string { return "NA" }
-func (m *Test) GSI7PK() string { return "NA" }
-func (m *Test) GSI7SK() string { return "NA" }
-func (m *Test) GSI8PK() string { return "NA" }
-func (m *Test) GSI8SK() string { return "NA" }
-func (m *Test) GSI9PK() string { return "NA" }
-func (m *Test) GSI9SK() string { return "NA" }
+func (m *Test) GSI1PK() string  { return "NA" }
+func (m *Test) GSI1SK() string  { return "NA" }
+func (m *Test) GSI2PK() string  { return "NA" }
+func (m *Test) GSI2SK() string  { return "NA" }
+func (m *Test) GSI3PK() string  { return "NA" }
+func (m *Test) GSI3SK() string  { return "NA" }
+func (m *Test) GSI4PK() string  { return "NA" }
+func (m *Test) GSI4SK() string  { return "NA" }
+func (m *Test) GSI5PK() string  { return "NA" }
+func (m *Test) GSI5SK() string  { return "NA" }
+func (m *Test) GSI6PK() string  { return "NA" }
+func (m *Test) GSI6SK() string  { return "NA" }
+func (m *Test) GSI7PK() string  { return "NA" }
+func (m *Test) GSI7SK() string  { return "NA" }
+func (m *Test) GSI8PK() string  { return "NA" }
+func (m *Test) GSI8SK() string  { return "NA" }
+func (m *Test) GSI9PK() string  { return "NA" }
+func (m *Test) GSI9SK() string  { return "NA" }
 func (m *Test) GSI10PK() string { return "NA" }
 func (m *Test) GSI10SK() string { return "NA" }
 func (m *Test) GSI11PK() string { return "NA" }
@@ -282,388 +192,266 @@ func (m *Test) GSI19SK() string { return "NA" }
 func (m *Test) GSI20PK() string { return "NA" }
 func (m *Test) GSI20SK() string { return "NA" }
 
-
 // ── Hydrater for Test ──
 
 func (m *Test) Hydrate(body []byte) error {
-    return proto.Unmarshal(body, m)
+	return proto.Unmarshal(body, m)
 }
 
 // ── Typed GSI SK value structs for Test ──
 
-
-
 // ── Client for Test ──
 
 type TestClient struct {
-    store opaquedata.OpaqueStore
+	store opaquedata.OpaqueStore
 }
 
 func NewTestClient(store opaquedata.OpaqueStore) *TestClient {
-    return &TestClient{store: store}
+	return &TestClient{store: store}
 }
 
 func (c *TestClient) AddTest(ctx context.Context, d *Test, opts ...opaquedata.Option) error {
-    od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
-    if err != nil {
-        return fmt.Errorf("TestClient.AddTest: %w", err)
-    }
-    return c.store.Put(ctx, od)
+	od, err := opaquedata.NewOpaqueDataFromProto(d, opts...)
+	if err != nil {
+		return fmt.Errorf("TestClient.AddTest: %w", err)
+	}
+	return c.store.Put(ctx, od)
 }
 
 func (c *TestClient) GetTest(ctx context.Context, id string) (*Test, error) {
-    key := &Test{
-        Id: id,
-    }
-    od, err := c.store.Get(ctx, key.PK(), key.SK())
-    if err != nil {
-        return nil, fmt.Errorf("TestClient.GetTest: %w", err)
-    }
-    target := &Test{}
-    if err := opaquedata.ReHydrate(od, target); err != nil {
-        return nil, fmt.Errorf("TestClient.GetTest: rehydrate: %w", err)
-    }
-    return target, nil
+	key := &Test{
+		Id: id,
+	}
+	od, err := c.store.Get(ctx, key.PK(), key.SK())
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.GetTest: %w", err)
+	}
+	target := &Test{}
+	if err := opaquedata.ReHydrate(od, target); err != nil {
+		return nil, fmt.Errorf("TestClient.GetTest: rehydrate: %w", err)
+	}
+	return target, nil
 }
 
 func (c *TestClient) UpdateTest(ctx context.Context, d *Test, opts ...opaquedata.Option) error {
-    return c.AddTest(ctx, d, opts...)
+	return c.AddTest(ctx, d, opts...)
 }
 
 func (c *TestClient) DeleteTest(ctx context.Context, id string) error {
-    key := &Test{
-        Id: id,
-    }
-    return c.store.Delete(ctx, key.PK(), key.SK())
+	key := &Test{
+		Id: id,
+	}
+	return c.store.Delete(ctx, key.PK(), key.SK())
 }
-
-
 
 func rehydrateTest(results []*opaquedatav1.OpaqueData) ([]*Test, error) {
-    out := make([]*Test, 0, len(results))
-    for _, od := range results {
-        m := &Test{}
-        if err := opaquedata.ReHydrate(od, m); err != nil {
-            return nil, fmt.Errorf("Test: rehydrate: %w", err)
-        }
-        out = append(out, m)
-    }
-    return out, nil
+	out := make([]*Test, 0, len(results))
+	for _, od := range results {
+		m := &Test{}
+		if err := opaquedata.ReHydrate(od, m); err != nil {
+			return nil, fmt.Errorf("Test: rehydrate: %w", err)
+		}
+		out = append(out, m)
+	}
+	return out, nil
 }
 
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-    
-
 func (m *Create) CommandName() string {
-    return "Create"
+	return "Create"
 }
 
 func (m *Create) ProtoValidate() error {
-    if err := validator().Validate(m); err != nil {
-        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-    }
-    return nil
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
 }
 
 func (m *Create) ValidateVersion(version int64) error {
-    if version != 0 {
-        return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
-    }
-    return nil
+	if version != 0 {
+		return fmt.Errorf("command %s requires a new aggregate (version 0), got version %d: %w", m.CommandName(), version, protosource.ErrAlreadyCreated)
+	}
+	return nil
 }
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-    b := NewBuilder(m.GetId(), aggregate.GetVersion())
-    a := proto.Clone(aggregate).(*Test)
-    b.Created( m.GetActor(),  m.GetBody(), )
-    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-    b.Unlocked( m.GetActor(), )
-    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-    return b.Events
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Test)
+	b.Created(m.GetActor(), m.GetBody())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	b.Unlocked(m.GetActor())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	return b.Events
 }
 
-
-
-
-
-
-
-
-
-
-
-    
-
 func (m *Update) CommandName() string {
-    return "Update"
+	return "Update"
 }
 
 func (m *Update) ProtoValidate() error {
-    if err := validator().Validate(m); err != nil {
-        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-    }
-    return nil
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
 }
 
 func (m *Update) ValidateVersion(version int64) error {
-    if version == 0 {
-        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-    }
-    return nil
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
 }
 func (m *Update) Authorize(aggregate protosource.Aggregate) error {
-    a := aggregate.(*Test)
-    switch a.GetState() {
-    case State_STATE_UNLOCKED:
-        return nil
-    default:
-        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-    }
+	a := aggregate.(*Test)
+	switch a.GetState() {
+	case State_STATE_UNLOCKED:
+		return nil
+	default:
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+	}
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-    b := NewBuilder(m.GetId(), aggregate.GetVersion())
-    a := proto.Clone(aggregate).(*Test)
-    b.Updated( m.GetActor(),  m.GetBody(), )
-    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-    return b.Events
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Test)
+	b.Updated(m.GetActor(), m.GetBody())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	return b.Events
 }
 
-
-
-
-
-
-
-
-
-
-
-    
-
 func (m *Lock) CommandName() string {
-    return "Lock"
+	return "Lock"
 }
 
 func (m *Lock) ProtoValidate() error {
-    if err := validator().Validate(m); err != nil {
-        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-    }
-    return nil
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
 }
 
 func (m *Lock) ValidateVersion(version int64) error {
-    if version == 0 {
-        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-    }
-    return nil
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
 }
 func (m *Lock) Authorize(aggregate protosource.Aggregate) error {
-    a := aggregate.(*Test)
-    switch a.GetState() {
-    case State_STATE_UNLOCKED:
-        return nil
-    default:
-        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-    }
+	a := aggregate.(*Test)
+	switch a.GetState() {
+	case State_STATE_UNLOCKED:
+		return nil
+	default:
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+	}
 }
 func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-    b := NewBuilder(m.GetId(), aggregate.GetVersion())
-    a := proto.Clone(aggregate).(*Test)
-    b.Locked( m.GetActor(), )
-    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-    return b.Events
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Test)
+	b.Locked(m.GetActor())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	return b.Events
 }
 
-
-
-
-
-
-
-
-
-
-
-    
-
 func (m *Unlock) CommandName() string {
-    return "Unlock"
+	return "Unlock"
 }
 
 func (m *Unlock) ProtoValidate() error {
-    if err := validator().Validate(m); err != nil {
-        return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
-    }
-    return nil
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
 }
 
 func (m *Unlock) ValidateVersion(version int64) error {
-    if version == 0 {
-        return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
-    }
-    return nil
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
 }
 func (m *Unlock) Authorize(aggregate protosource.Aggregate) error {
-    a := aggregate.(*Test)
-    switch a.GetState() {
-    case State_STATE_LOCKED:
-        return nil
-    default:
-        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
-    }
+	a := aggregate.(*Test)
+	switch a.GetState() {
+	case State_STATE_LOCKED:
+		return nil
+	default:
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+	}
 }
 func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
-    b := NewBuilder(m.GetId(), aggregate.GetVersion())
-    a := proto.Clone(aggregate).(*Test)
-    b.Unlocked( m.GetActor(), )
-    _ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
-    b.Snapshot(a) // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
-    return b.Events
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Test)
+	b.Unlocked(m.GetActor())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	return b.Events
 }
-
-
-
-
-
-
-
-
-
-
-
-    
-
-
-
 
 func (m *Created) EventName() string {
-    return "Created"
+	return "Created"
 }
 
-func (b *Builder) Created( Actor string,  Body string, ) {
-    event := &Created{
-		Id:      b.id,
-        	Actor: Actor,
-        	Body: Body,
-        
-        Version: b.nextVersion(),
-        At:      protosource.NowMicros(),
-    }
-    b.Events = append(b.Events, event)
+func (b *Builder) Created(Actor string, Body string) {
+	event := &Created{
+		Id:    b.id,
+		Actor: Actor,
+		Body:  Body,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
 }
-
-
-
-
-
-
-
-    
-
-
-
 
 func (m *Updated) EventName() string {
-    return "Updated"
+	return "Updated"
 }
 
-func (b *Builder) Updated( Actor string,  Body string, ) {
-    event := &Updated{
-		Id:      b.id,
-        	Actor: Actor,
-        	Body: Body,
-        
-        Version: b.nextVersion(),
-        At:      protosource.NowMicros(),
-    }
-    b.Events = append(b.Events, event)
+func (b *Builder) Updated(Actor string, Body string) {
+	event := &Updated{
+		Id:    b.id,
+		Actor: Actor,
+		Body:  Body,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
 }
-
-
-
-
-
-
-
-    
-
-
-
 
 func (m *Locked) EventName() string {
-    return "Locked"
+	return "Locked"
 }
 
-func (b *Builder) Locked( Actor string, ) {
-    event := &Locked{
-		Id:      b.id,
-        	Actor: Actor,
-        
-        Version: b.nextVersion(),
-        At:      protosource.NowMicros(),
-    }
-    b.Events = append(b.Events, event)
+func (b *Builder) Locked(Actor string) {
+	event := &Locked{
+		Id:    b.id,
+		Actor: Actor,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
 }
-
-
-
-
-
-
-
-    
-
-
-
 
 func (m *Unlocked) EventName() string {
-    return "Unlocked"
+	return "Unlocked"
 }
 
-func (b *Builder) Unlocked( Actor string, ) {
-    event := &Unlocked{
-		Id:      b.id,
-        	Actor: Actor,
-        
-        Version: b.nextVersion(),
-        At:      protosource.NowMicros(),
-    }
-    b.Events = append(b.Events, event)
+func (b *Builder) Unlocked(Actor string) {
+	event := &Unlocked{
+		Id:    b.id,
+		Actor: Actor,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
 }
-
-
-
-
-
-
-
-    
-
-
-
-
 
 func (m *Snapshot) EventName() string {
-    return "Snapshot"
+	return "Snapshot"
 }
-
-
-
-
-
