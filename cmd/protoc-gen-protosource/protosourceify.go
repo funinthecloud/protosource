@@ -93,9 +93,9 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"lastPathComponent":      lastPathComponent,
 		"unexport":               unexport,
 		"queryRoutePath":         queryRoutePath,
-		"queryParseExpr":         queryParseExpr,
-		"queryFormatExpr":        queryFormatExpr,
-		"cliQueryParseExpr":      cliQueryParseExpr,
+		"queryParseExpr":         p.queryParseExpr,
+		"queryFormatExpr":        p.queryFormatExpr,
+		"cliQueryParseExpr":      p.cliQueryParseExpr,
 	}
 }
 
@@ -699,7 +699,10 @@ func cliParseExpr(f pgs.Field, argIdx int) string {
 // cliQueryParseExpr returns a Go expression to parse a string variable into
 // the correct type for a query parameter. Like cliParseExpr but takes a
 // variable name and explicit label for error messages.
-func cliQueryParseExpr(f pgs.Field, varName string, label string) string {
+func (p *ProtosourceModule) cliQueryParseExpr(f pgs.Field, varName string, label string) string {
+	if f.Type().IsEnum() {
+		return fmt.Sprintf("%s(mustParseInt32(%s, %q))", p.ctx.Type(f).String(), varName, label)
+	}
 	switch f.Type().ProtoType() {
 	case pgs.StringT:
 		return varName
@@ -725,7 +728,10 @@ func cliQueryParseExpr(f pgs.Field, varName string, label string) string {
 // queryParseExpr returns a Go expression that parses a string variable into
 // the field's Go type, returning (value, error). Used in generated query handlers.
 // Panics at generation time for unsupported field types.
-func queryParseExpr(f pgs.Field, varName string) string {
+func (p *ProtosourceModule) queryParseExpr(f pgs.Field, varName string) string {
+	if f.Type().IsEnum() {
+		return fmt.Sprintf("parseQueryParamEnum[%s](%s)", p.ctx.Type(f).String(), varName)
+	}
 	switch f.Type().ProtoType() {
 	case pgs.StringT:
 		return fmt.Sprintf("parseQueryParamString(%s)", varName)
@@ -750,7 +756,10 @@ func queryParseExpr(f pgs.Field, varName string) string {
 
 // queryFormatExpr returns a Go expression that formats a typed value as a string
 // for use in HTTP query parameters. Used in generated HTTP client methods.
-func queryFormatExpr(f pgs.Field, varName string) string {
+func (p *ProtosourceModule) queryFormatExpr(f pgs.Field, varName string) string {
+	if f.Type().IsEnum() {
+		return fmt.Sprintf("strconv.FormatInt(int64(%s), 10)", varName)
+	}
 	switch f.Type().ProtoType() {
 	case pgs.StringT:
 		return varName
