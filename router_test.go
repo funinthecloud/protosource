@@ -147,6 +147,71 @@ func TestRouterDoubleSlash(t *testing.T) {
 	}
 }
 
+func TestRouterCORSPreflight(t *testing.T) {
+	r := NewRouter()
+	r.Handle("POST", "a/v1/create", handler("create"))
+	r.SetCORS(CORSConfig{
+		AllowOrigin:  "*",
+		AllowMethods: "GET,POST,OPTIONS",
+		AllowHeaders: "Content-Type,X-Actor",
+	})
+
+	resp := r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{})
+	if resp.StatusCode != http.StatusNoContent {
+		t.Fatalf("expected 204, got %d", resp.StatusCode)
+	}
+	if resp.Headers["Access-Control-Allow-Origin"] != "*" {
+		t.Fatalf("missing CORS origin header")
+	}
+	if resp.Headers["Access-Control-Allow-Methods"] != "GET,POST,OPTIONS" {
+		t.Fatalf("missing CORS methods header")
+	}
+	if resp.Headers["Access-Control-Allow-Headers"] != "Content-Type,X-Actor" {
+		t.Fatalf("missing CORS headers header")
+	}
+}
+
+func TestRouterCORSOnResponse(t *testing.T) {
+	r := NewRouter()
+	r.Handle("POST", "a/v1/create", handler("create"))
+	r.SetCORS(CORSConfig{
+		AllowOrigin:  "https://example.com",
+		AllowMethods: "GET,POST",
+		AllowHeaders: "Content-Type",
+	})
+
+	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+	if resp.Headers["Access-Control-Allow-Origin"] != "https://example.com" {
+		t.Fatalf("expected CORS origin on normal response, got %q", resp.Headers["Access-Control-Allow-Origin"])
+	}
+}
+
+func TestRouterCORSOn404(t *testing.T) {
+	r := NewRouter()
+	r.SetCORS(CORSConfig{AllowOrigin: "*", AllowMethods: "GET", AllowHeaders: "Content-Type"})
+
+	resp := r.Dispatch(context.Background(), "GET", "/nope", Request{})
+	if resp.StatusCode != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d", resp.StatusCode)
+	}
+	if resp.Headers["Access-Control-Allow-Origin"] != "*" {
+		t.Fatalf("expected CORS headers on 404")
+	}
+}
+
+func TestRouterNoCORSByDefault(t *testing.T) {
+	r := NewRouter()
+	r.Handle("GET", "a/v1/x", handler("x"))
+
+	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{})
+	if _, ok := resp.Headers["Access-Control-Allow-Origin"]; ok {
+		t.Fatalf("expected no CORS headers when not configured")
+	}
+}
+
 func TestRouterEmptyPath(t *testing.T) {
 	r := NewRouter()
 	r.Handle("GET", "foo", handler("foo"))

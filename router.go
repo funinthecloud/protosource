@@ -6,10 +6,20 @@ import (
 	"strings"
 )
 
+// CORSConfig configures Cross-Origin Resource Sharing headers on the router.
+// When set, Dispatch automatically handles OPTIONS preflight requests and
+// injects CORS headers into every response.
+type CORSConfig struct {
+	AllowOrigin  string // e.g. "*" or "https://example.com"
+	AllowMethods string // e.g. "GET,POST,PUT,DELETE,OPTIONS"
+	AllowHeaders string // e.g. "Content-Type,X-Actor"
+}
+
 // Router maps HTTP method + path patterns to HandlerFunc handlers.
 // Path patterns support {param} segments for parameter extraction.
 type Router struct {
 	routes []route
+	cors   *CORSConfig
 }
 
 type route struct {
@@ -34,6 +44,13 @@ func NewRouter(registrars ...RouteRegistrar) *Router {
 	return r
 }
 
+// SetCORS enables CORS handling on the router. When set, Dispatch responds
+// to OPTIONS requests with a 204 preflight response and adds CORS headers
+// to all responses.
+func (r *Router) SetCORS(cfg CORSConfig) {
+	r.cors = &cfg
+}
+
 // Handle registers a handler for the given HTTP method and path pattern.
 // Patterns use {name} for path parameters (e.g., "example/app/sample/v1/{id}").
 func (r *Router) Handle(method, pattern string, handler HandlerFunc) {
@@ -48,6 +65,15 @@ func (r *Router) Handle(method, pattern string, handler HandlerFunc) {
 // extracted from the pattern are merged into request.PathParameters.
 // Returns 404 for no path match, 405 for path match with wrong method.
 func (r *Router) Dispatch(ctx context.Context, method, path string, request Request) Response {
+	// Handle CORS preflight.
+	if r.cors != nil && method == http.MethodOptions {
+		resp := Response{
+			StatusCode: http.StatusNoContent,
+		}
+		r.applyCORS(&resp)
+		return resp
+	}
+
 	pathSegs := splitPath(path)
 
 	methodMismatch := false
@@ -66,22 +92,41 @@ func (r *Router) Dispatch(ctx context.Context, method, path string, request Requ
 		for k, v := range params {
 			request.PathParameters[k] = v
 		}
-		return rt.handler(ctx, request)
+		resp := rt.handler(ctx, request)
+		r.applyCORS(&resp)
+		return resp
 	}
 
 	if methodMismatch {
-		return Response{
+		resp := Response{
 			StatusCode: http.StatusMethodNotAllowed,
 			Body:       `{"error":"method not allowed"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}
+		r.applyCORS(&resp)
+		return resp
 	}
 
-	return Response{
+	resp := Response{
 		StatusCode: http.StatusNotFound,
 		Body:       `{"error":"not found"}`,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 	}
+	r.applyCORS(&resp)
+	return resp
+}
+
+// applyCORS injects CORS headers into the response if CORS is configured.
+func (r *Router) applyCORS(resp *Response) {
+	if r.cors == nil {
+		return
+	}
+	if resp.Headers == nil {
+		resp.Headers = make(map[string]string)
+	}
+	resp.Headers["Access-Control-Allow-Origin"] = r.cors.AllowOrigin
+	resp.Headers["Access-Control-Allow-Methods"] = r.cors.AllowMethods
+	resp.Headers["Access-Control-Allow-Headers"] = r.cors.AllowHeaders
 }
 
 // splitPath splits a URL path into non-empty segments.
