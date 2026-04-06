@@ -1296,12 +1296,15 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 		}
 	}
 
-	// Validate GSI completeness: if a GSI SK is annotated, require a corresponding GSI PK
+	// Validate GSI completeness: require both PK and SK when either is annotated
 	for i := 1; i <= 20; i++ {
 		skType := optionsv1.OpaqueKeyType(4 + (i-1)*2)
 		pkType := optionsv1.OpaqueKeyType(3 + (i-1)*2)
 		if len(mappings[skType]) > 0 && len(mappings[pkType]) == 0 {
 			return fmt.Errorf("message %s: GSI%d has SK fields but no PK fields — annotate a PK for this index", m.Name(), i)
+		}
+		if len(mappings[pkType]) > 0 && len(mappings[skType]) == 0 {
+			p.Logf("WARNING: message %s: GSI%d has PK fields but no SK fields — the SK will default to \"NA\". Consider annotating an SK for this index.", m.Name(), i)
 		}
 	}
 

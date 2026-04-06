@@ -217,8 +217,9 @@ func GetItem(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 	for _, g := range gsiPairs(od) {
 		if g.pkVal != "" && g.pkVal != "NA" {
 			item[g.pkAttr] = &types.AttributeValueMemberS{Value: g.pkVal}
-		}
-		if g.skVal != "" && g.skVal != "NA" {
+			// Always write SK when PK is present so DynamoDB projects the item into the GSI.
+			item[g.skAttr] = &types.AttributeValueMemberS{Value: g.skVal}
+		} else if g.skVal != "" && g.skVal != "NA" {
 			item[g.skAttr] = &types.AttributeValueMemberS{Value: g.skVal}
 		}
 	}
