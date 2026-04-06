@@ -264,11 +264,12 @@ git checkout -b <branch-name> origin/main
 
 ## Releasing
 
-A git tag (`v*`) triggers `.github/workflows/release.yml` which pushes the proto module to BSR:
+A git tag (`v*`) triggers `.github/workflows/release.yml` which publishes two artifacts:
 
-`buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
+1. **Proto module** -- `buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
+2. **npm package** -- `@protosource/client` published to npm
 
-Requires `BUF_TOKEN` in GitHub Actions secrets.
+Requires `BUF_TOKEN` in GitHub Actions secrets. npm publishing uses OIDC (`id-token: write`).
 
 Hosted buf plugins require a pro account, so plugins are not published to BSR. Consumers build from source using local plugin mode (`buf.gen.yaml` with `local:` pointing to the installed binary).
 
