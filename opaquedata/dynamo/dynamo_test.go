@@ -35,6 +35,7 @@ func TestGetItem_AllFields(t *testing.T) {
 		Gsi1Pk: "G1PK",
 		Gsi1Sk: "G1SK",
 		Gsi5Pk: "G5PK",
+		Gsi5Sk: "G5SK",
 	}
 
 	item := GetItem(od)
@@ -45,6 +46,34 @@ func TestGetItem_AllFields(t *testing.T) {
 	assert.Equal(t, "G1PK", item["gsi1pk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, "G1SK", item["gsi1sk"].(*types.AttributeValueMemberS).Value)
 	assert.Equal(t, "G5PK", item["gsi5pk"].(*types.AttributeValueMemberS).Value)
+	assert.Equal(t, "G5SK", item["gsi5sk"].(*types.AttributeValueMemberS).Value)
+}
+
+func TestGetItem_WritesSKWhenPKPresent(t *testing.T) {
+	od := &opaquedatav1.OpaqueData{
+		Pk:     "PK",
+		Sk:     "SK",
+		Gsi3Pk: "G3PK",
+		Gsi3Sk: "NA",
+	}
+
+	item := GetItem(od)
+	assert.Equal(t, "G3PK", item["gsi3pk"].(*types.AttributeValueMemberS).Value)
+	// SK must be written with "NA" so DynamoDB projects the item into the GSI.
+	assert.Equal(t, "NA", item["gsi3sk"].(*types.AttributeValueMemberS).Value)
+}
+
+func TestGetItem_CoercesEmptySKToNA(t *testing.T) {
+	od := &opaquedatav1.OpaqueData{
+		Pk:     "PK",
+		Sk:     "SK",
+		Gsi3Pk: "G3PK",
+		// Gsi3Sk omitted — empty string coerced to "NA" since DynamoDB rejects empty key attributes.
+	}
+
+	item := GetItem(od)
+	assert.Equal(t, "G3PK", item["gsi3pk"].(*types.AttributeValueMemberS).Value)
+	assert.Equal(t, "NA", item["gsi3sk"].(*types.AttributeValueMemberS).Value)
 }
 
 func TestGetItem_OmitsEmptyGSIs(t *testing.T) {

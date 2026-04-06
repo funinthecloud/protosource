@@ -648,3 +648,11 @@ func parseQueryParamFloat64(s string) (float64, error) {
 	}
 	return v, nil
 }
+
+func parseQueryParamEnum[T ~int32](s string) (T, error) {
+	v, err := strconv.ParseInt(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid enum value: %w", err)
+	}
+	return T(v), nil
+}
