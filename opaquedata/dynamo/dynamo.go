@@ -218,7 +218,12 @@ func GetItem(od *opaquedatav1.OpaqueData) map[string]types.AttributeValue {
 		if g.pkVal != "" && g.pkVal != "NA" {
 			item[g.pkAttr] = &types.AttributeValueMemberS{Value: g.pkVal}
 			// Always write SK when PK is present so DynamoDB projects the item into the GSI.
-			item[g.skAttr] = &types.AttributeValueMemberS{Value: g.skVal}
+			// Coerce empty SK to "NA" since DynamoDB rejects empty string key attributes.
+			skVal := g.skVal
+			if skVal == "" {
+				skVal = "NA"
+			}
+			item[g.skAttr] = &types.AttributeValueMemberS{Value: skVal}
 		} else if g.skVal != "" && g.skVal != "NA" {
 			item[g.skAttr] = &types.AttributeValueMemberS{Value: g.skVal}
 		}

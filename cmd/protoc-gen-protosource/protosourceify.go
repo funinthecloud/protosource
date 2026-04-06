@@ -1305,7 +1305,7 @@ func (p *ProtosourceModule) validateOpaqueAnnotations(m pgs.Message) error {
 		}
 	}
 
-	// Validate GSI completeness: require both PK and SK when either is annotated
+	// Validate GSI completeness: SK without PK is an error; PK without SK gets a warning
 	for i := 1; i <= 20; i++ {
 		skType := optionsv1.OpaqueKeyType(4 + (i-1)*2)
 		pkType := optionsv1.OpaqueKeyType(3 + (i-1)*2)
