@@ -271,11 +271,7 @@ A git tag (`v*`) triggers `.github/workflows/release.yml` which publishes two ar
 
 Requires `BUF_TOKEN` in GitHub Actions secrets. npm publishing uses OIDC (`id-token: write`).
 
-Consumers install both plugins locally (remote buf plugins require a Pro account):
-```bash
-go install github.com/funinthecloud/protosource/cmd/protoc-gen-protosource@latest
-go install github.com/funinthecloud/protosource/cmd/protoc-gen-protosource-ts@latest
-```
+Hosted buf plugins require a pro account, so plugins are not published to BSR. Consumers build from source using local plugin mode (`buf.gen.yaml` with `local:` pointing to the installed binary).
 
 ## TODO
 
