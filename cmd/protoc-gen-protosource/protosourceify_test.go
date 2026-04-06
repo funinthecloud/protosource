@@ -245,94 +245,47 @@ func TestOpaqueReservedNames(t *testing.T) {
 	}
 }
 
-func TestValidateCLICommandFields_StringOnly(t *testing.T) {
+func TestCommandSupportsCLI_ScalarOnly(t *testing.T) {
 	f := loadTestProto(t, "cli_valid.proto")
-
 	m := findMessage(f, "Create")
 	if m == nil {
 		t.Fatal("message Create not found")
 	}
-	if err := validateCLICommandFields(m); err != nil {
-		t.Errorf("expected no error for string-only fields, got: %v", err)
+	if !commandSupportsCLI(m) {
+		t.Error("expected true for string-only fields")
 	}
 }
 
-func TestValidateCLICommandFields_NoExtraFields(t *testing.T) {
-	f := loadTestProto(t, "valid.proto")
-
-	// Create only has id + actor, so zero CLI fields — should pass.
-	m := findMessage(f, "Create")
-	if m == nil {
-		t.Fatal("message Create not found")
-	}
-	if err := validateCLICommandFields(m); err != nil {
-		t.Errorf("expected no error for id-and-actor-only command, got: %v", err)
-	}
-}
-
-func TestValidateCLICommandFields_Int64Accepted(t *testing.T) {
-	f := loadTestProto(t, "cli_invalid_int.proto") // has int64 "count" field
-
-	m := findMessage(f, "Create")
-	if m == nil {
-		t.Fatal("message Create not found")
-	}
-	if err := validateCLICommandFields(m); err != nil {
-		t.Errorf("expected no error for int64 field, got: %v", err)
-	}
-}
-
-func TestValidateCLICommandFields_EnumRejected(t *testing.T) {
+func TestCommandSupportsCLI_EnumAccepted(t *testing.T) {
 	f := loadTestProto(t, "cli_invalid_enum.proto")
-
 	m := findMessage(f, "Create")
 	if m == nil {
 		t.Fatal("message Create not found")
 	}
-	err := validateCLICommandFields(m)
-	if err == nil {
-		t.Fatal("expected error for enum field, got nil")
-	}
-	if !strings.Contains(err.Error(), "priority") {
-		t.Errorf("error should mention field name 'priority', got: %v", err)
-	}
-	if !strings.Contains(err.Error(), "enum") {
-		t.Errorf("error should mention 'enum', got: %v", err)
+	if !commandSupportsCLI(m) {
+		t.Error("expected true for command with enum field (now supported)")
 	}
 }
 
-func TestValidateCLICommandFields_RepeatedRejected(t *testing.T) {
-	f := loadTestProto(t, "cli_invalid_repeated.proto")
-
-	m := findMessage(f, "Create")
-	if m == nil {
-		t.Fatal("message Create not found")
-	}
-	err := validateCLICommandFields(m)
-	if err == nil {
-		t.Fatal("expected error for repeated field, got nil")
-	}
-	if !strings.Contains(err.Error(), "tags") {
-		t.Errorf("error should mention field name 'tags', got: %v", err)
-	}
-}
-
-func TestValidateCLICommandFields_MessageRejected(t *testing.T) {
+func TestCommandSupportsCLI_MessageAccepted(t *testing.T) {
 	f := loadTestProto(t, "cli_invalid_message.proto")
-
 	m := findMessage(f, "Create")
 	if m == nil {
 		t.Fatal("message Create not found")
 	}
-	err := validateCLICommandFields(m)
-	if err == nil {
-		t.Fatal("expected error for message field, got nil")
+	if !commandSupportsCLI(m) {
+		t.Error("expected true for command with embedded message field (now supported)")
 	}
-	if !strings.Contains(err.Error(), "metadata") {
-		t.Errorf("error should mention field name 'metadata', got: %v", err)
+}
+
+func TestCommandSupportsCLI_RepeatedRejected(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_repeated.proto")
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
 	}
-	if !strings.Contains(err.Error(), "message type") {
-		t.Errorf("error should mention 'message type', got: %v", err)
+	if commandSupportsCLI(m) {
+		t.Error("expected false for command with repeated field")
 	}
 }
 
@@ -512,22 +465,15 @@ func TestValidateCollectionMapping_MissingKeyField(t *testing.T) {
 	}
 }
 
-func TestFileSupportsCLI_WithMessageField(t *testing.T) {
-	// The order proto now has AddItem with a message field — CLI should not be supported.
+func TestCommandSupportsCLI_CollectionCommandAccepted(t *testing.T) {
+	// AddWidget has an embedded message field — now supported for CLI.
 	f := loadTestProto(t, "collection_valid.proto")
-	p := newModule()
-
-	if p.fileSupportsCLI(f) {
-		t.Error("expected fileSupportsCLI to return false for file with message-typed command field")
+	m := findMessage(f, "AddWidget")
+	if m == nil {
+		t.Fatal("message AddWidget not found")
 	}
-}
-
-func TestFileSupportsCLI_AllScalar(t *testing.T) {
-	f := loadTestProto(t, "valid.proto")
-	p := newModule()
-
-	if !p.fileSupportsCLI(f) {
-		t.Error("expected fileSupportsCLI to return true for file with only scalar command fields")
+	if !commandSupportsCLI(m) {
+		t.Error("expected true for command with embedded message field (collection)")
 	}
 }
 
