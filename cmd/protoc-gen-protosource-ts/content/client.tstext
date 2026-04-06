@@ -56,35 +56,35 @@ export class {{ $aggregate }}HTTPClient {
   }
 {{ $agg := aggregateForFile . -}}
 {{ range $gsi := opaqueUsedGSIs $agg }}
-  async queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}({{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}): Promise<{{ $aggregate }}[]> {
+  async queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}({{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}): Promise<{{ $aggregate }}[]> {
     const params: Record<string, string> = {
 {{ range $fm := $gsi.PKFields }}      "{{ opaqueFieldNameLower $fm.Field }}": {{ tsQueryFormatExpr $fm.Field (tsFieldName $fm.Field) }},
 {{ end }}    };
-    const list = await this.client.query(routePath, "{{ queryRoutePath $gsi.PKFields }}", params, {{ $aggregate }}ListSchema);
+    const list = await this.client.query(routePath, "{{ gsiQueryRoutePath $gsi }}", params, {{ $aggregate }}ListSchema);
     return list.items;
   }
 {{ if $gsi.HasSK }}
-  async queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}({{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}, skOp: string{{ range $fm := $gsi.SKFields }}, {{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}): Promise<{{ $aggregate }}[]> {
+  async queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}({{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}, skOp: string{{ range $fm := $gsi.SKFields }}, {{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}): Promise<{{ $aggregate }}[]> {
     if (skOp === "between") {
-      throw new Error("use queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} for between queries");
+      throw new Error("use queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} for between queries");
     }
     const params: Record<string, string> = {
 {{ range $fm := $gsi.PKFields }}      "{{ opaqueFieldNameLower $fm.Field }}": {{ tsQueryFormatExpr $fm.Field (tsFieldName $fm.Field) }},
 {{ end }}      "sk_op": skOp,
 {{ range $fm := $gsi.SKFields }}      "{{ opaqueFieldNameLower $fm.Field }}": {{ tsQueryFormatExpr $fm.Field (tsFieldName $fm.Field) }},
 {{ end }}    };
-    const list = await this.client.query(routePath, "{{ queryRoutePath $gsi.PKFields }}", params, {{ $aggregate }}ListSchema);
+    const list = await this.client.query(routePath, "{{ gsiQueryRoutePath $gsi }}", params, {{ $aggregate }}ListSchema);
     return list.items;
   }
 
-  async queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}({{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ tsFieldName $fm.Field }}From: {{ tsType $fm.Field }}, {{ tsFieldName $fm.Field }}To: {{ tsType $fm.Field }}{{ end }}): Promise<{{ $aggregate }}[]> {
+  async queryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}({{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ tsFieldName $fm.Field }}: {{ tsType $fm.Field }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ tsFieldName $fm.Field }}From: {{ tsType $fm.Field }}, {{ tsFieldName $fm.Field }}To: {{ tsType $fm.Field }}{{ end }}): Promise<{{ $aggregate }}[]> {
     const params: Record<string, string> = {
 {{ range $fm := $gsi.PKFields }}      "{{ opaqueFieldNameLower $fm.Field }}": {{ tsQueryFormatExpr $fm.Field (tsFieldName $fm.Field) }},
 {{ end }}      "sk_op": "between",
 {{ range $fm := $gsi.SKFields }}      "{{ opaqueFieldNameLower $fm.Field }}": {{ tsQueryFormatExpr $fm.Field (printf "%sFrom" (tsFieldName $fm.Field)) }},
       "{{ opaqueFieldNameLower $fm.Field }}2": {{ tsQueryFormatExpr $fm.Field (printf "%sTo" (tsFieldName $fm.Field)) }},
 {{ end }}    };
-    const list = await this.client.query(routePath, "{{ queryRoutePath $gsi.PKFields }}", params, {{ $aggregate }}ListSchema);
+    const list = await this.client.query(routePath, "{{ gsiQueryRoutePath $gsi }}", params, {{ $aggregate }}ListSchema);
     return list.items;
   }
 {{ end -}}

@@ -49,6 +49,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueGSISKFields":  p.opaqueGSISKFields,
 		"opaqueFieldNameLower": opaqueFieldNameLower,
 		"queryRoutePath":     queryRoutePath,
+		"gsiQueryRoutePath":  gsiQueryRoutePath,
 		"unexport":           unexport,
 		"lower":              strings.ToLower,
 		"tsType":             tsType,
@@ -214,6 +215,7 @@ type opaqueUsedGSI struct {
 	SKType   optionsv1.OpaqueKeyType
 	PKFields []opaqueFieldMapping
 	SKFields []opaqueFieldMapping
+	Suffix   string
 }
 
 func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
@@ -273,7 +275,30 @@ func (p *ProtosourceModule) opaqueUsedGSIs(m pgs.Message) []opaqueUsedGSI {
 			SKFields: skFields,
 		})
 	}
+
+	// Detect PK-field collisions and set Suffix to disambiguate method names.
+	groups := make(map[string][]int)
+	for i, gsi := range result {
+		key := p.pkFieldsKey(gsi.PKFields)
+		groups[key] = append(groups[key], i)
+	}
+	for _, indices := range groups {
+		if len(indices) > 1 {
+			for _, idx := range indices {
+				result[idx].Suffix = fmt.Sprintf("GSI%d", result[idx].Num)
+			}
+		}
+	}
+
 	return result
+}
+
+func (p *ProtosourceModule) pkFieldsKey(fields []opaqueFieldMapping) string {
+	parts := make([]string, len(fields))
+	for i, fm := range fields {
+		parts[i] = p.ctx.Name(fm.Field).String()
+	}
+	return strings.Join(parts, "+")
 }
 
 func (p *ProtosourceModule) opaqueGSISKFields(m pgs.Message, gsiNum int) []opaqueFieldMapping {
@@ -305,6 +330,14 @@ func queryRoutePath(fields []opaqueFieldMapping) string {
 		parts[i] = strings.ReplaceAll(strings.ToLower(fm.Field.Name().String()), "_", "-")
 	}
 	return "by-" + strings.Join(parts, "-and-")
+}
+
+func gsiQueryRoutePath(gsi opaqueUsedGSI) string {
+	base := queryRoutePath(gsi.PKFields)
+	if gsi.Suffix != "" {
+		return base + "-" + strings.ToLower(gsi.Suffix)
+	}
+	return base
 }
 
 func unexport(s string) string {

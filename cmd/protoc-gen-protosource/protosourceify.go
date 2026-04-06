@@ -93,6 +93,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"lastPathComponent":      lastPathComponent,
 		"unexport":               unexport,
 		"queryRoutePath":         queryRoutePath,
+		"gsiQueryRoutePath":      gsiQueryRoutePath,
 		"queryParseExpr":         p.queryParseExpr,
 		"queryFormatExpr":        p.queryFormatExpr,
 		"cliQueryParseExpr":      p.cliQueryParseExpr,
@@ -1385,14 +1386,17 @@ func opaqueFieldNameLower(f pgs.Field) string {
 }
 
 // opaqueUsedGSI represents a GSI index with its PK and SK field info.
+// Suffix is set when multiple GSIs share the same PK field names (e.g., "GSI1", "GSI2")
+// to disambiguate generated method names and route paths.
 type opaqueUsedGSI struct {
-	Num     int
-	HasPK   bool
-	HasSK   bool
-	PKType  optionsv1.OpaqueKeyType
-	SKType  optionsv1.OpaqueKeyType
+	Num      int
+	HasPK    bool
+	HasSK    bool
+	PKType   optionsv1.OpaqueKeyType
+	SKType   optionsv1.OpaqueKeyType
 	PKFields []opaqueFieldMapping
 	SKFields []opaqueFieldMapping
+	Suffix   string
 }
 
 // opaqueUsedGSIs returns info about all GSIs that have at least a PK defined.
@@ -1418,7 +1422,31 @@ func (p *ProtosourceModule) opaqueUsedGSIs(m pgs.Message) []opaqueUsedGSI {
 			SKFields: skFields,
 		})
 	}
+
+	// Detect PK-field collisions and set Suffix to disambiguate method names.
+	groups := make(map[string][]int)
+	for i, gsi := range result {
+		key := p.pkFieldsKey(gsi.PKFields)
+		groups[key] = append(groups[key], i)
+	}
+	for _, indices := range groups {
+		if len(indices) > 1 {
+			for _, idx := range indices {
+				result[idx].Suffix = fmt.Sprintf("GSI%d", result[idx].Num)
+			}
+		}
+	}
+
 	return result
+}
+
+// pkFieldsKey builds a string key from PK field Go names for collision detection.
+func (p *ProtosourceModule) pkFieldsKey(fields []opaqueFieldMapping) string {
+	parts := make([]string, len(fields))
+	for i, fm := range fields {
+		parts[i] = p.ctx.Name(fm.Field).String()
+	}
+	return strings.Join(parts, "+")
 }
 
 // opaqueGSISKFields returns the fields for a specific GSI SK. Used for typed SK structs.
@@ -1463,6 +1491,16 @@ func queryRoutePath(fields []opaqueFieldMapping) string {
 		parts[i] = strings.ReplaceAll(strings.ToLower(fm.Field.Name().String()), "_", "-")
 	}
 	return "by-" + strings.Join(parts, "-and-")
+}
+
+// gsiQueryRoutePath builds a URL path segment for a GSI, appending the disambiguation
+// suffix (e.g., "-gsi1") when multiple GSIs share the same PK fields.
+func gsiQueryRoutePath(gsi opaqueUsedGSI) string {
+	base := queryRoutePath(gsi.PKFields)
+	if gsi.Suffix != "" {
+		return base + "-" + strings.ToLower(gsi.Suffix)
+	}
+	return base
 }
 
 // aggregateForFile returns the aggregate message in the same file as the given message.

@@ -73,24 +73,24 @@ func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History
 
 {{ $agg := aggregateForFile . }}
 {{ range $gsi := opaqueUsedGSIs $agg }}
-// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} via GSI{{ $gsi.Num }}.
-func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} via GSI{{ $gsi.Num }}.
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
     params := map[string]string{
 {{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}    }
     list := &{{ $aggregate }}List{}
-    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+    if err := c.c.Query(ctx, routePath, "{{ gsiQueryRoutePath $gsi }}", params, list); err != nil {
         return nil, err
     }
     return list.Items, nil
 }
 
 {{ if $gsi.HasSK }}
-// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
-// For between queries, use QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} instead.
-func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}, skOp string{{ range $fm := $gsi.SKFields }}, {{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} instead.
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}, skOp string{{ range $fm := $gsi.SKFields }}, {{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
     if skOp == "between" {
-        return nil, fmt.Errorf("use QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} for between queries")
+        return nil, fmt.Errorf("use QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} for between queries")
     }
     params := map[string]string{
 {{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
@@ -98,14 +98,14 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
 {{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}    }
     list := &{{ $aggregate }}List{}
-    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+    if err := c.c.Query(ctx, routePath, "{{ gsiQueryRoutePath $gsi }}", params, list); err != nil {
         return nil, err
     }
     return list.Items, nil
 }
 
-// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a between sort key condition (inclusive range).
-func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ unexport (name $fm.Field).String }}From {{ gotype $fm.Field }}, {{ unexport (name $fm.Field).String }}To {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ unexport (name $fm.Field).String }}From {{ gotype $fm.Field }}, {{ unexport (name $fm.Field).String }}To {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
     params := map[string]string{
 {{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}        "sk_op": "between",
@@ -113,7 +113,7 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
         "{{ opaqueFieldNameLower $fm.Field }}2": {{ queryFormatExpr $fm.Field (printf "%sTo" (unexport (name $fm.Field).String)) }},
 {{ end }}    }
     list := &{{ $aggregate }}List{}
-    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+    if err := c.c.Query(ctx, routePath, "{{ gsiQueryRoutePath $gsi }}", params, list); err != nil {
         return nil, err
     }
     return list.Items, nil

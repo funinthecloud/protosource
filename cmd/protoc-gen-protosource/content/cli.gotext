@@ -57,7 +57,7 @@ var usage = "Usage: {{ $aggregateLower }}mgr [-json] <command> [args]\n\nFlags:\
     "  history  <id>\n" +
 {{ $agg2 := aggregateForFile . -}}
 {{ range $gsi := opaqueUsedGSIs $agg2 -}}
-    "  query {{ queryRoutePath $gsi.PKFields }}{{ range $fm := $gsi.PKFields }} <{{ opaqueFieldNameLower $fm.Field }}>{{ end }}{{ if $gsi.HasSK }} [--sk-op=OP{{ range $fm := $gsi.SKFields }} --{{ opaqueFieldNameLower $fm.Field }}=VAL [--{{ opaqueFieldNameLower $fm.Field }}2=VAL]{{ end }}]\n" +{{ else }}\n" +{{ end }}
+    "  query {{ gsiQueryRoutePath $gsi }}{{ range $fm := $gsi.PKFields }} <{{ opaqueFieldNameLower $fm.Field }}>{{ end }}{{ if $gsi.HasSK }} [--sk-op=OP{{ range $fm := $gsi.SKFields }} --{{ opaqueFieldNameLower $fm.Field }}=VAL [--{{ opaqueFieldNameLower $fm.Field }}2=VAL]{{ end }}]\n" +{{ else }}\n" +{{ end }}
 {{ end -}}
     "\nActor is derived automatically from the current user and hostname.\n\n" +
     "Environment variables:\n" +
@@ -161,7 +161,7 @@ func main() {
 
         switch queryName {
 {{ range $gsi := opaqueUsedGSIs $agg3 }}
-        case "{{ queryRoutePath $gsi.PKFields }}":
+        case "{{ gsiQueryRoutePath $gsi }}":
             {{ range $i, $fm := $gsi.PKFields }}{{ opaqueFieldNameLower $fm.Field }} := flags.positional({{ $i }}, "{{ opaqueFieldNameLower $fm.Field }}")
             {{ end }}skOp := flags.get("sk-op")
 {{ if $gsi.HasSK }}
@@ -170,7 +170,7 @@ func main() {
 {{ range $fm := $gsi.SKFields }}                if flags.has("{{ opaqueFieldNameLower $fm.Field }}") || flags.has("{{ opaqueFieldNameLower $fm.Field }}2") {
                     fatal("--{{ opaqueFieldNameLower $fm.Field }} requires --sk-op to be set")
                 }
-{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
+{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
                 if err != nil {
                     fatal(fmt.Sprintf("error: %v", err))
                 }
@@ -178,14 +178,14 @@ func main() {
             } else if skOp == "between" {
 {{ range $fm := $gsi.SKFields }}                {{ opaqueFieldNameLower $fm.Field }}Val := flags.require("{{ opaqueFieldNameLower $fm.Field }}")
                 {{ opaqueFieldNameLower $fm.Field }}Val2 := flags.require("{{ opaqueFieldNameLower $fm.Field }}2")
-{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal" (opaqueFieldNameLower $fm.Field)) (opaqueFieldNameLower $fm.Field) }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal2" (opaqueFieldNameLower $fm.Field)) (printf "%s2" (opaqueFieldNameLower $fm.Field)) }}{{ end }})
+{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}Between{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }}{{ range $fm := $gsi.SKFields }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal" (opaqueFieldNameLower $fm.Field)) (opaqueFieldNameLower $fm.Field) }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal2" (opaqueFieldNameLower $fm.Field)) (printf "%s2" (opaqueFieldNameLower $fm.Field)) }}{{ end }})
                 if err != nil {
                     fatal(fmt.Sprintf("error: %v", err))
                 }
                 printResults(results)
             } else {
 {{ range $fm := $gsi.SKFields }}                {{ opaqueFieldNameLower $fm.Field }}Val := flags.require("{{ opaqueFieldNameLower $fm.Field }}")
-{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }}, skOp{{ range $fm := $gsi.SKFields }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal" (opaqueFieldNameLower $fm.Field)) (opaqueFieldNameLower $fm.Field) }}{{ end }})
+{{ end }}                results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }}, skOp{{ range $fm := $gsi.SKFields }}, {{ cliQueryParseExpr $fm.Field (printf "%sVal" (opaqueFieldNameLower $fm.Field)) (opaqueFieldNameLower $fm.Field) }}{{ end }})
                 if err != nil {
                     fatal(fmt.Sprintf("error: %v", err))
                 }
@@ -195,7 +195,7 @@ func main() {
             if skOp != "" {
                 fatal("this query does not support sort key conditions")
             }
-            results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
+            results, err := client.QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ $gsi.Suffix }}(ctx, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ cliQueryParseExpr $fm.Field (opaqueFieldNameLower $fm.Field) (opaqueFieldNameLower $fm.Field) }}{{ end }})
             if err != nil {
                 fatal(fmt.Sprintf("error: %v", err))
             }
