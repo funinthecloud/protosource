@@ -49,6 +49,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"opaqueGSISKFields":  p.opaqueGSISKFields,
 		"opaqueFieldNameLower": opaqueFieldNameLower,
 		"queryRoutePath":     queryRoutePath,
+		"gsiQueryRoutePath":  gsiQueryRoutePath,
 		"unexport":           unexport,
 		"lower":              strings.ToLower,
 		"tsType":             tsType,
@@ -207,13 +208,14 @@ type opaqueFieldMapping struct {
 }
 
 type opaqueUsedGSI struct {
-	Num      int
-	HasPK    bool
-	HasSK    bool
-	PKType   optionsv1.OpaqueKeyType
-	SKType   optionsv1.OpaqueKeyType
-	PKFields []opaqueFieldMapping
-	SKFields []opaqueFieldMapping
+	Num        int
+	HasPK      bool
+	HasSK      bool
+	PKType     optionsv1.OpaqueKeyType
+	SKType     optionsv1.OpaqueKeyType
+	PKFields   []opaqueFieldMapping
+	SKFields   []opaqueFieldMapping
+	PKOnlyDup  bool
 }
 
 func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
@@ -273,7 +275,27 @@ func (p *ProtosourceModule) opaqueUsedGSIs(m pgs.Message) []opaqueUsedGSI {
 			SKFields: skFields,
 		})
 	}
+
+	// Mark duplicate PK-only queries: when multiple GSIs share the same PK fields,
+	// the first one generates the PK-only method and route; subsequent ones skip it.
+	seen := make(map[string]bool)
+	for i, gsi := range result {
+		key := p.pkFieldsKey(gsi.PKFields)
+		if seen[key] {
+			result[i].PKOnlyDup = true
+		}
+		seen[key] = true
+	}
+
 	return result
+}
+
+func (p *ProtosourceModule) pkFieldsKey(fields []opaqueFieldMapping) string {
+	parts := make([]string, len(fields))
+	for i, fm := range fields {
+		parts[i] = p.ctx.Name(fm.Field).String()
+	}
+	return strings.Join(parts, "+")
 }
 
 func (p *ProtosourceModule) opaqueGSISKFields(m pgs.Message, gsiNum int) []opaqueFieldMapping {
@@ -305,6 +327,21 @@ func queryRoutePath(fields []opaqueFieldMapping) string {
 		parts[i] = strings.ReplaceAll(strings.ToLower(fm.Field.Name().String()), "_", "-")
 	}
 	return "by-" + strings.Join(parts, "-and-")
+}
+
+func gsiQueryRoutePath(gsi opaqueUsedGSI) string {
+	base := queryRoutePath(gsi.PKFields)
+	if !gsi.PKOnlyDup {
+		return base
+	}
+	skParts := make([]string, len(gsi.SKFields))
+	for i, fm := range gsi.SKFields {
+		skParts[i] = strings.ReplaceAll(strings.ToLower(fm.Field.Name().String()), "_", "-")
+	}
+	if len(skParts) > 0 {
+		return base + "-with-" + strings.Join(skParts, "-and-")
+	}
+	return base
 }
 
 func unexport(s string) string {

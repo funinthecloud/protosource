@@ -26,11 +26,35 @@ message Test {
   string id        = 1;
   int64  version   = 2;
   int64  create_at = 3;
-  string create_by = 4;
+  string create_by = 4 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
+    attributes: [ { type: OPAQUE_KEY_TYPE_GSI3SK, order: 2 } ]
+  }];
   int64  modify_at = 5;
   string modify_by = 6;
   string body      = 7;
   State  state     = 8;
+  // SET game fields for GSI testing
+  string color   = 9 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
+    attributes: [
+      { type: OPAQUE_KEY_TYPE_GSI1PK },
+      { type: OPAQUE_KEY_TYPE_GSI2PK }
+    ]
+  }];
+  string shape   = 10 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
+    attributes: [
+      { type: OPAQUE_KEY_TYPE_GSI1SK },
+      { type: OPAQUE_KEY_TYPE_GSI3SK, order: 1 }
+    ]
+  }];
+  string number  = 11 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
+    attributes: [
+      { type: OPAQUE_KEY_TYPE_GSI2SK },
+      { type: OPAQUE_KEY_TYPE_GSI3PK, order: 1 }
+    ]
+  }];
+  string shading = 12 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
+    attributes: [ { type: OPAQUE_KEY_TYPE_GSI3PK, order: 2 } ]
+  }];
 }
 
 message TestList {
@@ -44,9 +68,13 @@ message Create {
     produces_events: [ "Created", "Unlocked" ]
     lifecycle: COMMAND_LIFECYCLE_CREATION
   };
-  string id    = 1 [(buf.validate.field).string.min_len = 1];
-  string actor = 2 [(buf.validate.field).string.min_len = 1];
-  string body  = 3 [(buf.validate.field).string.min_len = 1];
+  string id      = 1 [(buf.validate.field).string.min_len = 1];
+  string actor   = 2 [(buf.validate.field).string.min_len = 1];
+  string body    = 3 [(buf.validate.field).string.min_len = 1];
+  string color   = 4;
+  string shape   = 5;
+  string number  = 6;
+  string shading = 7;
 }
 
 // Update is the command that is used to update a test.
@@ -56,9 +84,13 @@ message Update {
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_UNLOCKED" ]
   };
-  string id    = 1;
-  string actor = 2;
-  string body  = 3;
+  string id      = 1;
+  string actor   = 2;
+  string body    = 3;
+  string color   = 4;
+  string shape   = 5;
+  string number  = 6;
+  string shading = 7;
 }
 
 // Lock is the command that locks the aggregate.
@@ -92,6 +124,10 @@ message Created {
   int64  at      = 3;
   string actor   = 4;
   string body    = 5;
+  string color   = 6;
+  string shape   = 7;
+  string number  = 8;
+  string shading = 9;
 }
 
 // Updated is the event emitted when we update a test.
@@ -103,6 +139,10 @@ message Updated {
   int64  at      = 3;
   string actor   = 4;
   string body    = 5;
+  string color   = 6;
+  string shape   = 7;
+  string number  = 8;
+  string shading = 9;
 }
 
 // Locked is the event emitted when the aggregate is locked.

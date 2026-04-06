@@ -73,13 +73,13 @@ func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History
 
 {{ $agg := aggregateForFile . }}
 {{ range $gsi := opaqueUsedGSIs $agg }}
-// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} via GSI{{ $gsi.Num }}.
-func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
+// QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ if $gsi.PKOnlyDup }}ViaGSI{{ $gsi.Num }}{{ end }} queries by {{ range $i, $fm := $gsi.PKFields }}{{ if $i }} and {{ end }}{{ opaqueFieldNameLower $fm.Field }}{{ end }} via GSI{{ $gsi.Num }}.
+func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ if $gsi.PKOnlyDup }}ViaGSI{{ $gsi.Num }}{{ end }}(ctx context.Context, {{ range $i, $fm := $gsi.PKFields }}{{ if $i }}, {{ end }}{{ unexport (name $fm.Field).String }} {{ gotype $fm.Field }}{{ end }}) ([]*{{ $aggregate }}, error) {
     params := map[string]string{
 {{ range $fm := $gsi.PKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}    }
     list := &{{ $aggregate }}List{}
-    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+    if err := c.c.Query(ctx, routePath, "{{ gsiQueryRoutePath $gsi }}", params, list); err != nil {
         return nil, err
     }
     return list.Items, nil
@@ -98,7 +98,7 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
 {{ range $fm := $gsi.SKFields }}        "{{ opaqueFieldNameLower $fm.Field }}": {{ queryFormatExpr $fm.Field (unexport (name $fm.Field).String) }},
 {{ end }}    }
     list := &{{ $aggregate }}List{}
-    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+    if err := c.c.Query(ctx, routePath, "{{ gsiQueryRoutePath $gsi }}", params, list); err != nil {
         return nil, err
     }
     return list.Items, nil
@@ -113,7 +113,7 @@ func (c *HTTPClient) QueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{
         "{{ opaqueFieldNameLower $fm.Field }}2": {{ queryFormatExpr $fm.Field (printf "%sTo" (unexport (name $fm.Field).String)) }},
 {{ end }}    }
     list := &{{ $aggregate }}List{}
-    if err := c.c.Query(ctx, routePath, "{{ queryRoutePath $gsi.PKFields }}", params, list); err != nil {
+    if err := c.c.Query(ctx, routePath, "{{ gsiQueryRoutePath $gsi }}", params, list); err != nil {
         return nil, err
     }
     return list.Items, nil

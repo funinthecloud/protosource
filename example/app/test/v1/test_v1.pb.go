@@ -77,15 +77,20 @@ func (State) EnumDescriptor() ([]byte, []int) {
 //	It must be defined first in the proto,
 //	its name must match the first part of the package.
 type Test struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	CreateAt      int64                  `protobuf:"varint,3,opt,name=create_at,json=createAt,proto3" json:"create_at,omitempty"`
-	CreateBy      string                 `protobuf:"bytes,4,opt,name=create_by,json=createBy,proto3" json:"create_by,omitempty"`
-	ModifyAt      int64                  `protobuf:"varint,5,opt,name=modify_at,json=modifyAt,proto3" json:"modify_at,omitempty"`
-	ModifyBy      string                 `protobuf:"bytes,6,opt,name=modify_by,json=modifyBy,proto3" json:"modify_by,omitempty"`
-	Body          string                 `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
-	State         State                  `protobuf:"varint,8,opt,name=state,proto3,enum=example.app.test.v1.State" json:"state,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version  int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	CreateAt int64                  `protobuf:"varint,3,opt,name=create_at,json=createAt,proto3" json:"create_at,omitempty"`
+	CreateBy string                 `protobuf:"bytes,4,opt,name=create_by,json=createBy,proto3" json:"create_by,omitempty"`
+	ModifyAt int64                  `protobuf:"varint,5,opt,name=modify_at,json=modifyAt,proto3" json:"modify_at,omitempty"`
+	ModifyBy string                 `protobuf:"bytes,6,opt,name=modify_by,json=modifyBy,proto3" json:"modify_by,omitempty"`
+	Body     string                 `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
+	State    State                  `protobuf:"varint,8,opt,name=state,proto3,enum=example.app.test.v1.State" json:"state,omitempty"`
+	// SET game fields for GSI testing
+	Color         string `protobuf:"bytes,9,opt,name=color,proto3" json:"color,omitempty"`
+	Shape         string `protobuf:"bytes,10,opt,name=shape,proto3" json:"shape,omitempty"`
+	Number        string `protobuf:"bytes,11,opt,name=number,proto3" json:"number,omitempty"`
+	Shading       string `protobuf:"bytes,12,opt,name=shading,proto3" json:"shading,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -176,6 +181,34 @@ func (x *Test) GetState() State {
 	return State_STATE_UNSPECIFIED
 }
 
+func (x *Test) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *Test) GetShape() string {
+	if x != nil {
+		return x.Shape
+	}
+	return ""
+}
+
+func (x *Test) GetNumber() string {
+	if x != nil {
+		return x.Number
+	}
+	return ""
+}
+
+func (x *Test) GetShading() string {
+	if x != nil {
+		return x.Shading
+	}
+	return ""
+}
+
 type TestList struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Items         []*Test                `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
@@ -227,6 +260,10 @@ type Create struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
 	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Color         string                 `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	Shape         string                 `protobuf:"bytes,5,opt,name=shape,proto3" json:"shape,omitempty"`
+	Number        string                 `protobuf:"bytes,6,opt,name=number,proto3" json:"number,omitempty"`
+	Shading       string                 `protobuf:"bytes,7,opt,name=shading,proto3" json:"shading,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -282,12 +319,44 @@ func (x *Create) GetBody() string {
 	return ""
 }
 
+func (x *Create) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *Create) GetShape() string {
+	if x != nil {
+		return x.Shape
+	}
+	return ""
+}
+
+func (x *Create) GetNumber() string {
+	if x != nil {
+		return x.Number
+	}
+	return ""
+}
+
+func (x *Create) GetShading() string {
+	if x != nil {
+		return x.Shading
+	}
+	return ""
+}
+
 // Update is the command that is used to update a test.
 type Update struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
 	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Color         string                 `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	Shape         string                 `protobuf:"bytes,5,opt,name=shape,proto3" json:"shape,omitempty"`
+	Number        string                 `protobuf:"bytes,6,opt,name=number,proto3" json:"number,omitempty"`
+	Shading       string                 `protobuf:"bytes,7,opt,name=shading,proto3" json:"shading,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -339,6 +408,34 @@ func (x *Update) GetActor() string {
 func (x *Update) GetBody() string {
 	if x != nil {
 		return x.Body
+	}
+	return ""
+}
+
+func (x *Update) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *Update) GetShape() string {
+	if x != nil {
+		return x.Shape
+	}
+	return ""
+}
+
+func (x *Update) GetNumber() string {
+	if x != nil {
+		return x.Number
+	}
+	return ""
+}
+
+func (x *Update) GetShading() string {
+	if x != nil {
+		return x.Shading
 	}
 	return ""
 }
@@ -457,6 +554,10 @@ type Created struct {
 	At            int64                  `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
 	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
 	Body          string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	Color         string                 `protobuf:"bytes,6,opt,name=color,proto3" json:"color,omitempty"`
+	Shape         string                 `protobuf:"bytes,7,opt,name=shape,proto3" json:"shape,omitempty"`
+	Number        string                 `protobuf:"bytes,8,opt,name=number,proto3" json:"number,omitempty"`
+	Shading       string                 `protobuf:"bytes,9,opt,name=shading,proto3" json:"shading,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -526,6 +627,34 @@ func (x *Created) GetBody() string {
 	return ""
 }
 
+func (x *Created) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *Created) GetShape() string {
+	if x != nil {
+		return x.Shape
+	}
+	return ""
+}
+
+func (x *Created) GetNumber() string {
+	if x != nil {
+		return x.Number
+	}
+	return ""
+}
+
+func (x *Created) GetShading() string {
+	if x != nil {
+		return x.Shading
+	}
+	return ""
+}
+
 // Updated is the event emitted when we update a test.
 type Updated struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -534,6 +663,10 @@ type Updated struct {
 	At            int64                  `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
 	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
 	Body          string                 `protobuf:"bytes,5,opt,name=body,proto3" json:"body,omitempty"`
+	Color         string                 `protobuf:"bytes,6,opt,name=color,proto3" json:"color,omitempty"`
+	Shape         string                 `protobuf:"bytes,7,opt,name=shape,proto3" json:"shape,omitempty"`
+	Number        string                 `protobuf:"bytes,8,opt,name=number,proto3" json:"number,omitempty"`
+	Shading       string                 `protobuf:"bytes,9,opt,name=shading,proto3" json:"shading,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -599,6 +732,34 @@ func (x *Updated) GetActor() string {
 func (x *Updated) GetBody() string {
 	if x != nil {
 		return x.Body
+	}
+	return ""
+}
+
+func (x *Updated) GetColor() string {
+	if x != nil {
+		return x.Color
+	}
+	return ""
+}
+
+func (x *Updated) GetShape() string {
+	if x != nil {
+		return x.Shape
+	}
+	return ""
+}
+
+func (x *Updated) GetNumber() string {
+	if x != nil {
+		return x.Number
+	}
+	return ""
+}
+
+func (x *Updated) GetShading() string {
+	if x != nil {
+		return x.Shading
 	}
 	return ""
 }
@@ -822,30 +983,55 @@ var File_example_app_test_v1_test_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\n" +
-	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xf6\x01\n" +
+	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\x9a\x03\n" +
 	"\x04Test\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1b\n" +
-	"\tcreate_at\x18\x03 \x01(\x03R\bcreateAt\x12\x1b\n" +
-	"\tcreate_by\x18\x04 \x01(\tR\bcreateBy\x12\x1b\n" +
+	"\tcreate_at\x18\x03 \x01(\x03R\bcreateAt\x12'\n" +
+	"\tcreate_by\x18\x04 \x01(\tB\n" +
+	"¬\x1d\x06\n" +
+	"\x04\b\b\x10\x02R\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
 	"\x04body\x18\a \x01(\tR\x04body\x120\n" +
-	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateR\x05state:\n" +
+	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateR\x05state\x12\"\n" +
+	"\x05color\x18\t \x01(\tB\f¬\x1d\b\n" +
+	"\x02\b\x03\n" +
+	"\x02\b\x05R\x05color\x12$\n" +
+	"\x05shape\x18\n" +
+	" \x01(\tB\x0e¬\x1d\n" +
+	"\n" +
+	"\x02\b\x04\n" +
+	"\x04\b\b\x10\x01R\x05shape\x12&\n" +
+	"\x06number\x18\v \x01(\tB\x0e¬\x1d\n" +
+	"\n" +
+	"\x02\b\x06\n" +
+	"\x04\b\a\x10\x01R\x06number\x12$\n" +
+	"\ashading\x18\f \x01(\tB\n" +
+	"¬\x1d\x06\n" +
+	"\x04\b\a\x10\x02R\ashading:\n" +
 	"ʬ\x1d\x06\x1a\x04\x10\x80\xa3\x05\";\n" +
 	"\bTestList\x12/\n" +
-	"\x05items\x18\x01 \x03(\v2\x19.example.app.test.v1.TestR\x05items\"z\n" +
+	"\x05items\x18\x01 \x03(\v2\x19.example.app.test.v1.TestR\x05items\"\xd8\x01\n" +
 	"\x06Create\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05actor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\x12\x1b\n" +
-	"\x04body\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04body:\x1bʬ\x1d\x17\n" +
+	"\x04body\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x04body\x12\x14\n" +
+	"\x05color\x18\x04 \x01(\tR\x05color\x12\x14\n" +
+	"\x05shape\x18\x05 \x01(\tR\x05shape\x12\x16\n" +
+	"\x06number\x18\x06 \x01(\tR\x06number\x12\x18\n" +
+	"\ashading\x18\a \x01(\tR\ashading:\x1bʬ\x1d\x17\n" +
 	"\x15\n" +
 	"\aCreated\n" +
-	"\bUnlocked\x10\x01\"e\n" +
+	"\bUnlocked\x10\x01\"\xc3\x01\n" +
 	"\x06Update\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body:!ʬ\x1d\x1d\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x14\n" +
+	"\x05color\x18\x04 \x01(\tR\x05color\x12\x14\n" +
+	"\x05shape\x18\x05 \x01(\tR\x05shape\x12\x16\n" +
+	"\x06number\x18\x06 \x01(\tR\x06number\x12\x18\n" +
+	"\ashading\x18\a \x01(\tR\ashading:!ʬ\x1d\x1d\n" +
 	"\x1b\n" +
 	"\aUpdated\x10\x02\x1a\x0eSTATE_UNLOCKED\"N\n" +
 	"\x04Lock\x12\x0e\n" +
@@ -857,19 +1043,27 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor: ʬ\x1d\x1c\n" +
 	"\x1a\n" +
-	"\bUnlocked\x10\x02\x1a\fSTATE_LOCKED\"u\n" +
+	"\bUnlocked\x10\x02\x1a\fSTATE_LOCKED\"\xd3\x01\n" +
 	"\aCreated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\tR\x04body:\x06ʬ\x1d\x02\x12\x00\"u\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12\x14\n" +
+	"\x05color\x18\x06 \x01(\tR\x05color\x12\x14\n" +
+	"\x05shape\x18\a \x01(\tR\x05shape\x12\x16\n" +
+	"\x06number\x18\b \x01(\tR\x06number\x12\x18\n" +
+	"\ashading\x18\t \x01(\tR\ashading:\x06ʬ\x1d\x02\x12\x00\"\xd3\x01\n" +
 	"\aUpdated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\tR\x04body:\x06ʬ\x1d\x02\x12\x00\"n\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body\x12\x14\n" +
+	"\x05color\x18\x06 \x01(\tR\x05color\x12\x14\n" +
+	"\x05shape\x18\a \x01(\tR\x05shape\x12\x16\n" +
+	"\x06number\x18\b \x01(\tR\x06number\x12\x18\n" +
+	"\ashading\x18\t \x01(\tR\ashading:\x06ʬ\x1d\x02\x12\x00\"n\n" +
 	"\x06Locked\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
