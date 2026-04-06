@@ -33,7 +33,9 @@ export class ProtosourceClient {
   private readonly fetch: typeof globalThis.fetch;
 
   constructor(baseURL: string, auth: AuthProvider, opts?: ClientOptions) {
-    this.baseURL = baseURL.replace(/\/+$/, "");
+    let url = baseURL;
+    while (url.endsWith("/")) url = url.slice(0, -1);
+    this.baseURL = url;
     this.auth = auth;
     this.useJSON = opts?.useJSON ?? false;
     this.fetch = opts?.fetch ?? globalThis.fetch.bind(globalThis);
