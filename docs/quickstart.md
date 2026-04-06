@@ -13,6 +13,7 @@ Build an event-sourced Task manager with a Go backend and TypeScript client. By 
 - Node 20+ and npm (for TypeScript)
 - clang-format (proto formatting)
 - protoc-gen-go: `go install google.golang.org/protobuf/cmd/protoc-gen-go@latest`
+- protoc-gen-es: `npm install -g @bufbuild/protoc-gen-es` (for TypeScript generation)
 
 ## 1. Install the plugins
 
@@ -335,8 +336,8 @@ The generated client at `ts-gen/task/v1/task_v1.protosource.client.ts` provides 
 import { TaskClient } from "./ts-gen/task/v1/task_v1.protosource.client.js";
 import { BearerTokenAuth, NoAuth } from "@protosource/client";
 
-// For development (no auth, actor sent via header)
-const client = new TaskClient("http://localhost:8080", new NoAuth());
+// For development (no auth, actor identified by name)
+const client = new TaskClient("http://localhost:8080", new NoAuth("alice"));
 
 // Create a task
 const result = await client.create({ id: "task-2", title: "Build frontend" });
@@ -359,7 +360,7 @@ For authenticated environments, use `BearerTokenAuth`:
 ```typescript
 const client = new TaskClient(
   "https://api.example.com",
-  new BearerTokenAuth("your-jwt-token"),
+  new BearerTokenAuth("your-jwt-token", "alice"),
 );
 ```
 

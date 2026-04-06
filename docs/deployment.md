@@ -100,7 +100,7 @@ import (
     "github.com/funinthecloud/protosource"
     "github.com/funinthecloud/protosource/serializers/protobinaryserializer"
     "github.com/funinthecloud/protosource/stores/dynamodbstore"
-    "github.com/funinthecloud/protosource/opaquedata/opaquedynamo"
+    opaquedynamo "github.com/funinthecloud/protosource/opaquedata/dynamo"
 )
 
 // Create AWS client
@@ -133,6 +133,7 @@ The `adapters/awslambda` package converts API Gateway proxy requests to protosou
 
 ```go
 import (
+    "github.com/aws/aws-lambda-go/events"
     "github.com/aws/aws-lambda-go/lambda"
     "github.com/funinthecloud/protosource"
     "github.com/funinthecloud/protosource/adapters/awslambda"
