@@ -197,7 +197,7 @@ func main() {
 				if flags.has("number") || flags.has("number2") {
 					fatal("--number requires --sk-op to be set")
 				}
-				results, err := client.QueryByColor(ctx, color)
+				results, err := client.QueryByColorViaGSI2(ctx, color)
 				if err != nil {
 					fatal(fmt.Sprintf("error: %v", err))
 				}

@@ -136,6 +136,18 @@ func (c *HTTPClient) QueryByColorBetweenShape(ctx context.Context, color string,
 	return list.Items, nil
 }
 
+// QueryByColorViaGSI2 queries by color via GSI2.
+func (c *HTTPClient) QueryByColorViaGSI2(ctx context.Context, color string) ([]*Test, error) {
+	params := map[string]string{
+		"color": color,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-color-with-number", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 // QueryByColorWithNumber queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
 // For between queries, use QueryByColorBetweenNumber instead.
 func (c *HTTPClient) QueryByColorWithNumber(ctx context.Context, color string, skOp string, number string) ([]*Test, error) {
