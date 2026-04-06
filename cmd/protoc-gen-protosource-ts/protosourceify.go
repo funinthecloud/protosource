@@ -208,14 +208,14 @@ type opaqueFieldMapping struct {
 }
 
 type opaqueUsedGSI struct {
-	Num      int
-	HasPK    bool
-	HasSK    bool
-	PKType   optionsv1.OpaqueKeyType
-	SKType   optionsv1.OpaqueKeyType
-	PKFields []opaqueFieldMapping
-	SKFields []opaqueFieldMapping
-	Suffix   string
+	Num        int
+	HasPK      bool
+	HasSK      bool
+	PKType     optionsv1.OpaqueKeyType
+	SKType     optionsv1.OpaqueKeyType
+	PKFields   []opaqueFieldMapping
+	SKFields   []opaqueFieldMapping
+	PKOnlyDup  bool
 }
 
 func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {
@@ -276,18 +276,15 @@ func (p *ProtosourceModule) opaqueUsedGSIs(m pgs.Message) []opaqueUsedGSI {
 		})
 	}
 
-	// Detect PK-field collisions and set Suffix to disambiguate method names.
-	groups := make(map[string][]int)
+	// Mark duplicate PK-only queries: when multiple GSIs share the same PK fields,
+	// the first one generates the PK-only method and route; subsequent ones skip it.
+	seen := make(map[string]bool)
 	for i, gsi := range result {
 		key := p.pkFieldsKey(gsi.PKFields)
-		groups[key] = append(groups[key], i)
-	}
-	for _, indices := range groups {
-		if len(indices) > 1 {
-			for _, idx := range indices {
-				result[idx].Suffix = fmt.Sprintf("GSI%d", result[idx].Num)
-			}
+		if seen[key] {
+			result[i].PKOnlyDup = true
 		}
+		seen[key] = true
 	}
 
 	return result
@@ -334,8 +331,15 @@ func queryRoutePath(fields []opaqueFieldMapping) string {
 
 func gsiQueryRoutePath(gsi opaqueUsedGSI) string {
 	base := queryRoutePath(gsi.PKFields)
-	if gsi.Suffix != "" {
-		return base + "-" + strings.ToLower(gsi.Suffix)
+	if !gsi.PKOnlyDup {
+		return base
+	}
+	skParts := make([]string, len(gsi.SKFields))
+	for i, fm := range gsi.SKFields {
+		skParts[i] = strings.ReplaceAll(strings.ToLower(fm.Field.Name().String()), "_", "-")
+	}
+	if len(skParts) > 0 {
+		return base + "-with-" + strings.Join(skParts, "-and-")
 	}
 	return base
 }

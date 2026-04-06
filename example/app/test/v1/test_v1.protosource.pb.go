@@ -79,6 +79,10 @@ func (aggregate *Test) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.ModifyBy = snapshot.GetSnapshot().GetModifyBy()
 	aggregate.Body = snapshot.GetSnapshot().GetBody()
 	aggregate.State = snapshot.GetSnapshot().GetState()
+	aggregate.Color = snapshot.GetSnapshot().GetColor()
+	aggregate.Shape = snapshot.GetSnapshot().GetShape()
+	aggregate.Number = snapshot.GetSnapshot().GetNumber()
+	aggregate.Shading = snapshot.GetSnapshot().GetShading()
 	aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Test) {
@@ -121,9 +125,17 @@ func (aggregate *Test) On(event protosource.Event) error {
 		aggregate.setCreated(e)
 		aggregate.setModified(e)
 		aggregate.Body = e.GetBody()
+		aggregate.Color = e.GetColor()
+		aggregate.Shape = e.GetShape()
+		aggregate.Number = e.GetNumber()
+		aggregate.Shading = e.GetShading()
 	case *Updated:
 		aggregate.setModified(e)
 		aggregate.Body = e.GetBody()
+		aggregate.Color = e.GetColor()
+		aggregate.Shape = e.GetShape()
+		aggregate.Number = e.GetNumber()
+		aggregate.Shading = e.GetShading()
 	case *Locked:
 		aggregate.setModified(e)
 		aggregate.State = State_STATE_LOCKED
@@ -151,12 +163,56 @@ func (m *Test) PK() string {
 
 func (m *Test) SK() string { return "AGG" }
 
-func (m *Test) GSI1PK() string  { return "NA" }
-func (m *Test) GSI1SK() string  { return "NA" }
-func (m *Test) GSI2PK() string  { return "NA" }
-func (m *Test) GSI2SK() string  { return "NA" }
-func (m *Test) GSI3PK() string  { return "NA" }
-func (m *Test) GSI3SK() string  { return "NA" }
+func (m *Test) GSI1PK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#color#%v", m.GetColor())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+func (m *Test) GSI1SK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#shape#%v", m.GetShape())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+func (m *Test) GSI2PK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#color#%v", m.GetColor())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+func (m *Test) GSI2SK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#number#%v", m.GetNumber())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+func (m *Test) GSI3PK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#number#%v", m.GetNumber())
+	fields += fmt.Sprintf("#shading#%v", m.GetShading())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+func (m *Test) GSI3SK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#shape#%v", m.GetShape())
+	fields += fmt.Sprintf("#create_by#%v", m.GetCreateBy())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
 func (m *Test) GSI4PK() string  { return "NA" }
 func (m *Test) GSI4SK() string  { return "NA" }
 func (m *Test) GSI5PK() string  { return "NA" }
@@ -199,6 +255,38 @@ func (m *Test) Hydrate(body []byte) error {
 }
 
 // ── Typed GSI SK value structs for Test ──
+
+type TestGSI1SK struct {
+	Shape string
+}
+
+func (v TestGSI1SK) String() string {
+	var fields string
+	fields += fmt.Sprintf("#shape#%v", v.Shape)
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+
+type TestGSI2SK struct {
+	Number string
+}
+
+func (v TestGSI2SK) String() string {
+	var fields string
+	fields += fmt.Sprintf("#number#%v", v.Number)
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+
+type TestGSI3SK struct {
+	Shape    string
+	CreateBy string
+}
+
+func (v TestGSI3SK) String() string {
+	var fields string
+	fields += fmt.Sprintf("#shape#%v", v.Shape)
+	fields += fmt.Sprintf("#create_by#%v", v.CreateBy)
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
 
 // ── Client for Test ──
 
@@ -244,6 +332,115 @@ func (c *TestClient) DeleteTest(ctx context.Context, id string) error {
 	return c.store.Delete(ctx, key.PK(), key.SK())
 }
 
+// SelectTestByColor queries GSI1 by partition key.
+func (c *TestClient) SelectTestByColor(ctx context.Context, color string) ([]*Test, error) {
+	pk := &Test{
+		Color: color,
+	}
+	pkValue := pk.GSI1PK()
+	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", nil, opaquedata.WithGSIIndex(1))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByColor: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
+// SelectTestByColorWithShape queries GSI1 with a sort key condition.
+func (c *TestClient) SelectTestByColorWithShape(ctx context.Context, color string, op opaquedata.SortOperator, vals ...TestGSI1SK) ([]*Test, error) {
+	if op == opaquedata.Between {
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("TestClient.SelectTestByColorWithShape: Between requires exactly 2 values, got %d", len(vals))
+		}
+	} else if len(vals) != 1 {
+		return nil, fmt.Errorf("TestClient.SelectTestByColorWithShape: operator %d requires exactly 1 value, got %d", op, len(vals))
+	}
+	pk := &Test{
+		Color: color,
+	}
+	pkValue := pk.GSI1PK()
+	sort := &opaquedata.SortCondition{
+		Operator: op,
+		Value:    vals[0].String(),
+	}
+	if op == opaquedata.Between {
+		sort.Value2 = vals[1].String()
+	}
+	results, err := c.store.Query(ctx, "gsi1pk", pkValue, "gsi1sk", sort, opaquedata.WithGSIIndex(1))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByColorWithShape: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
+// SelectTestByColorWithNumber queries GSI2 with a sort key condition.
+func (c *TestClient) SelectTestByColorWithNumber(ctx context.Context, color string, op opaquedata.SortOperator, vals ...TestGSI2SK) ([]*Test, error) {
+	if op == opaquedata.Between {
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("TestClient.SelectTestByColorWithNumber: Between requires exactly 2 values, got %d", len(vals))
+		}
+	} else if len(vals) != 1 {
+		return nil, fmt.Errorf("TestClient.SelectTestByColorWithNumber: operator %d requires exactly 1 value, got %d", op, len(vals))
+	}
+	pk := &Test{
+		Color: color,
+	}
+	pkValue := pk.GSI2PK()
+	sort := &opaquedata.SortCondition{
+		Operator: op,
+		Value:    vals[0].String(),
+	}
+	if op == opaquedata.Between {
+		sort.Value2 = vals[1].String()
+	}
+	results, err := c.store.Query(ctx, "gsi2pk", pkValue, "gsi2sk", sort, opaquedata.WithGSIIndex(2))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByColorWithNumber: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
+// SelectTestByNumberAndShading queries GSI3 by partition key.
+func (c *TestClient) SelectTestByNumberAndShading(ctx context.Context, number string, shading string) ([]*Test, error) {
+	pk := &Test{
+		Number:  number,
+		Shading: shading,
+	}
+	pkValue := pk.GSI3PK()
+	results, err := c.store.Query(ctx, "gsi3pk", pkValue, "gsi3sk", nil, opaquedata.WithGSIIndex(3))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByNumberAndShading: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
+// SelectTestByNumberAndShadingWithShapeAndCreateBy queries GSI3 with a sort key condition.
+func (c *TestClient) SelectTestByNumberAndShadingWithShapeAndCreateBy(ctx context.Context, number string, shading string, op opaquedata.SortOperator, vals ...TestGSI3SK) ([]*Test, error) {
+	if op == opaquedata.Between {
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("TestClient.SelectTestByNumberAndShadingWithShapeAndCreateBy: Between requires exactly 2 values, got %d", len(vals))
+		}
+	} else if len(vals) != 1 {
+		return nil, fmt.Errorf("TestClient.SelectTestByNumberAndShadingWithShapeAndCreateBy: operator %d requires exactly 1 value, got %d", op, len(vals))
+	}
+	pk := &Test{
+		Number:  number,
+		Shading: shading,
+	}
+	pkValue := pk.GSI3PK()
+	sort := &opaquedata.SortCondition{
+		Operator: op,
+		Value:    vals[0].String(),
+	}
+	if op == opaquedata.Between {
+		sort.Value2 = vals[1].String()
+	}
+	results, err := c.store.Query(ctx, "gsi3pk", pkValue, "gsi3sk", sort, opaquedata.WithGSIIndex(3))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByNumberAndShadingWithShapeAndCreateBy: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
 func rehydrateTest(results []*opaquedatav1.OpaqueData) ([]*Test, error) {
 	out := make([]*Test, 0, len(results))
 	for _, od := range results {
@@ -276,7 +473,7 @@ func (m *Create) ValidateVersion(version int64) error {
 func (m *Create) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := proto.Clone(aggregate).(*Test)
-	b.Created(m.GetActor(), m.GetBody())
+	b.Created(m.GetActor(), m.GetBody(), m.GetColor(), m.GetShape(), m.GetNumber(), m.GetShading())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	b.Unlocked(m.GetActor())
@@ -314,7 +511,7 @@ func (m *Update) Authorize(aggregate protosource.Aggregate) error {
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
 	b := NewBuilder(m.GetId(), aggregate.GetVersion())
 	a := proto.Clone(aggregate).(*Test)
-	b.Updated(m.GetActor(), m.GetBody())
+	b.Updated(m.GetActor(), m.GetBody(), m.GetColor(), m.GetShape(), m.GetNumber(), m.GetShading())
 	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
 	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
 	return b.Events
@@ -394,11 +591,15 @@ func (m *Created) EventName() string {
 	return "Created"
 }
 
-func (b *Builder) Created(Actor string, Body string) {
+func (b *Builder) Created(Actor string, Body string, Color string, Shape string, Number string, Shading string) {
 	event := &Created{
-		Id:    b.id,
-		Actor: Actor,
-		Body:  Body,
+		Id:      b.id,
+		Actor:   Actor,
+		Body:    Body,
+		Color:   Color,
+		Shape:   Shape,
+		Number:  Number,
+		Shading: Shading,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),
@@ -410,11 +611,15 @@ func (m *Updated) EventName() string {
 	return "Updated"
 }
 
-func (b *Builder) Updated(Actor string, Body string) {
+func (b *Builder) Updated(Actor string, Body string, Color string, Shape string, Number string, Shading string) {
 	event := &Updated{
-		Id:    b.id,
-		Actor: Actor,
-		Body:  Body,
+		Id:      b.id,
+		Actor:   Actor,
+		Body:    Body,
+		Color:   Color,
+		Shape:   Shape,
+		Number:  Number,
+		Shading: Shading,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),

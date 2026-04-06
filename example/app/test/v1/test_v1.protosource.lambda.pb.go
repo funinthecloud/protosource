@@ -51,6 +51,10 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 	router.Handle("GET", "example/app/test/v1/{id}", h.HandleGet)
 	router.Handle("GET", "example/app/test/v1/{id}/history", h.HandleHistory)
 
+	router.Handle("GET", "example/app/test/v1/query/by-color", h.HandleQueryByColor)
+	router.Handle("GET", "example/app/test/v1/query/by-color-with-number", h.HandleQueryByColorWithNumber)
+	router.Handle("GET", "example/app/test/v1/query/by-number-and-shading", h.HandleQueryByNumberAndShading)
+
 }
 
 // HandleCreate processes a Create command.
@@ -256,6 +260,214 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 		Body:       string(body),
 		Headers:    map[string]string{"Content-Type": contentType},
 	}
+}
+
+// HandleQueryByColor queries GSI1 by partition key with optional sort key condition.
+func (h *Handler) HandleQueryByColor(ctx context.Context, request protosource.Request) protosource.Response {
+	color := request.QueryParameters["color"]
+	if color == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: color", nil)
+	}
+
+	skOp := request.QueryParameters["sk_op"]
+
+	if skOp == "" {
+		results, err := h.client.SelectTestByColor(ctx, color)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return queryResponse(request, results)
+	}
+
+	op, ok := parseSortOperator(skOp)
+	if !ok {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+	}
+
+	shapeRaw := request.QueryParameters["shape"]
+	if shapeRaw == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: shape", nil)
+	}
+	shapeVal, shapeErr := parseQueryParamString(shapeRaw)
+	if shapeErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for shape: %v", shapeErr), nil)
+	}
+
+	skVal := TestGSI1SK{
+		Shape: shapeVal,
+	}
+
+	if op == opaquedata.Between {
+		shapeRaw2 := request.QueryParameters["shape2"]
+		if shapeRaw2 == "" {
+			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: shape2 (required for between)", nil)
+		}
+		shapeVal2, shapeErr2 := parseQueryParamString(shapeRaw2)
+		if shapeErr2 != nil {
+			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for shape2: %v", shapeErr2), nil)
+		}
+		skVal2 := TestGSI1SK{
+			Shape: shapeVal2,
+		}
+		results, err := h.client.SelectTestByColorWithShape(ctx, color, op, skVal, skVal2)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return queryResponse(request, results)
+	}
+
+	results, err := h.client.SelectTestByColorWithShape(ctx, color, op, skVal)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+	}
+	return queryResponse(request, results)
+
+}
+
+// HandleQueryByColorWithNumber queries GSI2 by partition key with optional sort key condition.
+func (h *Handler) HandleQueryByColorWithNumber(ctx context.Context, request protosource.Request) protosource.Response {
+	color := request.QueryParameters["color"]
+	if color == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: color", nil)
+	}
+
+	skOp := request.QueryParameters["sk_op"]
+
+	if skOp == "" {
+		results, err := h.client.SelectTestByColor(ctx, color)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return queryResponse(request, results)
+	}
+
+	op, ok := parseSortOperator(skOp)
+	if !ok {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+	}
+
+	numberRaw := request.QueryParameters["number"]
+	if numberRaw == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: number", nil)
+	}
+	numberVal, numberErr := parseQueryParamString(numberRaw)
+	if numberErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for number: %v", numberErr), nil)
+	}
+
+	skVal := TestGSI2SK{
+		Number: numberVal,
+	}
+
+	if op == opaquedata.Between {
+		numberRaw2 := request.QueryParameters["number2"]
+		if numberRaw2 == "" {
+			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: number2 (required for between)", nil)
+		}
+		numberVal2, numberErr2 := parseQueryParamString(numberRaw2)
+		if numberErr2 != nil {
+			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for number2: %v", numberErr2), nil)
+		}
+		skVal2 := TestGSI2SK{
+			Number: numberVal2,
+		}
+		results, err := h.client.SelectTestByColorWithNumber(ctx, color, op, skVal, skVal2)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return queryResponse(request, results)
+	}
+
+	results, err := h.client.SelectTestByColorWithNumber(ctx, color, op, skVal)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+	}
+	return queryResponse(request, results)
+
+}
+
+// HandleQueryByNumberAndShading queries GSI3 by partition key with optional sort key condition.
+func (h *Handler) HandleQueryByNumberAndShading(ctx context.Context, request protosource.Request) protosource.Response {
+	number := request.QueryParameters["number"]
+	if number == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: number", nil)
+	}
+	shading := request.QueryParameters["shading"]
+	if shading == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: shading", nil)
+	}
+
+	skOp := request.QueryParameters["sk_op"]
+
+	if skOp == "" {
+		results, err := h.client.SelectTestByNumberAndShading(ctx, number, shading)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return queryResponse(request, results)
+	}
+
+	op, ok := parseSortOperator(skOp)
+	if !ok {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_OP", fmt.Sprintf("invalid sort operator: %s", skOp), nil)
+	}
+
+	shapeRaw := request.QueryParameters["shape"]
+	if shapeRaw == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: shape", nil)
+	}
+	shapeVal, shapeErr := parseQueryParamString(shapeRaw)
+	if shapeErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for shape: %v", shapeErr), nil)
+	}
+	create_byRaw := request.QueryParameters["create_by"]
+	if create_byRaw == "" {
+		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_by", nil)
+	}
+	create_byVal, create_byErr := parseQueryParamString(create_byRaw)
+	if create_byErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_by: %v", create_byErr), nil)
+	}
+
+	skVal := TestGSI3SK{
+		Shape:    shapeVal,
+		CreateBy: create_byVal,
+	}
+
+	if op == opaquedata.Between {
+		shapeRaw2 := request.QueryParameters["shape2"]
+		if shapeRaw2 == "" {
+			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: shape2 (required for between)", nil)
+		}
+		shapeVal2, shapeErr2 := parseQueryParamString(shapeRaw2)
+		if shapeErr2 != nil {
+			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for shape2: %v", shapeErr2), nil)
+		}
+		create_byRaw2 := request.QueryParameters["create_by2"]
+		if create_byRaw2 == "" {
+			return errorResponse(http.StatusBadRequest, "QUERY_MISSING_SK", "missing required parameter: create_by2 (required for between)", nil)
+		}
+		create_byVal2, create_byErr2 := parseQueryParamString(create_byRaw2)
+		if create_byErr2 != nil {
+			return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_by2: %v", create_byErr2), nil)
+		}
+		skVal2 := TestGSI3SK{
+			Shape:    shapeVal2,
+			CreateBy: create_byVal2,
+		}
+		results, err := h.client.SelectTestByNumberAndShadingWithShapeAndCreateBy(ctx, number, shading, op, skVal, skVal2)
+		if err != nil {
+			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+		}
+		return queryResponse(request, results)
+	}
+
+	results, err := h.client.SelectTestByNumberAndShadingWithShapeAndCreateBy(ctx, number, shading, op, skVal)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
+	}
+	return queryResponse(request, results)
+
 }
 
 // ── Helpers ──

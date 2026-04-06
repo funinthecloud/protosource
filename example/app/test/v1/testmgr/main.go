@@ -20,13 +20,16 @@ import (
 var usage = "Usage: testmgr [-json] <command> [args]\n\nFlags:\n" +
 	"  -json              Use JSON serialization (default: protobuf)\n\n" +
 	"Commands:\n" +
-	"  create  <id>  <body>\n" +
-	"  update  <id>  <body>\n" +
+	"  create  <id>  <body>  <color>  <shape>  <number>  <shading>\n" +
+	"  update  <id>  <body>  <color>  <shape>  <number>  <shading>\n" +
 	"  lock  <id>\n" +
 	"  unlock  <id>\n" +
 	"  get      <id>\n" +
 	"  load     <id>\n" +
 	"  history  <id>\n" +
+	"  query by-color <color> [--sk-op=OP --shape=VAL [--shape2=VAL]]\n" +
+	"  query by-color-with-number <color> [--sk-op=OP --number=VAL [--number2=VAL]]\n" +
+	"  query by-number-and-shading <number> <shading> [--sk-op=OP --shape=VAL [--shape2=VAL] --create_by=VAL [--create_by2=VAL]]\n" +
 	"\nActor is derived automatically from the current user and hostname.\n\n" +
 	"Environment variables:\n" +
 	"  API_DOMAIN      Base domain for API endpoint (pattern: test-v1.API_DOMAIN)\n" +
@@ -76,20 +79,20 @@ func main() {
 	switch subcmd {
 
 	case "create":
-		if len(os.Args) != 4 {
-			fatal("usage: testmgr create <id> <body>")
+		if len(os.Args) != 8 {
+			fatal("usage: testmgr create <id> <body> <color> <shape> <number> <shading>")
 		}
-		result, err := client.Create(ctx, os.Args[2], os.Args[3])
+		result, err := client.Create(ctx, os.Args[2], os.Args[3], os.Args[4], os.Args[5], os.Args[6], os.Args[7])
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
 		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
 
 	case "update":
-		if len(os.Args) != 4 {
-			fatal("usage: testmgr update <id> <body>")
+		if len(os.Args) != 8 {
+			fatal("usage: testmgr update <id> <body> <color> <shape> <number> <shading>")
 		}
-		result, err := client.Update(ctx, os.Args[2], os.Args[3])
+		result, err := client.Update(ctx, os.Args[2], os.Args[3], os.Args[4], os.Args[5], os.Args[6], os.Args[7])
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
@@ -144,6 +147,119 @@ func main() {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
 		printHistory(history)
+
+	case "query":
+		if len(os.Args) < 3 {
+			fatal("usage: testmgr query <query-name> <pk-values...> [--sk-op=OP --field=VAL]")
+		}
+		queryName := os.Args[2]
+		flags := parseFlags(os.Args[3:])
+
+		switch queryName {
+
+		case "by-color":
+			color := flags.positional(0, "color")
+			skOp := flags.get("sk-op")
+
+			if skOp == "" {
+				// Validate no stray SK flags when no --sk-op is provided.
+				if flags.has("shape") || flags.has("shape2") {
+					fatal("--shape requires --sk-op to be set")
+				}
+				results, err := client.QueryByColor(ctx, color)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			} else if skOp == "between" {
+				shapeVal := flags.require("shape")
+				shapeVal2 := flags.require("shape2")
+				results, err := client.QueryByColorBetweenShape(ctx, color, shapeVal, shapeVal2)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			} else {
+				shapeVal := flags.require("shape")
+				results, err := client.QueryByColorWithShape(ctx, color, skOp, shapeVal)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			}
+
+		case "by-color-with-number":
+			color := flags.positional(0, "color")
+			skOp := flags.get("sk-op")
+
+			if skOp == "" {
+				// Validate no stray SK flags when no --sk-op is provided.
+				if flags.has("number") || flags.has("number2") {
+					fatal("--number requires --sk-op to be set")
+				}
+				results, err := client.QueryByColor(ctx, color)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			} else if skOp == "between" {
+				numberVal := flags.require("number")
+				numberVal2 := flags.require("number2")
+				results, err := client.QueryByColorBetweenNumber(ctx, color, numberVal, numberVal2)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			} else {
+				numberVal := flags.require("number")
+				results, err := client.QueryByColorWithNumber(ctx, color, skOp, numberVal)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			}
+
+		case "by-number-and-shading":
+			number := flags.positional(0, "number")
+			shading := flags.positional(1, "shading")
+			skOp := flags.get("sk-op")
+
+			if skOp == "" {
+				// Validate no stray SK flags when no --sk-op is provided.
+				if flags.has("shape") || flags.has("shape2") {
+					fatal("--shape requires --sk-op to be set")
+				}
+				if flags.has("create_by") || flags.has("create_by2") {
+					fatal("--create_by requires --sk-op to be set")
+				}
+				results, err := client.QueryByNumberAndShading(ctx, number, shading)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			} else if skOp == "between" {
+				shapeVal := flags.require("shape")
+				shapeVal2 := flags.require("shape2")
+				create_byVal := flags.require("create_by")
+				create_byVal2 := flags.require("create_by2")
+				results, err := client.QueryByNumberAndShadingBetweenShapeAndCreateBy(ctx, number, shading, shapeVal, shapeVal2, create_byVal, create_byVal2)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			} else {
+				shapeVal := flags.require("shape")
+				create_byVal := flags.require("create_by")
+				results, err := client.QueryByNumberAndShadingWithShapeAndCreateBy(ctx, number, shading, skOp, shapeVal, create_byVal)
+				if err != nil {
+					fatal(fmt.Sprintf("error: %v", err))
+				}
+				printResults(results)
+			}
+
+		default:
+			fatal(fmt.Sprintf("unknown query: %s", queryName))
+		}
 
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command: %s\n\n%s\n", subcmd, usage)
@@ -253,6 +369,69 @@ func mustParseBool(s, field string) bool {
 	v, err := strconv.ParseBool(s)
 	if err != nil {
 		fatal(fmt.Sprintf("invalid value for %s: %v", field, err))
+	}
+	return v
+}
+
+func printResults(results []*pkg.Test) {
+	fmt.Println("[")
+	for i, r := range results {
+		b, err := jsonFormatter.Marshal(r)
+		if err != nil {
+			fatal(fmt.Sprintf("error formatting result: %v", err))
+		}
+		if i < len(results)-1 {
+			fmt.Printf("  %s,\n", string(b))
+		} else {
+			fmt.Printf("  %s\n", string(b))
+		}
+	}
+	fmt.Println("]")
+}
+
+// cliFlags parses --key=value flags and positional args from CLI arguments.
+type cliFlags struct {
+	positionals []string
+	named       map[string]string
+}
+
+func parseFlags(args []string) cliFlags {
+	f := cliFlags{named: make(map[string]string)}
+	for _, arg := range args {
+		if strings.HasPrefix(arg, "--") {
+			kv := strings.TrimPrefix(arg, "--")
+			i := strings.IndexByte(kv, '=')
+			if i < 0 {
+				fatal(fmt.Sprintf("flag --%s requires a value (use --%s=VALUE)", kv, kv))
+			}
+			f.named[kv[:i]] = kv[i+1:]
+		} else {
+			f.positionals = append(f.positionals, arg)
+		}
+	}
+	return f
+}
+
+func (f cliFlags) positional(i int, name string) string {
+	if i >= len(f.positionals) {
+		fatal(fmt.Sprintf("missing required positional argument: %s", name))
+	}
+	return f.positionals[i]
+}
+
+func (f cliFlags) get(key string) string {
+	return f.named[key]
+}
+
+func (f cliFlags) has(key string) bool {
+	_, ok := f.named[key]
+	return ok
+}
+
+func (f cliFlags) require(key string) string {
+	v, ok := f.named[key]
+	if !ok || v == "" {
+		fatal(fmt.Sprintf("missing required flag: --%s", key))
 	}
 	return v
 }

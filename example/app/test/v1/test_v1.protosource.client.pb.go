@@ -27,19 +27,27 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 }
 
 // Create sends the Create command.
-func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Create(ctx context.Context, id string, body string, color string, shape string, number string, shading string) (*responsev1.CommandResponse, error) {
 	cmd := &Create{
-		Id:   id,
-		Body: body,
+		Id:      id,
+		Body:    body,
+		Color:   color,
+		Shape:   shape,
+		Number:  number,
+		Shading: shading,
 	}
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
 // Update sends the Update command.
-func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Update(ctx context.Context, id string, body string, color string, shape string, number string, shading string) (*responsev1.CommandResponse, error) {
 	cmd := &Update{
-		Id:   id,
-		Body: body,
+		Id:      id,
+		Body:    body,
+		Color:   color,
+		Shape:   shape,
+		Number:  number,
+		Shading: shading,
 	}
 	return c.c.Apply(ctx, routePath, cmd)
 }
@@ -81,6 +89,135 @@ func (c *HTTPClient) Get(ctx context.Context, id string) (*Test, error) {
 // History retrieves the full event history for the Test aggregate.
 func (c *HTTPClient) History(ctx context.Context, id string) (*historyv1.History, error) {
 	return c.c.History(ctx, routePath, id)
+}
+
+// QueryByColor queries by color via GSI1.
+func (c *HTTPClient) QueryByColor(ctx context.Context, color string) ([]*Test, error) {
+	params := map[string]string{
+		"color": color,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-color", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByColorWithShape queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryByColorBetweenShape instead.
+func (c *HTTPClient) QueryByColorWithShape(ctx context.Context, color string, skOp string, shape string) ([]*Test, error) {
+	if skOp == "between" {
+		return nil, fmt.Errorf("use QueryByColorBetweenShape for between queries")
+	}
+	params := map[string]string{
+		"color": color,
+		"sk_op": skOp,
+		"shape": shape,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-color", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByColorBetweenShape queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryByColorBetweenShape(ctx context.Context, color string, shapeFrom string, shapeTo string) ([]*Test, error) {
+	params := map[string]string{
+		"color":  color,
+		"sk_op":  "between",
+		"shape":  shapeFrom,
+		"shape2": shapeTo,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-color", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByColorWithNumber queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryByColorBetweenNumber instead.
+func (c *HTTPClient) QueryByColorWithNumber(ctx context.Context, color string, skOp string, number string) ([]*Test, error) {
+	if skOp == "between" {
+		return nil, fmt.Errorf("use QueryByColorBetweenNumber for between queries")
+	}
+	params := map[string]string{
+		"color":  color,
+		"sk_op":  skOp,
+		"number": number,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-color-with-number", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByColorBetweenNumber queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryByColorBetweenNumber(ctx context.Context, color string, numberFrom string, numberTo string) ([]*Test, error) {
+	params := map[string]string{
+		"color":   color,
+		"sk_op":   "between",
+		"number":  numberFrom,
+		"number2": numberTo,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-color-with-number", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByNumberAndShading queries by number and shading via GSI3.
+func (c *HTTPClient) QueryByNumberAndShading(ctx context.Context, number string, shading string) ([]*Test, error) {
+	params := map[string]string{
+		"number":  number,
+		"shading": shading,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-number-and-shading", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByNumberAndShadingWithShapeAndCreateBy queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryByNumberAndShadingBetweenShapeAndCreateBy instead.
+func (c *HTTPClient) QueryByNumberAndShadingWithShapeAndCreateBy(ctx context.Context, number string, shading string, skOp string, shape string, createBy string) ([]*Test, error) {
+	if skOp == "between" {
+		return nil, fmt.Errorf("use QueryByNumberAndShadingBetweenShapeAndCreateBy for between queries")
+	}
+	params := map[string]string{
+		"number":    number,
+		"shading":   shading,
+		"sk_op":     skOp,
+		"shape":     shape,
+		"create_by": createBy,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-number-and-shading", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByNumberAndShadingBetweenShapeAndCreateBy queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryByNumberAndShadingBetweenShapeAndCreateBy(ctx context.Context, number string, shading string, shapeFrom string, shapeTo string, createByFrom string, createByTo string) ([]*Test, error) {
+	params := map[string]string{
+		"number":     number,
+		"shading":    shading,
+		"sk_op":      "between",
+		"shape":      shapeFrom,
+		"shape2":     shapeTo,
+		"create_by":  createByFrom,
+		"create_by2": createByTo,
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-number-and-shading", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
 }
 
 // Ensure strconv and fmt are used.
