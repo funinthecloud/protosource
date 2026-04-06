@@ -334,7 +334,7 @@ func (h *Handler) HandleQueryByColorWithNumber(ctx context.Context, request prot
 	skOp := request.QueryParameters["sk_op"]
 
 	if skOp == "" {
-		results, err := h.client.SelectTestByColor(ctx, color)
+		results, err := h.client.SelectTestByColorViaGSI2(ctx, color)
 		if err != nil {
 			return errorResponse(http.StatusInternalServerError, "QUERY_EXEC", "query failed", err)
 		}

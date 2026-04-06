@@ -372,6 +372,19 @@ func (c *TestClient) SelectTestByColorWithShape(ctx context.Context, color strin
 	return rehydrateTest(results)
 }
 
+// SelectTestByColorViaGSI2 queries GSI2 by partition key.
+func (c *TestClient) SelectTestByColorViaGSI2(ctx context.Context, color string) ([]*Test, error) {
+	pk := &Test{
+		Color: color,
+	}
+	pkValue := pk.GSI2PK()
+	results, err := c.store.Query(ctx, "gsi2pk", pkValue, "gsi2sk", nil, opaquedata.WithGSIIndex(2))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByColorViaGSI2: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
 // SelectTestByColorWithNumber queries GSI2 with a sort key condition.
 func (c *TestClient) SelectTestByColorWithNumber(ctx context.Context, color string, op opaquedata.SortOperator, vals ...TestGSI2SK) ([]*Test, error) {
 	if op == opaquedata.Between {
