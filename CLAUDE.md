@@ -269,7 +269,7 @@ A git tag (`v*`) triggers `.github/workflows/release.yml` which publishes two ar
 1. **Proto module** -- `buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
 2. **npm package** -- `@protosource/client` published to npm
 
-Requires `BUF_TOKEN` and `NPM_TOKEN` in GitHub Actions secrets.
+Requires `BUF_TOKEN` in GitHub Actions secrets. npm publishing uses OIDC (`id-token: write`).
 
 Consumers install both plugins locally (remote buf plugins require a Pro account):
 ```bash

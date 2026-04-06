@@ -43,9 +43,7 @@ jobs:
 
       - name: Build and publish
         working-directory: ts/client
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           npm ci
           npm run build
-          npm publish --access public --provenance
+          npm publish --access public
