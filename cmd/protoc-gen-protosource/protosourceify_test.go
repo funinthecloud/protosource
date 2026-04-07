@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	pgs "github.com/lyft/protoc-gen-star/v2"
+	pgsgo "github.com/lyft/protoc-gen-star/v2/lang/go"
 	"github.com/lyft/protoc-gen-star/v2/testutils"
 
 	optionsv1 "github.com/funinthecloud/protosource/options/v1"
@@ -54,7 +55,9 @@ func loadTestProto(t *testing.T, name string) pgs.File {
 
 // newModule creates a ProtosourceModule suitable for testing validation.
 func newModule() *ProtosourceModule {
-	return &ProtosourceModule{ModuleBase: &pgs.ModuleBase{}}
+	p := &ProtosourceModule{ModuleBase: &pgs.ModuleBase{}}
+	p.ctx = pgsgo.InitContext(pgs.Parameters{})
+	return p
 }
 
 // findMessage returns the first message in f whose name matches.
@@ -368,6 +371,57 @@ func TestCLIParseExpr_String(t *testing.T) {
 	got := cliParseExpr(fields[0], 3)
 	if got != "os.Args[3]" {
 		t.Errorf("expected os.Args[3] for string field, got: %s", got)
+	}
+}
+
+func TestCLIParseExprFull_Enum(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_enum.proto")
+	p := newModule()
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+
+	fields := CLICommandFields(m.Fields())
+	if len(fields) != 1 {
+		t.Fatalf("expected 1 CLI field, got %d", len(fields))
+	}
+
+	got := p.cliParseExprFull(fields[0], 3)
+	// Should cast int32 parse to the enum type with pkg prefix.
+	if !strings.Contains(got, "pkg.Priority") {
+		t.Errorf("expected pkg.Priority cast, got: %s", got)
+	}
+	if !strings.Contains(got, "mustParseInt32") {
+		t.Errorf("expected mustParseInt32, got: %s", got)
+	}
+	if !strings.Contains(got, "os.Args[3]") {
+		t.Errorf("expected os.Args[3], got: %s", got)
+	}
+}
+
+func TestCLIParseExprFull_EmbeddedMessage(t *testing.T) {
+	f := loadTestProto(t, "cli_invalid_message.proto")
+	p := newModule()
+
+	m := findMessage(f, "Create")
+	if m == nil {
+		t.Fatal("message Create not found")
+	}
+
+	fields := CLICommandFields(m.Fields())
+	if len(fields) != 1 {
+		t.Fatalf("expected 1 CLI field, got %d", len(fields))
+	}
+
+	got := p.cliParseExprFull(fields[0], 3)
+	// Should use mustParseJSON with the message type and pkg prefix.
+	if !strings.Contains(got, "mustParseJSON[*pkg.Metadata]") {
+		t.Errorf("expected mustParseJSON[*pkg.Metadata], got: %s", got)
+	}
+	if !strings.Contains(got, "os.Args[3]") {
+		t.Errorf("expected os.Args[3], got: %s", got)
 	}
 }
 
