@@ -702,7 +702,7 @@ func (p *ProtosourceModule) cliParseExprFull(f pgs.Field, argIdx int) string {
 // variable name and explicit label for error messages.
 func (p *ProtosourceModule) cliQueryParseExpr(f pgs.Field, varName string, label string) string {
 	if f.Type().IsEnum() {
-		return fmt.Sprintf("%s(mustParseInt32(%s, %q))", p.ctx.Type(f).String(), varName, label)
+		return fmt.Sprintf("pkg.%s(mustParseInt32(%s, %q))", p.ctx.Type(f).String(), varName, label)
 	}
 	switch f.Type().ProtoType() {
 	case pgs.StringT:

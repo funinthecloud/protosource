@@ -58,6 +58,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"protoFileName":      protoFileName,
 		"name":               p.ctx.Name,
 		"commandEmbeddedTypes": func(f pgs.File) []string { return commandEmbeddedTypes(f, p.isCommand) },
+		"gsiEnumTypes":         p.gsiEnumTypes,
 	}
 }
 
@@ -366,6 +367,39 @@ func commandEmbeddedTypes(f pgs.File, isCmd func(pgs.Message) bool) []string {
 		for _, field := range clientCommandFields(m.Fields()) {
 			if field.Type().IsEmbed() {
 				name := field.Type().Embed().Name().String()
+				if !seen[name] {
+					seen[name] = true
+					result = append(result, name)
+				}
+			}
+		}
+	}
+	return result
+}
+
+// gsiEnumTypes returns the names of enum types used in GSI PK/SK fields.
+// These must be imported as values (not type-only) in the generated TS client
+// because TypeScript enums are runtime values.
+func (p *ProtosourceModule) gsiEnumTypes(f pgs.File) []string {
+	agg := p.aggregateForFile(f)
+	if agg == nil {
+		return nil
+	}
+	seen := make(map[string]bool)
+	var result []string
+	for _, gsi := range p.opaqueUsedGSIs(agg) {
+		for _, fm := range gsi.PKFields {
+			if fm.Field.Type().IsEnum() {
+				name := fm.Field.Type().Enum().Name().String()
+				if !seen[name] {
+					seen[name] = true
+					result = append(result, name)
+				}
+			}
+		}
+		for _, fm := range gsi.SKFields {
+			if fm.Field.Type().IsEnum() {
+				name := fm.Field.Type().Enum().Name().String()
 				if !seen[name] {
 					seen[name] = true
 					result = append(result, name)

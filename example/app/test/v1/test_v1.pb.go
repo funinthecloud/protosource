@@ -983,18 +983,21 @@ var File_example_app_test_v1_test_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\n" +
-	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\x9a\x03\n" +
+	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xae\x03\n" +
 	"\x04Test\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x1b\n" +
-	"\tcreate_at\x18\x03 \x01(\x03R\bcreateAt\x12'\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12%\n" +
+	"\tcreate_at\x18\x03 \x01(\x03B\b¬\x1d\x04\n" +
+	"\x02\b\n" +
+	"R\bcreateAt\x12'\n" +
 	"\tcreate_by\x18\x04 \x01(\tB\n" +
 	"¬\x1d\x06\n" +
 	"\x04\b\b\x10\x02R\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
-	"\x04body\x18\a \x01(\tR\x04body\x120\n" +
-	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateR\x05state\x12\"\n" +
+	"\x04body\x18\a \x01(\tR\x04body\x12:\n" +
+	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateB\b¬\x1d\x04\n" +
+	"\x02\b\tR\x05state\x12\"\n" +
 	"\x05color\x18\t \x01(\tB\f¬\x1d\b\n" +
 	"\x02\b\x03\n" +
 	"\x02\b\x05R\x05color\x12$\n" +
