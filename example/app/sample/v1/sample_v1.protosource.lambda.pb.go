@@ -196,9 +196,13 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 
 // HandleQueryByCreateBy queries GSI1 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByCreateBy(ctx context.Context, request protosource.Request) protosource.Response {
-	create_by := request.QueryParameters["create_by"]
-	if create_by == "" {
+	create_byRaw := request.QueryParameters["create_by"]
+	if create_byRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: create_by", nil)
+	}
+	create_by, create_byErr := parseQueryParamString(create_byRaw)
+	if create_byErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for create_by: %v", create_byErr), nil)
 	}
 
 	skOp := request.QueryParameters["sk_op"]

@@ -394,9 +394,13 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 
 // HandleQueryByCustomerId queries GSI1 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByCustomerId(ctx context.Context, request protosource.Request) protosource.Response {
-	customer_id := request.QueryParameters["customer_id"]
-	if customer_id == "" {
+	customer_idRaw := request.QueryParameters["customer_id"]
+	if customer_idRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: customer_id", nil)
+	}
+	customer_id, customer_idErr := parseQueryParamString(customer_idRaw)
+	if customer_idErr != nil {
+		return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for customer_id: %v", customer_idErr), nil)
 	}
 
 	skOp := request.QueryParameters["sk_op"]

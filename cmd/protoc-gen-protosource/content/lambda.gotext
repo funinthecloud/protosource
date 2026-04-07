@@ -177,9 +177,13 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 {{ range $gsi := opaqueUsedGSIs $agg2 }}
 // HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ if $gsi.HasSK }}{{ if $gsi.PKOnlyDup }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ end }}{{ end }} queries GSI{{ $gsi.Num }} by partition key{{ if $gsi.HasSK }} with optional sort key condition{{ end }}.
 func (h *Handler) HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ if $gsi.HasSK }}{{ if $gsi.PKOnlyDup }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ end }}{{ end }}(ctx context.Context, request protosource.Request) protosource.Response {
-{{ range $fm := $gsi.PKFields }}    {{ opaqueFieldNameLower $fm.Field }} := request.QueryParameters["{{ opaqueFieldNameLower $fm.Field }}"]
-    if {{ opaqueFieldNameLower $fm.Field }} == "" {
+{{ range $fm := $gsi.PKFields }}    {{ opaqueFieldNameLower $fm.Field }}Raw := request.QueryParameters["{{ opaqueFieldNameLower $fm.Field }}"]
+    if {{ opaqueFieldNameLower $fm.Field }}Raw == "" {
         return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: {{ opaqueFieldNameLower $fm.Field }}", nil)
+    }
+    {{ opaqueFieldNameLower $fm.Field }}, {{ opaqueFieldNameLower $fm.Field }}Err := {{ queryParseExpr $fm.Field (printf "%sRaw" (opaqueFieldNameLower $fm.Field)) }}
+    if {{ opaqueFieldNameLower $fm.Field }}Err != nil {
+        return errorResponse(http.StatusBadRequest, "QUERY_BAD_PARAM", fmt.Sprintf("invalid value for {{ opaqueFieldNameLower $fm.Field }}: %v", {{ opaqueFieldNameLower $fm.Field }}Err), nil)
     }
 {{ end }}
     skOp := request.QueryParameters["sk_op"]

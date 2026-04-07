@@ -232,6 +232,51 @@ func (c *HTTPClient) QueryByNumberAndShadingBetweenShapeAndCreateBy(ctx context.
 	return list.Items, nil
 }
 
+// QueryByState queries by state via GSI4.
+func (c *HTTPClient) QueryByState(ctx context.Context, state State) ([]*Test, error) {
+	params := map[string]string{
+		"state": strconv.FormatInt(int64(state), 10),
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-state", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByStateWithCreateAt queries with a sort key condition (eq, lt, le, gt, ge, begins_with).
+// For between queries, use QueryByStateBetweenCreateAt instead.
+func (c *HTTPClient) QueryByStateWithCreateAt(ctx context.Context, state State, skOp string, createAt int64) ([]*Test, error) {
+	if skOp == "between" {
+		return nil, fmt.Errorf("use QueryByStateBetweenCreateAt for between queries")
+	}
+	params := map[string]string{
+		"state":     strconv.FormatInt(int64(state), 10),
+		"sk_op":     skOp,
+		"create_at": strconv.FormatInt(createAt, 10),
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-state", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
+// QueryByStateBetweenCreateAt queries with a between sort key condition (inclusive range).
+func (c *HTTPClient) QueryByStateBetweenCreateAt(ctx context.Context, state State, createAtFrom int64, createAtTo int64) ([]*Test, error) {
+	params := map[string]string{
+		"state":      strconv.FormatInt(int64(state), 10),
+		"sk_op":      "between",
+		"create_at":  strconv.FormatInt(createAtFrom, 10),
+		"create_at2": strconv.FormatInt(createAtTo, 10),
+	}
+	list := &TestList{}
+	if err := c.c.Query(ctx, routePath, "by-state", params, list); err != nil {
+		return nil, err
+	}
+	return list.Items, nil
+}
+
 // Ensure strconv and fmt are used.
 var _ = strconv.FormatInt
 var _ = fmt.Errorf

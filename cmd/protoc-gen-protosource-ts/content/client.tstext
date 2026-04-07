@@ -23,6 +23,10 @@ import type { ProtosourceClient, CommandResponse, History } from "@protosource/c
 {{- $embeddedTypes := commandEmbeddedTypes . -}}
 {{- range $t := $embeddedTypes -}}
 {{- $typeImports = (printf "%s, %s" $typeImports $t) -}}
+{{- end -}}
+{{- $enumTypes := gsiEnumTypes . -}}
+{{- range $t := $enumTypes -}}
+{{- $schemaImports = (printf "%s, %s" $schemaImports $t) -}}
 {{- end }}
 import { {{ $schemaImports }} } from "{{ $pbFile }}";
 import type { {{ $typeImports }} } from "{{ $pbFile }}";

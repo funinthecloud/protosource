@@ -213,8 +213,22 @@ func (m *Test) GSI3SK() string {
 	fields += fmt.Sprintf("#create_by#%v", m.GetCreateBy())
 	return fmt.Sprintf("example_app_test_v1#test%s", fields)
 }
-func (m *Test) GSI4PK() string  { return "NA" }
-func (m *Test) GSI4SK() string  { return "NA" }
+func (m *Test) GSI4PK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#state#%v", m.GetState())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+func (m *Test) GSI4SK() string {
+	if m == nil {
+		return ""
+	}
+	var fields string
+	fields += fmt.Sprintf("#create_at#%v", m.GetCreateAt())
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
 func (m *Test) GSI5PK() string  { return "NA" }
 func (m *Test) GSI5SK() string  { return "NA" }
 func (m *Test) GSI6PK() string  { return "NA" }
@@ -285,6 +299,16 @@ func (v TestGSI3SK) String() string {
 	var fields string
 	fields += fmt.Sprintf("#shape#%v", v.Shape)
 	fields += fmt.Sprintf("#create_by#%v", v.CreateBy)
+	return fmt.Sprintf("example_app_test_v1#test%s", fields)
+}
+
+type TestGSI4SK struct {
+	CreateAt int64
+}
+
+func (v TestGSI4SK) String() string {
+	var fields string
+	fields += fmt.Sprintf("#create_at#%v", v.CreateAt)
 	return fmt.Sprintf("example_app_test_v1#test%s", fields)
 }
 
@@ -450,6 +474,46 @@ func (c *TestClient) SelectTestByNumberAndShadingWithShapeAndCreateBy(ctx contex
 	results, err := c.store.Query(ctx, "gsi3pk", pkValue, "gsi3sk", sort, opaquedata.WithGSIIndex(3))
 	if err != nil {
 		return nil, fmt.Errorf("TestClient.SelectTestByNumberAndShadingWithShapeAndCreateBy: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
+// SelectTestByState queries GSI4 by partition key.
+func (c *TestClient) SelectTestByState(ctx context.Context, state State) ([]*Test, error) {
+	pk := &Test{
+		State: state,
+	}
+	pkValue := pk.GSI4PK()
+	results, err := c.store.Query(ctx, "gsi4pk", pkValue, "gsi4sk", nil, opaquedata.WithGSIIndex(4))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByState: %w", err)
+	}
+	return rehydrateTest(results)
+}
+
+// SelectTestByStateWithCreateAt queries GSI4 with a sort key condition.
+func (c *TestClient) SelectTestByStateWithCreateAt(ctx context.Context, state State, op opaquedata.SortOperator, vals ...TestGSI4SK) ([]*Test, error) {
+	if op == opaquedata.Between {
+		if len(vals) != 2 {
+			return nil, fmt.Errorf("TestClient.SelectTestByStateWithCreateAt: Between requires exactly 2 values, got %d", len(vals))
+		}
+	} else if len(vals) != 1 {
+		return nil, fmt.Errorf("TestClient.SelectTestByStateWithCreateAt: operator %d requires exactly 1 value, got %d", op, len(vals))
+	}
+	pk := &Test{
+		State: state,
+	}
+	pkValue := pk.GSI4PK()
+	sort := &opaquedata.SortCondition{
+		Operator: op,
+		Value:    vals[0].String(),
+	}
+	if op == opaquedata.Between {
+		sort.Value2 = vals[1].String()
+	}
+	results, err := c.store.Query(ctx, "gsi4pk", pkValue, "gsi4sk", sort, opaquedata.WithGSIIndex(4))
+	if err != nil {
+		return nil, fmt.Errorf("TestClient.SelectTestByStateWithCreateAt: %w", err)
 	}
 	return rehydrateTest(results)
 }
