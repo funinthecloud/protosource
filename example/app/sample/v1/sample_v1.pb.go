@@ -535,51 +535,50 @@ var File_example_app_sample_v1_sample_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_sample_v1_sample_v1_proto_rawDesc = "" +
 	"\n" +
-	"%example/app/sample/v1/sample_v1.proto\x12\x15example.app.sample.v1\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xd8\x01\n" +
+	"%example/app/sample/v1/sample_v1.proto\x12\x15example.app.sample.v1\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xd5\x01\n" +
 	"\x06Sample\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\x12%\n" +
-	"\tcreate_at\x18\x03 \x01(\x03B\b¬\x1d\x04\n" +
-	"\x02\b\x04R\bcreateAt\x12'\n" +
-	"\tcreate_by\x18\x04 \x01(\tB\n" +
-	"¬\x1d\x06\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12$\n" +
+	"\tcreate_at\x18\x03 \x01(\x03B\a\xaaP\x04\n" +
+	"\x02\b\x04R\bcreateAt\x12&\n" +
+	"\tcreate_by\x18\x04 \x01(\tB\t\xaaP\x06\n" +
 	"\x04\b\x03\x10\x01R\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
-	"\x04body\x18\a \x01(\tR\x04body:\x06ʬ\x1d\x02\x1a\x00\"A\n" +
+	"\x04body\x18\a \x01(\tR\x04body:\x05\xb2P\x02\x1a\x00\"A\n" +
 	"\n" +
 	"SampleList\x123\n" +
-	"\x05items\x18\x01 \x03(\v2\x1d.example.app.sample.v1.SampleR\x05items\"U\n" +
+	"\x05items\x18\x01 \x03(\v2\x1d.example.app.sample.v1.SampleR\x05items\"T\n" +
 	"\x06Create\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body:\x11ʬ\x1d\r\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body:\x10\xb2P\r\n" +
 	"\v\n" +
-	"\aCreated\x10\x01\"U\n" +
+	"\aCreated\x10\x01\"T\n" +
 	"\x06Update\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body:\x11ʬ\x1d\r\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body:\x10\xb2P\r\n" +
 	"\v\n" +
-	"\aUpdated\x10\x02\"u\n" +
+	"\aUpdated\x10\x02\"t\n" +
 	"\aCreated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\tR\x04body:\x06ʬ\x1d\x02\x12\x00\"u\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body:\x05\xb2P\x02\x12\x00\"t\n" +
 	"\aUpdated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\tR\x04body:\x06ʬ\x1d\x02\x12\x00\"\x9f\x01\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body:\x05\xb2P\x02\x12\x00\"\x9e\x01\n" +
 	"\bSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x129\n" +
-	"\bsnapshot\x18\x05 \x01(\v2\x1d.example.app.sample.v1.SampleR\bsnapshot:\bʬ\x1d\x04*\x02\b2B\xec\x01Ҭ\x1d\x02\b\x01\n" +
+	"\bsnapshot\x18\x05 \x01(\v2\x1d.example.app.sample.v1.SampleR\bsnapshot:\a\xb2P\x04*\x02\b2B\xeb\x01\xbaP\x02\b\x01\n" +
 	"\x19com.example.app.sample.v1B\rSampleV1ProtoP\x01ZCgithub.com/funinthecloud/protosource/example/app/sample/v1;samplev1\xa2\x02\x03EAS\xaa\x02\x15Example.App.Sample.V1\xca\x02\x15Example\\App\\Sample\\V1\xe2\x02!Example\\App\\Sample\\V1\\GPBMetadata\xea\x02\x18Example::App::Sample::V1b\x06proto3"
 
 var (

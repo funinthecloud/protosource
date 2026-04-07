@@ -944,44 +944,44 @@ var file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes = []prot
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*FileOptions)(nil),
-		Field:         60106,
+		Field:         1287,
 		Name:          "funinthecloud.protosource.options.v1.protosource_file",
-		Tag:           "bytes,60106,opt,name=protosource_file",
+		Tag:           "bytes,1287,opt,name=protosource_file",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
 		ExtensionType: (*MessageOptions)(nil),
-		Field:         60105,
+		Field:         1286,
 		Name:          "funinthecloud.protosource.options.v1.protosource_message_type",
-		Tag:           "bytes,60105,opt,name=protosource_message_type",
+		Tag:           "bytes,1286,opt,name=protosource_message_type",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
 		ExtensionType: (*OpaqueFieldOptions)(nil),
-		Field:         60104,
+		Field:         1285,
 		Name:          "funinthecloud.protosource.options.v1.protosource_opaque_field",
-		Tag:           "bytes,60104,opt,name=protosource_opaque_field",
+		Tag:           "bytes,1285,opt,name=protosource_opaque_field",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 }
 
 // Extension fields to descriptorpb.FileOptions.
 var (
-	// optional funinthecloud.protosource.options.v1.FileOptions protosource_file = 60106;
+	// optional funinthecloud.protosource.options.v1.FileOptions protosource_file = 1287;
 	E_ProtosourceFile = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[0]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
-	// optional funinthecloud.protosource.options.v1.MessageOptions protosource_message_type = 60105;
+	// optional funinthecloud.protosource.options.v1.MessageOptions protosource_message_type = 1286;
 	E_ProtosourceMessageType = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[1]
 )
 
 // Extension fields to descriptorpb.FieldOptions.
 var (
-	// optional funinthecloud.protosource.options.v1.OpaqueFieldOptions protosource_opaque_field = 60104;
+	// optional funinthecloud.protosource.options.v1.OpaqueFieldOptions protosource_opaque_field = 1285;
 	E_ProtosourceOpaqueField = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[2]
 )
 
@@ -1083,10 +1083,13 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x17OPAQUE_KEY_TYPE_GSI19PK\x10'\x12\x1b\n" +
 	"\x17OPAQUE_KEY_TYPE_GSI19SK\x10(\x12\x1b\n" +
 	"\x17OPAQUE_KEY_TYPE_GSI20PK\x10)\x12\x1b\n" +
-	"\x17OPAQUE_KEY_TYPE_GSI20SK\x10*:|\n" +
-	"\x10protosource_file\x12\x1c.google.protobuf.FileOptions\x18\xca\xd5\x03 \x01(\v21.funinthecloud.protosource.options.v1.FileOptionsR\x0fprotosourceFile:\x91\x01\n" +
-	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\xc9\xd5\x03 \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageType:\x93\x01\n" +
-	"\x18protosource_opaque_field\x12\x1d.google.protobuf.FieldOptions\x18\xc8\xd5\x03 \x01(\v28.funinthecloud.protosource.options.v1.OpaqueFieldOptionsR\x16protosourceOpaqueFieldB\xa8\x02\n" +
+	"\x17OPAQUE_KEY_TYPE_GSI20SK\x10*:{\n" +
+	"\x10protosource_file\x12\x1c.google.protobuf.FileOptions\x18\x87\n" +
+	" \x01(\v21.funinthecloud.protosource.options.v1.FileOptionsR\x0fprotosourceFile:\x90\x01\n" +
+	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\x86\n" +
+	" \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageType:\x92\x01\n" +
+	"\x18protosource_opaque_field\x12\x1d.google.protobuf.FieldOptions\x18\x85\n" +
+	" \x01(\v28.funinthecloud.protosource.options.v1.OpaqueFieldOptionsR\x16protosourceOpaqueFieldB\xa8\x02\n" +
 	"(com.funinthecloud.protosource.options.v1B\x0eOptionsV1ProtoP\x01Z9github.com/funinthecloud/protosource/options/v1;optionsv1\xa2\x02\x03FPO\xaa\x02$Funinthecloud.Protosource.Options.V1\xca\x02$Funinthecloud\\Protosource\\Options\\V1\xe2\x020Funinthecloud\\Protosource\\Options\\V1\\GPBMetadata\xea\x02'Funinthecloud::Protosource::Options::V1b\x06proto3"
 
 var (
