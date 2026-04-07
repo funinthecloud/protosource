@@ -983,39 +983,36 @@ var File_example_app_test_v1_test_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\n" +
-	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xae\x03\n" +
+	"!example/app/test/v1/test_v1.proto\x12\x13example.app.test.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xa6\x03\n" +
 	"\x04Test\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
-	"\aversion\x18\x02 \x01(\x03R\aversion\x12%\n" +
-	"\tcreate_at\x18\x03 \x01(\x03B\b¬\x1d\x04\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12$\n" +
+	"\tcreate_at\x18\x03 \x01(\x03B\a\xaaP\x04\n" +
 	"\x02\b\n" +
-	"R\bcreateAt\x12'\n" +
-	"\tcreate_by\x18\x04 \x01(\tB\n" +
-	"¬\x1d\x06\n" +
+	"R\bcreateAt\x12&\n" +
+	"\tcreate_by\x18\x04 \x01(\tB\t\xaaP\x06\n" +
 	"\x04\b\b\x10\x02R\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
-	"\x04body\x18\a \x01(\tR\x04body\x12:\n" +
-	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateB\b¬\x1d\x04\n" +
-	"\x02\b\tR\x05state\x12\"\n" +
-	"\x05color\x18\t \x01(\tB\f¬\x1d\b\n" +
+	"\x04body\x18\a \x01(\tR\x04body\x129\n" +
+	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateB\a\xaaP\x04\n" +
+	"\x02\b\tR\x05state\x12!\n" +
+	"\x05color\x18\t \x01(\tB\v\xaaP\b\n" +
 	"\x02\b\x03\n" +
-	"\x02\b\x05R\x05color\x12$\n" +
+	"\x02\b\x05R\x05color\x12#\n" +
 	"\x05shape\x18\n" +
-	" \x01(\tB\x0e¬\x1d\n" +
+	" \x01(\tB\r\xaaP\n" +
 	"\n" +
 	"\x02\b\x04\n" +
-	"\x04\b\b\x10\x01R\x05shape\x12&\n" +
-	"\x06number\x18\v \x01(\tB\x0e¬\x1d\n" +
+	"\x04\b\b\x10\x01R\x05shape\x12%\n" +
+	"\x06number\x18\v \x01(\tB\r\xaaP\n" +
 	"\n" +
 	"\x02\b\x06\n" +
-	"\x04\b\a\x10\x01R\x06number\x12$\n" +
-	"\ashading\x18\f \x01(\tB\n" +
-	"¬\x1d\x06\n" +
-	"\x04\b\a\x10\x02R\ashading:\n" +
-	"ʬ\x1d\x06\x1a\x04\x10\x80\xa3\x05\";\n" +
+	"\x04\b\a\x10\x01R\x06number\x12#\n" +
+	"\ashading\x18\f \x01(\tB\t\xaaP\x06\n" +
+	"\x04\b\a\x10\x02R\ashading:\t\xb2P\x06\x1a\x04\x10\x80\xa3\x05\";\n" +
 	"\bTestList\x12/\n" +
-	"\x05items\x18\x01 \x03(\v2\x19.example.app.test.v1.TestR\x05items\"\xd8\x01\n" +
+	"\x05items\x18\x01 \x03(\v2\x19.example.app.test.v1.TestR\x05items\"\xd7\x01\n" +
 	"\x06Create\x12\x17\n" +
 	"\x02id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x02id\x12\x1d\n" +
 	"\x05actor\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05actor\x12\x1b\n" +
@@ -1023,10 +1020,10 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x04 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\x05 \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\x06 \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\a \x01(\tR\ashading:\x1bʬ\x1d\x17\n" +
+	"\ashading\x18\a \x01(\tR\ashading:\x1a\xb2P\x17\n" +
 	"\x15\n" +
 	"\aCreated\n" +
-	"\bUnlocked\x10\x01\"\xc3\x01\n" +
+	"\bUnlocked\x10\x01\"\xc2\x01\n" +
 	"\x06Update\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
@@ -1034,19 +1031,19 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x04 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\x05 \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\x06 \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\a \x01(\tR\ashading:!ʬ\x1d\x1d\n" +
+	"\ashading\x18\a \x01(\tR\ashading: \xb2P\x1d\n" +
 	"\x1b\n" +
-	"\aUpdated\x10\x02\x1a\x0eSTATE_UNLOCKED\"N\n" +
+	"\aUpdated\x10\x02\x1a\x0eSTATE_UNLOCKED\"M\n" +
 	"\x04Lock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor: ʬ\x1d\x1c\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1f\xb2P\x1c\n" +
 	"\x1a\n" +
-	"\x06Locked\x10\x02\x1a\x0eSTATE_UNLOCKED\"P\n" +
+	"\x06Locked\x10\x02\x1a\x0eSTATE_UNLOCKED\"O\n" +
 	"\x06Unlock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor: ʬ\x1d\x1c\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1f\xb2P\x1c\n" +
 	"\x1a\n" +
-	"\bUnlocked\x10\x02\x1a\fSTATE_LOCKED\"\xd3\x01\n" +
+	"\bUnlocked\x10\x02\x1a\fSTATE_LOCKED\"\xd2\x01\n" +
 	"\aCreated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
@@ -1056,7 +1053,7 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x06 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\a \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\b \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\t \x01(\tR\ashading:\x06ʬ\x1d\x02\x12\x00\"\xd3\x01\n" +
+	"\ashading\x18\t \x01(\tR\ashading:\x05\xb2P\x02\x12\x00\"\xd2\x01\n" +
 	"\aUpdated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
@@ -1066,27 +1063,27 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x06 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\a \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\b \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\t \x01(\tR\ashading:\x06ʬ\x1d\x02\x12\x00\"n\n" +
+	"\ashading\x18\t \x01(\tR\ashading:\x05\xb2P\x02\x12\x00\"m\n" +
 	"\x06Locked\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
-	"\x05actor\x18\x04 \x01(\tR\x05actor:\x14ʬ\x1d\x10\x12\x0e\x12\fSTATE_LOCKED\"r\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor:\x13\xb2P\x10\x12\x0e\x12\fSTATE_LOCKED\"q\n" +
 	"\bUnlocked\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
-	"\x05actor\x18\x04 \x01(\tR\x05actor:\x16ʬ\x1d\x12\x12\x10\x12\x0eSTATE_UNLOCKED\"\x9b\x01\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor:\x15\xb2P\x12\x12\x10\x12\x0eSTATE_UNLOCKED\"\x9a\x01\n" +
 	"\bSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x125\n" +
-	"\bsnapshot\x18\x05 \x01(\v2\x19.example.app.test.v1.TestR\bsnapshot:\bʬ\x1d\x04*\x02\b\x03*D\n" +
+	"\bsnapshot\x18\x05 \x01(\v2\x19.example.app.test.v1.TestR\bsnapshot:\a\xb2P\x04*\x02\b\x03*D\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSTATE_UNLOCKED\x10\x01\x12\x10\n" +
-	"\fSTATE_LOCKED\x10\x02B\xdc\x01Ҭ\x1d\x02\b\x01\n" +
+	"\fSTATE_LOCKED\x10\x02B\xdb\x01\xbaP\x02\b\x01\n" +
 	"\x17com.example.app.test.v1B\vTestV1ProtoP\x01Z?github.com/funinthecloud/protosource/example/app/test/v1;testv1\xa2\x02\x03EAT\xaa\x02\x13Example.App.Test.V1\xca\x02\x13Example\\App\\Test\\V1\xe2\x02\x1fExample\\App\\Test\\V1\\GPBMetadata\xea\x02\x16Example::App::Test::V1b\x06proto3"
 
 var (

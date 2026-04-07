@@ -19,7 +19,7 @@ message FileOptions {
 }
 
 extend google.protobuf.FileOptions {
-  FileOptions protosource_file = 60106;
+  FileOptions protosource_file = 1287;
 }
 
 // Usage:
@@ -32,7 +32,7 @@ extend google.protobuf.FileOptions {
 // against collision when consumers import multiple option packages.
 
 extend google.protobuf.MessageOptions {
-  MessageOptions protosource_message_type = 60105;
+  MessageOptions protosource_message_type = 1286;
 }
 
 message MessageOptions {
@@ -237,7 +237,7 @@ message SnapshotOptions {
 // Fields within a key type are ordered by the `order` field (1-based).
 
 extend google.protobuf.FieldOptions {
-  OpaqueFieldOptions protosource_opaque_field = 60104;
+  OpaqueFieldOptions protosource_opaque_field = 1285;
 }
 
 message OpaqueFieldOptions {
