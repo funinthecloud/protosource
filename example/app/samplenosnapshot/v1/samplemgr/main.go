@@ -242,3 +242,12 @@ func mustReadFile(path, field string) []byte {
 	}
 	return b
 }
+
+func mustParseJSON[T proto.Message](s, field string) T {
+	var zero T
+	v := zero.ProtoReflect().New().Interface().(T)
+	if err := protojson.Unmarshal([]byte(s), v); err != nil {
+		fatal(fmt.Sprintf("invalid JSON for %s: %v", field, err))
+	}
+	return v
+}

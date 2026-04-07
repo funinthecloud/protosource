@@ -88,7 +88,9 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"importPath":             p.importPath,
 		"cliCommandFields":       CLICommandFields,
 		"cliParseExpr":           cliParseExpr,
-		"fileSupportsCLI":        p.fileSupportsCLI,
+		"cliParseExprFull":       p.cliParseExprFull,
+		"cliFieldUsageHint":     cliFieldUsageHint,
+		"commandSupportsCLI":    commandSupportsCLI,
 		"add":                    func(a, b int) int { return a + b },
 		"lastPathComponent":      lastPathComponent,
 		"unexport":               unexport,
@@ -583,18 +585,28 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 	return nil
 }
 
-// fileSupportsCLI returns true if all commands in the file have only scalar
-// fields (no repeated, map, message, or enum). Files with complex command
-// fields skip CLI generation instead of failing.
-func (p *ProtosourceModule) fileSupportsCLI(f pgs.File) bool {
-	for _, m := range f.Messages() {
-		if p.isCommand(m) {
-			if err := validateCLICommandFields(m); err != nil {
-				return false
-			}
+// commandSupportsCLI returns true if a command's fields can be parsed from CLI
+// arguments. Scalar, enum, and embedded message fields are supported. Repeated
+// and map fields are not (the command is omitted from the generated CLI).
+func commandSupportsCLI(m pgs.Message) bool {
+	for _, field := range CLICommandFields(m.Fields()) {
+		if field.Type().IsRepeated() || field.Type().IsMap() {
+			return false
 		}
 	}
 	return true
+}
+
+// cliFieldUsageHint returns a usage placeholder for a command field.
+func cliFieldUsageHint(f pgs.Field) string {
+	name := strings.ToLower(f.Name().String())
+	if f.Type().IsEmbed() {
+		return "<" + name + ":json>"
+	}
+	if f.Type().IsEnum() {
+		return "<" + name + ":num>"
+	}
+	return "<" + name + ">"
 }
 
 // eventMessage looks up a message by name within the same file.
@@ -633,34 +645,6 @@ func CLICommandFields(fields []pgs.Field) []pgs.Field {
 	return results
 }
 
-// validateCLICommandFields checks that all non-id/actor command fields are
-// scalar types the generated CLI can parse from os.Args: string, integer,
-// float, bool, and bytes (read from a file path). Repeated, map, message,
-// and enum fields are rejected because they cannot be meaningfully parsed
-// from a single positional argument.
-func validateCLICommandFields(m pgs.Message) error {
-	for _, field := range CLICommandFields(m.Fields()) {
-		if field.Type().IsRepeated() || field.Type().IsMap() {
-			return fmt.Errorf(
-				"command %s: field %q is repeated/map — the generated CLI only supports scalar fields; "+
-					"use a hand-written CLI for complex types",
-				m.Name(), field.Name())
-		}
-		if field.Type().IsEmbed() {
-			return fmt.Errorf(
-				"command %s: field %q is a message type — the generated CLI only supports scalar fields; "+
-					"use a hand-written CLI for complex types",
-				m.Name(), field.Name())
-		}
-		if field.Type().IsEnum() {
-			return fmt.Errorf(
-				"command %s: field %q is an enum — the generated CLI cannot parse enum values; "+
-					"use a hand-written CLI for enum fields",
-				m.Name(), field.Name())
-		}
-	}
-	return nil
-}
 
 // cliParseExpr returns the Go expression to parse an os.Args value into the
 // correct type for a command field. For strings it returns the arg directly;
@@ -695,6 +679,22 @@ func cliParseExpr(f pgs.Field, argIdx int) string {
 	default:
 		return arg
 	}
+}
+
+// cliParseExprFull extends cliParseExpr with support for enum and embedded
+// message fields. Enum fields are parsed as int32 and cast to the Go enum type.
+// Embedded message fields are parsed from a JSON string via mustParseJSON.
+func (p *ProtosourceModule) cliParseExprFull(f pgs.Field, argIdx int) string {
+	arg := fmt.Sprintf("os.Args[%d]", argIdx)
+	name := strings.ToLower(f.Name().String())
+	if f.Type().IsEnum() {
+		return fmt.Sprintf("pkg.%s(mustParseInt32(%s, %q))", p.ctx.Type(f).String(), arg, name)
+	}
+	if f.Type().IsEmbed() {
+		typeName := p.ctx.Name(f.Type().Embed()).String()
+		return fmt.Sprintf("mustParseJSON[*pkg.%s](%s, %q)", typeName, arg, name)
+	}
+	return cliParseExpr(f, argIdx)
 }
 
 // cliQueryParseExpr returns a Go expression to parse a string variable into
