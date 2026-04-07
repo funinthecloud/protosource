@@ -51,7 +51,7 @@ The buf plugin reads proto annotations and generates four files per domain packa
 - `*.protosource.pb.go` — aggregate `On` method, command builders, event emission, version validation, authorization, snapshot support (from `protosource.gotext`)
 - `*.protosource.lambda.pb.go` — per-command HTTP handlers, Get, and History endpoints (from `lambda.gotext`)
 - `*.protosource.wire.pb.go` — Wire dependency injection provider sets (from `wire.gotext`)
-- `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); generates a no-op stub when commands have non-scalar fields
+- `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); commands with embedded message fields accept JSON args, commands with repeated/map fields are omitted
 
 The plugin logic is in `protosourceify.go`; templates are in `content/`.
 
@@ -61,6 +61,8 @@ A separate buf plugin that generates one TypeScript client file per domain packa
 - `*.protosource.client.ts` — typed HTTP client class with command, load, history, and query methods (from `client.tstext`)
 
 Uses a copied subset of the Go plugin's annotation-reading logic (message classification, opaque/GSI extraction, route prefix) plus TS-specific functions (`tsType`, `tsFieldName`, `tsQueryFormatExpr`).
+
+**Sync warning:** The TS plugin copies GSI-related types (`opaqueUsedGSI`, `opaqueUsedGSIs`, `gsiQueryRoutePath`, `pkFieldsKey`) from the Go plugin. Changes to GSI method naming or collision logic must be mirrored in both `cmd/protoc-gen-protosource/protosourceify.go` and `cmd/protoc-gen-protosource-ts/protosourceify.go`.
 
 ### TypeScript Runtime (`ts/client/`)
 
@@ -110,6 +112,9 @@ Both tables have DynamoDB TTL enabled on the `t` attribute. Events table TTL is 
 
 ### GSIs
 Always create all 20 GSI pairs (`gsi1pk`/`gsi1sk` through `gsi20pk`/`gsi20sk`). Empty GSIs cost nothing with PAY_PER_REQUEST billing.
+
+### GSI Method Naming
+When multiple GSIs share the same PK fields, the PK-only query method (`QueryByColor`) is generated once (first GSI wins). `WithSK`/`BetweenSK` variants disambiguate naturally via SK field names. Server-side `Select` methods and lambda handlers for duplicate-PK GSIs use `ViaGSI{N}` suffix and SK-scoped route paths (`/query/by-color-with-number`) to ensure each queries the correct DynamoDB index.
 
 ## Proto Conventions
 
@@ -208,7 +213,7 @@ message ItemRemoved {
 - ADD events must have exactly one embedded field matching the map's value type
 - REMOVE events must have a string field matching `key_field`
 - REMOVE is not valid on creation events
-- Commands with collection events carry the embedded message type (e.g., `LineItem item = 3`), which means CLI generation produces a stub for that file
+- Commands with collection events carry the embedded message type (e.g., `LineItem item = 3`), parsed from JSON in the generated CLI
 - Multiple independent collections on one aggregate are supported (each with its own events)
 
 ### PostApplyHook (Derived Fields)
