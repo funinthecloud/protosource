@@ -10,7 +10,7 @@ hand-written extension point (CommandEvaluator) for custom business logic.
 ```
 Command ──►  1. VersionValidator   (generated from lifecycle annotation)
         ──►  2. ProtoValidater    (generated — reads buf.validate annotations)
-        ──►  3. CommandAuthorizer  (generated from allowed_states, or hand-written)
+        ──►  3. StateGuard         (generated from allowed_states, or hand-written)
         ──►  4. EventEmitter check (fail fast — verify command can emit events)
         ──►  5. CommandEvaluator   (hand-written, optional — custom business logic)
         ──►  6. EventEmitter       (generated from produces_events)
@@ -70,13 +70,17 @@ The `protovalidate.Validator` is cached via `sync.Once` — it is created once p
 package, not per call. Calling `ProtoValidate()` on a message with no annotations
 returns nil (success).
 
-### 3. CommandAuthorizer (generated or hand-written, optional)
+### 3. StateGuard (generated or hand-written, optional)
 
-If your command implements `CommandAuthorizer`, the `Authorize(aggregate)` method is
-called to validate the command against the aggregate's current state.
+`StateGuard` is a state-machine precondition, not an authorization (AAA) hook: it
+answers only "is this command legal given the aggregate's current state?".
+Identity and permissions belong in the transport layer or in `CommandEvaluator`.
+
+If your command implements `StateGuard`, the `GuardState(aggregate)` method is
+called to gate the command on the aggregate's current state.
 
 **Auto-generated from annotations**: When a command has `allowed_states`, the plugin
-generates an `Authorize` method that checks the aggregate's `State` field:
+generates a `GuardState` method that checks the aggregate's `State` field:
 
 ```protobuf
 message Lock {
@@ -91,22 +95,28 @@ message Lock {
 This generates:
 
 ```go
-func (m *Lock) Authorize(aggregate protosource.Aggregate) error {
+func (m *Lock) GuardState(aggregate protosource.Aggregate) error {
     a := aggregate.(*MyAggregate)
     switch a.GetState() {
     case State_STATE_UNLOCKED:
         return nil
     default:
         return fmt.Errorf("command Lock not allowed in state %s: %w",
-            a.GetState(), protosource.ErrUnauthorized)
+            a.GetState(), protosource.ErrStateNotAllowed)
     }
 }
 ```
 
-**Hand-written for complex cases**: For authorization logic beyond simple state checks
-(ownership, roles, time-based rules), implement `Authorize` by hand on the command type.
-Since commands are generated proto messages, add the method in a separate file in the
-same package.
+Over HTTP, a `GuardState` rejection surfaces as `409 Conflict` with error code
+`CMD_STATE_VIOLATION` — the request is well-formed and the caller is authorized,
+but the aggregate's current state conflicts with the attempted transition.
+
+**Hand-written for complex cases**: For guards that need to inspect fields beyond
+`State` (e.g. "only the current assignee can complete this task"), implement
+`GuardState` by hand on the command type. Since commands are generated proto
+messages, add the method in a separate file in the same package. For guards that
+depend on caller identity or roles, use the transport layer or `CommandEvaluator`
+instead — `StateGuard` is strictly for state-machine preconditions.
 
 ### 4–5. EventEmitter check + CommandEvaluator (hand-written, optional)
 
@@ -294,15 +304,15 @@ func Test_ValidationError(t *testing.T) {
     }
 }
 
-func Test_StateAuthorization(t *testing.T) {
+func Test_StateGuard(t *testing.T) {
     repo := newTestRepo()
     ctx := context.Background()
     repo.Apply(ctx, &Create{Id: "abc", Actor: "alice", Body: "hello"})
     repo.Apply(ctx, &Lock{Id: "abc", Actor: "alice"})
 
     _, err := repo.Apply(ctx, &Update{Id: "abc", Actor: "alice", Body: "nope"})
-    if !errors.Is(err, protosource.ErrUnauthorized) {
-        t.Fatalf("expected ErrUnauthorized, got: %v", err)
+    if !errors.Is(err, protosource.ErrStateNotAllowed) {
+        t.Fatalf("expected ErrStateNotAllowed, got: %v", err)
     }
 }
 ```
@@ -331,7 +341,7 @@ func Test_EvaluateSkip(t *testing.T) {
 
 | Component | Generated? | Purpose |
 |-----------|-----------|---------|
-| `*.protosource.pb.go` | Always regenerated | On, Builder, CommandName, ValidateVersion, ProtoValidate, Authorize (from allowed_states), EmitEvents, EventName, setCreated, setModified, Snapshot, RestoreSnapshot |
+| `*.protosource.pb.go` | Always regenerated | On, Builder, CommandName, ValidateVersion, ProtoValidate, GuardState (from allowed_states), EmitEvents, EventName, setCreated, setModified, Snapshot, RestoreSnapshot |
 | `*.pb.go` | Always regenerated (by protoc-gen-go) | Proto message types, getters |
-| Custom Authorize | Hand-written (optional) | Complex authorization beyond state checks |
+| Custom GuardState | Hand-written (optional) | State-machine guards that need to inspect fields beyond `State` |
 | Custom Evaluate | Hand-written (optional) | Duplicate detection, idempotency, conditional no-ops |

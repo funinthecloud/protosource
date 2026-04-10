@@ -122,7 +122,7 @@ func TestApply_NotCreatedYet(t *testing.T) {
 	}
 }
 
-// --- Authorization tests ---
+// --- StateGuard tests ---
 
 func TestApply_UpdateRejectedWhenLocked(t *testing.T) {
 	repo := newTestRepo()
@@ -132,8 +132,8 @@ func TestApply_UpdateRejectedWhenLocked(t *testing.T) {
 	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})
 
 	_, err := repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "nope"})
-	if !errors.Is(err, protosource.ErrUnauthorized) {
-		t.Fatalf("expected ErrUnauthorized, got: %v", err)
+	if !errors.Is(err, protosource.ErrStateNotAllowed) {
+		t.Fatalf("expected ErrStateNotAllowed, got: %v", err)
 	}
 }
 
@@ -179,8 +179,8 @@ func TestApply_LockAlreadyLocked(t *testing.T) {
 	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})
 
 	_, err := repo.Apply(ctx, &testv1.Lock{Id: "id-1", Actor: "actor"})
-	if !errors.Is(err, protosource.ErrUnauthorized) {
-		t.Fatalf("expected ErrUnauthorized for double lock, got: %v", err)
+	if !errors.Is(err, protosource.ErrStateNotAllowed) {
+		t.Fatalf("expected ErrStateNotAllowed for double lock, got: %v", err)
 	}
 }
 
@@ -191,8 +191,8 @@ func TestApply_UnlockWhenNotLocked(t *testing.T) {
 	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
 
 	_, err := repo.Apply(ctx, &testv1.Unlock{Id: "id-1", Actor: "actor"})
-	if !errors.Is(err, protosource.ErrUnauthorized) {
-		t.Fatalf("expected ErrUnauthorized for unlock when not locked, got: %v", err)
+	if !errors.Is(err, protosource.ErrStateNotAllowed) {
+		t.Fatalf("expected ErrStateNotAllowed for unlock when not locked, got: %v", err)
 	}
 }
 

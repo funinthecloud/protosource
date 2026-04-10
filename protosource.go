@@ -291,7 +291,7 @@ func (r *Repository) History(ctx context.Context, aggregateID string) (*historyv
 //
 //  1. VersionValidator — lifecycle gate (create requires version==0, mutation requires version>0)
 //  2. ProtoValidater — annotation-driven field and cross-field constraints via buf/protovalidate
-//  3. CommandAuthorizer — validate command against current aggregate state (state-machine transitions)
+//  3. StateGuard — gate command on current aggregate state (state-machine transitions)
 //  4. EventEmitter check — verify command can emit events (fail fast before custom logic)
 //  5. CommandEvaluator — optional custom business logic (duplicate detection, idempotency, conditional no-ops)
 //  6. EventEmitter — emit events
@@ -329,9 +329,9 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 		}
 	}
 
-	// 3. Authorize the command against the current aggregate state.
-	if a, ok := command.(CommandAuthorizer); ok {
-		if err := a.Authorize(aggregate); err != nil {
+	// 3. Guard the command against the aggregate's current state (state-machine transitions).
+	if g, ok := command.(StateGuard); ok {
+		if err := g.GuardState(aggregate); err != nil {
 			return 0, err
 		}
 	}
@@ -453,7 +453,7 @@ var (
 	ErrNilCommand        = errors.New("command is nil")
 	ErrEmptyAggregateId  = errors.New("aggregate id is empty")
 	ErrValidationFailed  = errors.New("command validation failed")
-	ErrUnauthorized      = errors.New("command not authorized")
+	ErrStateNotAllowed   = errors.New("command not allowed in current aggregate state")
 	ErrSkip              = errors.New("command skipped")
 )
 
@@ -547,12 +547,15 @@ type ProtoValidater interface {
 	ProtoValidate() error
 }
 
-// CommandAuthorizer validates a command against the current aggregate state.
-// Use this for state-machine transitions, ownership checks, or any business
-// rule that depends on the aggregate's current state rather than the command
-// fields alone.
-type CommandAuthorizer interface {
-	Authorize(aggregate Aggregate) error
+// StateGuard gates a command on the aggregate's current state. This is a
+// state-machine precondition, not an authorization (AAA) hook: identity and
+// permissions belong in the transport layer or in CommandEvaluator. A
+// StateGuard asks only "is this command legal given the aggregate's current
+// state?" — typically driven by the allowed_states proto annotation, which
+// generates GuardState automatically. Hand-written GuardState methods are
+// also supported for guards that need to inspect fields beyond State.
+type StateGuard interface {
+	GuardState(aggregate Aggregate) error
 }
 
 // CommandEvaluator is an optional interface that command types can implement

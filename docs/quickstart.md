@@ -426,8 +426,8 @@ func TestCompleteRequiresOpenState(t *testing.T) {
 	repo.Apply(ctx, &taskv1.Complete{Id: "t1", Actor: "alice"})
 
 	_, err := repo.Apply(ctx, &taskv1.Complete{Id: "t1", Actor: "alice"})
-	if !errors.Is(err, protosource.ErrUnauthorized) {
-		t.Fatalf("expected ErrUnauthorized, got: %v", err)
+	if !errors.Is(err, protosource.ErrStateNotAllowed) {
+		t.Fatalf("expected ErrStateNotAllowed, got: %v", err)
 	}
 }
 ```

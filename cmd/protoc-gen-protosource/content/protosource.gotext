@@ -254,13 +254,13 @@ func (m *{{ $message.Name }}) ValidateVersion(version int64) error {
 {{ end -}}
 {{ $allowedStates := commandAllowedStates $message -}}
 {{ if gt (len $allowedStates) 0 -}}
-func (m *{{ $message.Name }}) Authorize(aggregate protosource.Aggregate) error {
+func (m *{{ $message.Name }}) GuardState(aggregate protosource.Aggregate) error {
     a := aggregate.(*{{$aggregate}})
     switch a.GetState() {
     case {{ range $i, $s := $allowedStates }}{{ if $i }}, {{ end }}{{ stateEnumName $s $ }}{{ end }}:
         return nil
     default:
-        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+        return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
     }
 }
 {{ end -}}

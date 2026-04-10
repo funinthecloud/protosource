@@ -90,7 +90,7 @@ message Create {
 |-------|------|---------|-------------|
 | `produces_events` | `repeated string` | required | Event message names this command emits. Typically one. |
 | `lifecycle` | `CommandLifecycle` | `UNSPECIFIED` | When the command is valid. |
-| `allowed_states` | `repeated string` | empty (any state) | Aggregate states in which this command is allowed. Generates `Authorize`. |
+| `allowed_states` | `repeated string` | empty (any state) | Aggregate states in which this command is allowed. Generates `GuardState`. |
 
 ### Lifecycle values
 
@@ -111,7 +111,7 @@ Domain fields start at 3.
 
 ### allowed_states
 
-Generates an `Authorize(aggregate)` method with a state-machine check:
+Generates a `GuardState(aggregate)` method with a state-machine check:
 
 ```protobuf
 message Complete {
@@ -123,7 +123,7 @@ message Complete {
 }
 ```
 
-For complex authorization (ownership, roles, time-based), implement `Authorize` by hand on the command type in a separate file.
+`GuardState` is a state-machine precondition, not an authorization hook — it rejects the command only when the aggregate's current state is not in the allowed list, surfacing as `409 Conflict` / `CMD_STATE_VIOLATION` over HTTP. For guards that need to inspect fields beyond `State`, implement `GuardState` by hand on the command type in a separate file. For identity- or role-based checks, use the transport layer or `CommandEvaluator`.
 
 ---
 

@@ -87,14 +87,14 @@ Generated TS clients import from `@protosource/client` (runtime) and sibling `*_
 
 1. **VersionValidator** — lifecycle gate (create requires version==0, mutation requires version>0)
 2. **ProtoValidater** — annotation-driven field constraints via buf/protovalidate
-3. **CommandAuthorizer** — state-machine transitions via `allowed_states`
+3. **StateGuard** — state-machine transition gate via `allowed_states` (rejects commands whose current state is not in the allowed list)
 4. **EventEmitter check** — fail fast if command cannot emit events
 5. **CommandEvaluator** — optional custom business logic (return `ErrSkip` for silent no-op)
 6. **EventEmitter** — emit events (generated from `produces_events`)
 7. **Persist** — save events to store
 8. **Materialize** _(optional)_ — if store implements `AggregateStore`, apply events via `On`, run `PostApplyHook.AfterOn()` if implemented, persist materialized aggregate (write-only, best-effort)
 
-Steps 1-3 and 6 are generated. For custom authorization, implement `Authorize` on the command type. For custom evaluation, implement `Evaluate`. For derived fields from collections, implement `AfterOn` on the aggregate (see PostApplyHook below). See `docs/pipeline.md` for details.
+Steps 1-3 and 6 are generated. For a custom state guard (e.g. inspecting fields beyond `State`), implement `GuardState` on the command type. For custom evaluation, implement `Evaluate`. For derived fields from collections, implement `AfterOn` on the aggregate (see PostApplyHook below). See `docs/pipeline.md` for details.
 
 ## DynamoDB Table Design
 

@@ -409,13 +409,13 @@ func (m *AddItem) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *AddItem) Authorize(aggregate protosource.Aggregate) error {
+func (m *AddItem) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *AddItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -444,13 +444,13 @@ func (m *RemoveItem) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *RemoveItem) Authorize(aggregate protosource.Aggregate) error {
+func (m *RemoveItem) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *RemoveItem) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -479,13 +479,13 @@ func (m *AddTag) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *AddTag) Authorize(aggregate protosource.Aggregate) error {
+func (m *AddTag) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *AddTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -514,13 +514,13 @@ func (m *RemoveTag) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *RemoveTag) Authorize(aggregate protosource.Aggregate) error {
+func (m *RemoveTag) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *RemoveTag) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -549,13 +549,13 @@ func (m *SetShipping) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *SetShipping) Authorize(aggregate protosource.Aggregate) error {
+func (m *SetShipping) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *SetShipping) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -584,13 +584,13 @@ func (m *Place) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *Place) Authorize(aggregate protosource.Aggregate) error {
+func (m *Place) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *Place) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -619,13 +619,13 @@ func (m *Cancel) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *Cancel) Authorize(aggregate protosource.Aggregate) error {
+func (m *Cancel) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Order)
 	switch a.GetState() {
 	case State_STATE_DRAFT, State_STATE_PLACED, State_STATE_PAID:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *Cancel) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {

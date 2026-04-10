@@ -576,13 +576,13 @@ func (m *Update) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *Update) Authorize(aggregate protosource.Aggregate) error {
+func (m *Update) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Test)
 	switch a.GetState() {
 	case State_STATE_UNLOCKED:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *Update) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -611,13 +611,13 @@ func (m *Lock) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *Lock) Authorize(aggregate protosource.Aggregate) error {
+func (m *Lock) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Test)
 	switch a.GetState() {
 	case State_STATE_UNLOCKED:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *Lock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
@@ -646,13 +646,13 @@ func (m *Unlock) ValidateVersion(version int64) error {
 	}
 	return nil
 }
-func (m *Unlock) Authorize(aggregate protosource.Aggregate) error {
+func (m *Unlock) GuardState(aggregate protosource.Aggregate) error {
 	a := aggregate.(*Test)
 	switch a.GetState() {
 	case State_STATE_LOCKED:
 		return nil
 	default:
-		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrUnauthorized)
+		return fmt.Errorf("command %s not allowed in state %s: %w", m.CommandName(), a.GetState(), protosource.ErrStateNotAllowed)
 	}
 }
 func (m *Unlock) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
