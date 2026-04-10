@@ -388,8 +388,8 @@ func commandErrorResponse(err error) protosource.Response {
 		return errorResponse(http.StatusNotFound, "CMD_NOT_CREATED", "aggregate not found", nil)
 	case errors.Is(err, protosource.ErrAggregateNotFound):
 		return errorResponse(http.StatusNotFound, "CMD_NOT_FOUND", "aggregate not found", nil)
-	case errors.Is(err, protosource.ErrUnauthorized):
-		return errorResponse(http.StatusForbidden, "CMD_UNAUTHORIZED", "command not authorized", nil)
+	case errors.Is(err, protosource.ErrStateNotAllowed):
+		return errorResponse(http.StatusConflict, "CMD_STATE_VIOLATION", "command not allowed in current aggregate state", nil)
 	default:
 		return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
 	}

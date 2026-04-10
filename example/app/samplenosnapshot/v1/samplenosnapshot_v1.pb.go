@@ -450,20 +450,20 @@ const file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDesc = "
 	"\tcreate_by\x18\x04 \x01(\tR\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
-	"\x04body\x18\a \x01(\tR\x04body:\x05\xb2P\x02\x1a\x00\"K\n" +
+	"\x04body\x18\a \x01(\tR\x04body:\x05\x8aQ\x02\x1a\x00\"K\n" +
 	"\n" +
 	"SampleList\x12=\n" +
 	"\x05items\x18\x01 \x03(\v2'.example.app.samplenosnapshot.v1.SampleR\x05items\"T\n" +
 	"\x06Create\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body:\x10\xb2P\r\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body:\x10\x8aQ\r\n" +
 	"\v\n" +
 	"\aCreated\x10\x01\"T\n" +
 	"\x06Update\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x03 \x01(\tR\x04body:\x10\xb2P\r\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body:\x10\x8aQ\r\n" +
 	"\v\n" +
 	"\aUpdated\x10\x02\"t\n" +
 	"\aCreated\x12\x0e\n" +
@@ -471,13 +471,13 @@ const file_example_app_samplenosnapshot_v1_samplenosnapshot_v1_proto_rawDesc = "
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\tR\x04body:\x05\xb2P\x02\x12\x00\"t\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body:\x05\x8aQ\x02\x12\x00\"t\n" +
 	"\aUpdated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12\x12\n" +
-	"\x04body\x18\x05 \x01(\tR\x04body:\x05\xb2P\x02\x12\x00B\xb9\x02\xbaP\x02\b\x01\n" +
+	"\x04body\x18\x05 \x01(\tR\x04body:\x05\x8aQ\x02\x12\x00B\xb9\x02\x92Q\x02\b\x01\n" +
 	"#com.example.app.samplenosnapshot.v1B\x17SamplenosnapshotV1ProtoP\x01ZUgithub.com/funinthecloud/protosource/example/app/samplenosnapshot/v1;samplenoprefixv1\xa2\x02\x03EAS\xaa\x02\x1fExample.App.Samplenosnapshot.V1\xca\x02\x1fExample\\App\\Samplenosnapshot\\V1\xe2\x02+Example\\App\\Samplenosnapshot\\V1\\GPBMetadata\xea\x02\"Example::App::Samplenosnapshot::V1b\x06proto3"
 
 var (

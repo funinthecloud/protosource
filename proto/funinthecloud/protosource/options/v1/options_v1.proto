@@ -80,15 +80,16 @@ message CommandOptions {
   CommandLifecycle lifecycle = 2;
 
   // The aggregate states in which this command is allowed. When specified,
-  // the plugin generates an Authorize(aggregate) method that rejects the
-  // command if the aggregate's current state is not in this list.
+  // the plugin generates a GuardState(aggregate) method that rejects the
+  // command if the aggregate's current state is not in this list — this is
+  // a state-machine transition guard, not an authorization (AAA) check.
   //
   // Values must be valid enum value names defined in the same proto file.
   // The plugin validates this at generation time.
   //
-  // When empty (default), no Authorize method is generated — the command
-  // is allowed in any state. Hand-written Authorize methods can still be
-  // used for complex authorization logic.
+  // When empty (default), no GuardState method is generated — the command
+  // is allowed in any state. Hand-written GuardState methods can still be
+  // used for guards that need to inspect fields beyond State.
   repeated string allowed_states = 3;
 }
 

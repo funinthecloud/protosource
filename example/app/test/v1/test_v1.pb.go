@@ -77,20 +77,19 @@ func (State) EnumDescriptor() ([]byte, []int) {
 //	It must be defined first in the proto,
 //	its name must match the first part of the package.
 type Test struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Id       string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Version  int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
-	CreateAt int64                  `protobuf:"varint,3,opt,name=create_at,json=createAt,proto3" json:"create_at,omitempty"`
-	CreateBy string                 `protobuf:"bytes,4,opt,name=create_by,json=createBy,proto3" json:"create_by,omitempty"`
-	ModifyAt int64                  `protobuf:"varint,5,opt,name=modify_at,json=modifyAt,proto3" json:"modify_at,omitempty"`
-	ModifyBy string                 `protobuf:"bytes,6,opt,name=modify_by,json=modifyBy,proto3" json:"modify_by,omitempty"`
-	Body     string                 `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
-	State    State                  `protobuf:"varint,8,opt,name=state,proto3,enum=example.app.test.v1.State" json:"state,omitempty"`
-	// SET game fields for GSI testing
-	Color         string `protobuf:"bytes,9,opt,name=color,proto3" json:"color,omitempty"`
-	Shape         string `protobuf:"bytes,10,opt,name=shape,proto3" json:"shape,omitempty"`
-	Number        string `protobuf:"bytes,11,opt,name=number,proto3" json:"number,omitempty"`
-	Shading       string `protobuf:"bytes,12,opt,name=shading,proto3" json:"shading,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	CreateAt      int64                  `protobuf:"varint,3,opt,name=create_at,json=createAt,proto3" json:"create_at,omitempty"`
+	CreateBy      string                 `protobuf:"bytes,4,opt,name=create_by,json=createBy,proto3" json:"create_by,omitempty"`
+	ModifyAt      int64                  `protobuf:"varint,5,opt,name=modify_at,json=modifyAt,proto3" json:"modify_at,omitempty"`
+	ModifyBy      string                 `protobuf:"bytes,6,opt,name=modify_by,json=modifyBy,proto3" json:"modify_by,omitempty"`
+	Body          string                 `protobuf:"bytes,7,opt,name=body,proto3" json:"body,omitempty"`
+	State         State                  `protobuf:"varint,8,opt,name=state,proto3,enum=example.app.test.v1.State" json:"state,omitempty"`
+	Color         string                 `protobuf:"bytes,9,opt,name=color,proto3" json:"color,omitempty"`
+	Shape         string                 `protobuf:"bytes,10,opt,name=shape,proto3" json:"shape,omitempty"`
+	Number        string                 `protobuf:"bytes,11,opt,name=number,proto3" json:"number,omitempty"`
+	Shading       string                 `protobuf:"bytes,12,opt,name=shading,proto3" json:"shading,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -987,30 +986,30 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x04Test\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12$\n" +
-	"\tcreate_at\x18\x03 \x01(\x03B\a\xaaP\x04\n" +
+	"\tcreate_at\x18\x03 \x01(\x03B\a\x82Q\x04\n" +
 	"\x02\b\n" +
 	"R\bcreateAt\x12&\n" +
-	"\tcreate_by\x18\x04 \x01(\tB\t\xaaP\x06\n" +
+	"\tcreate_by\x18\x04 \x01(\tB\t\x82Q\x06\n" +
 	"\x04\b\b\x10\x02R\bcreateBy\x12\x1b\n" +
 	"\tmodify_at\x18\x05 \x01(\x03R\bmodifyAt\x12\x1b\n" +
 	"\tmodify_by\x18\x06 \x01(\tR\bmodifyBy\x12\x12\n" +
 	"\x04body\x18\a \x01(\tR\x04body\x129\n" +
-	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateB\a\xaaP\x04\n" +
+	"\x05state\x18\b \x01(\x0e2\x1a.example.app.test.v1.StateB\a\x82Q\x04\n" +
 	"\x02\b\tR\x05state\x12!\n" +
-	"\x05color\x18\t \x01(\tB\v\xaaP\b\n" +
+	"\x05color\x18\t \x01(\tB\v\x82Q\b\n" +
 	"\x02\b\x03\n" +
 	"\x02\b\x05R\x05color\x12#\n" +
 	"\x05shape\x18\n" +
-	" \x01(\tB\r\xaaP\n" +
+	" \x01(\tB\r\x82Q\n" +
 	"\n" +
 	"\x02\b\x04\n" +
 	"\x04\b\b\x10\x01R\x05shape\x12%\n" +
-	"\x06number\x18\v \x01(\tB\r\xaaP\n" +
+	"\x06number\x18\v \x01(\tB\r\x82Q\n" +
 	"\n" +
 	"\x02\b\x06\n" +
 	"\x04\b\a\x10\x01R\x06number\x12#\n" +
-	"\ashading\x18\f \x01(\tB\t\xaaP\x06\n" +
-	"\x04\b\a\x10\x02R\ashading:\t\xb2P\x06\x1a\x04\x10\x80\xa3\x05\";\n" +
+	"\ashading\x18\f \x01(\tB\t\x82Q\x06\n" +
+	"\x04\b\a\x10\x02R\ashading:\t\x8aQ\x06\x1a\x04\x10\x80\xa3\x05\";\n" +
 	"\bTestList\x12/\n" +
 	"\x05items\x18\x01 \x03(\v2\x19.example.app.test.v1.TestR\x05items\"\xd7\x01\n" +
 	"\x06Create\x12\x17\n" +
@@ -1020,7 +1019,7 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x04 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\x05 \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\x06 \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\a \x01(\tR\ashading:\x1a\xb2P\x17\n" +
+	"\ashading\x18\a \x01(\tR\ashading:\x1a\x8aQ\x17\n" +
 	"\x15\n" +
 	"\aCreated\n" +
 	"\bUnlocked\x10\x01\"\xc2\x01\n" +
@@ -1031,17 +1030,17 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x04 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\x05 \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\x06 \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\a \x01(\tR\ashading: \xb2P\x1d\n" +
+	"\ashading\x18\a \x01(\tR\ashading: \x8aQ\x1d\n" +
 	"\x1b\n" +
 	"\aUpdated\x10\x02\x1a\x0eSTATE_UNLOCKED\"M\n" +
 	"\x04Lock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1f\xb2P\x1c\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1f\x8aQ\x1c\n" +
 	"\x1a\n" +
 	"\x06Locked\x10\x02\x1a\x0eSTATE_UNLOCKED\"O\n" +
 	"\x06Unlock\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1f\xb2P\x1c\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor:\x1f\x8aQ\x1c\n" +
 	"\x1a\n" +
 	"\bUnlocked\x10\x02\x1a\fSTATE_LOCKED\"\xd2\x01\n" +
 	"\aCreated\x12\x0e\n" +
@@ -1053,7 +1052,7 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x06 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\a \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\b \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\t \x01(\tR\ashading:\x05\xb2P\x02\x12\x00\"\xd2\x01\n" +
+	"\ashading\x18\t \x01(\tR\ashading:\x05\x8aQ\x02\x12\x00\"\xd2\x01\n" +
 	"\aUpdated\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
@@ -1063,27 +1062,27 @@ const file_example_app_test_v1_test_v1_proto_rawDesc = "" +
 	"\x05color\x18\x06 \x01(\tR\x05color\x12\x14\n" +
 	"\x05shape\x18\a \x01(\tR\x05shape\x12\x16\n" +
 	"\x06number\x18\b \x01(\tR\x06number\x12\x18\n" +
-	"\ashading\x18\t \x01(\tR\ashading:\x05\xb2P\x02\x12\x00\"m\n" +
+	"\ashading\x18\t \x01(\tR\ashading:\x05\x8aQ\x02\x12\x00\"m\n" +
 	"\x06Locked\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
-	"\x05actor\x18\x04 \x01(\tR\x05actor:\x13\xb2P\x10\x12\x0e\x12\fSTATE_LOCKED\"q\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor:\x13\x8aQ\x10\x12\x0e\x12\fSTATE_LOCKED\"q\n" +
 	"\bUnlocked\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
-	"\x05actor\x18\x04 \x01(\tR\x05actor:\x15\xb2P\x12\x12\x10\x12\x0eSTATE_UNLOCKED\"\x9a\x01\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor:\x15\x8aQ\x12\x12\x10\x12\x0eSTATE_UNLOCKED\"\x9a\x01\n" +
 	"\bSnapshot\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x125\n" +
-	"\bsnapshot\x18\x05 \x01(\v2\x19.example.app.test.v1.TestR\bsnapshot:\a\xb2P\x04*\x02\b\x03*D\n" +
+	"\bsnapshot\x18\x05 \x01(\v2\x19.example.app.test.v1.TestR\bsnapshot:\a\x8aQ\x04*\x02\b\x03*D\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eSTATE_UNLOCKED\x10\x01\x12\x10\n" +
-	"\fSTATE_LOCKED\x10\x02B\xdb\x01\xbaP\x02\b\x01\n" +
+	"\fSTATE_LOCKED\x10\x02B\xdb\x01\x92Q\x02\b\x01\n" +
 	"\x17com.example.app.test.v1B\vTestV1ProtoP\x01Z?github.com/funinthecloud/protosource/example/app/test/v1;testv1\xa2\x02\x03EAT\xaa\x02\x13Example.App.Test.V1\xca\x02\x13Example\\App\\Test\\V1\xe2\x02\x1fExample\\App\\Test\\V1\\GPBMetadata\xea\x02\x16Example::App::Test::V1b\x06proto3"
 
 var (

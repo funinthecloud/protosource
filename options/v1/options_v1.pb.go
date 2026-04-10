@@ -482,15 +482,16 @@ type CommandOptions struct {
 	// MUTATION requires version > 0 (existing aggregate).
 	Lifecycle CommandLifecycle `protobuf:"varint,2,opt,name=lifecycle,proto3,enum=funinthecloud.protosource.options.v1.CommandLifecycle" json:"lifecycle,omitempty"`
 	// The aggregate states in which this command is allowed. When specified,
-	// the plugin generates an Authorize(aggregate) method that rejects the
-	// command if the aggregate's current state is not in this list.
+	// the plugin generates a GuardState(aggregate) method that rejects the
+	// command if the aggregate's current state is not in this list — this is
+	// a state-machine transition guard, not an authorization (AAA) check.
 	//
 	// Values must be valid enum value names defined in the same proto file.
 	// The plugin validates this at generation time.
 	//
-	// When empty (default), no Authorize method is generated — the command
-	// is allowed in any state. Hand-written Authorize methods can still be
-	// used for complex authorization logic.
+	// When empty (default), no GuardState method is generated — the command
+	// is allowed in any state. Hand-written GuardState methods can still be
+	// used for guards that need to inspect fields beyond State.
 	AllowedStates []string `protobuf:"bytes,3,rep,name=allowed_states,json=allowedStates,proto3" json:"allowed_states,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -944,44 +945,44 @@ var file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes = []prot
 	{
 		ExtendedType:  (*descriptorpb.FileOptions)(nil),
 		ExtensionType: (*FileOptions)(nil),
-		Field:         1287,
+		Field:         1298,
 		Name:          "funinthecloud.protosource.options.v1.protosource_file",
-		Tag:           "bytes,1287,opt,name=protosource_file",
+		Tag:           "bytes,1298,opt,name=protosource_file",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.MessageOptions)(nil),
 		ExtensionType: (*MessageOptions)(nil),
-		Field:         1286,
+		Field:         1297,
 		Name:          "funinthecloud.protosource.options.v1.protosource_message_type",
-		Tag:           "bytes,1286,opt,name=protosource_message_type",
+		Tag:           "bytes,1297,opt,name=protosource_message_type",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 	{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
 		ExtensionType: (*OpaqueFieldOptions)(nil),
-		Field:         1285,
+		Field:         1296,
 		Name:          "funinthecloud.protosource.options.v1.protosource_opaque_field",
-		Tag:           "bytes,1285,opt,name=protosource_opaque_field",
+		Tag:           "bytes,1296,opt,name=protosource_opaque_field",
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 }
 
 // Extension fields to descriptorpb.FileOptions.
 var (
-	// optional funinthecloud.protosource.options.v1.FileOptions protosource_file = 1287;
+	// optional funinthecloud.protosource.options.v1.FileOptions protosource_file = 1298;
 	E_ProtosourceFile = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[0]
 )
 
 // Extension fields to descriptorpb.MessageOptions.
 var (
-	// optional funinthecloud.protosource.options.v1.MessageOptions protosource_message_type = 1286;
+	// optional funinthecloud.protosource.options.v1.MessageOptions protosource_message_type = 1297;
 	E_ProtosourceMessageType = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[1]
 )
 
 // Extension fields to descriptorpb.FieldOptions.
 var (
-	// optional funinthecloud.protosource.options.v1.OpaqueFieldOptions protosource_opaque_field = 1285;
+	// optional funinthecloud.protosource.options.v1.OpaqueFieldOptions protosource_opaque_field = 1296;
 	E_ProtosourceOpaqueField = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[2]
 )
 
@@ -1084,11 +1085,11 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x17OPAQUE_KEY_TYPE_GSI19SK\x10(\x12\x1b\n" +
 	"\x17OPAQUE_KEY_TYPE_GSI20PK\x10)\x12\x1b\n" +
 	"\x17OPAQUE_KEY_TYPE_GSI20SK\x10*:{\n" +
-	"\x10protosource_file\x12\x1c.google.protobuf.FileOptions\x18\x87\n" +
+	"\x10protosource_file\x12\x1c.google.protobuf.FileOptions\x18\x92\n" +
 	" \x01(\v21.funinthecloud.protosource.options.v1.FileOptionsR\x0fprotosourceFile:\x90\x01\n" +
-	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\x86\n" +
+	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\x91\n" +
 	" \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageType:\x92\x01\n" +
-	"\x18protosource_opaque_field\x12\x1d.google.protobuf.FieldOptions\x18\x85\n" +
+	"\x18protosource_opaque_field\x12\x1d.google.protobuf.FieldOptions\x18\x90\n" +
 	" \x01(\v28.funinthecloud.protosource.options.v1.OpaqueFieldOptionsR\x16protosourceOpaqueFieldB\xa8\x02\n" +
 	"(com.funinthecloud.protosource.options.v1B\x0eOptionsV1ProtoP\x01Z9github.com/funinthecloud/protosource/options/v1;optionsv1\xa2\x02\x03FPO\xaa\x02$Funinthecloud.Protosource.Options.V1\xca\x02$Funinthecloud\\Protosource\\Options\\V1\xe2\x020Funinthecloud\\Protosource\\Options\\V1\\GPBMetadata\xea\x02'Funinthecloud::Protosource::Options::V1b\x06proto3"
 
