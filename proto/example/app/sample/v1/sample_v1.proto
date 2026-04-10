@@ -25,12 +25,8 @@ message Sample {
   };
   string id        = 1;
   int64  version   = 2;
-  int64  create_at = 3 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ]
-  }];
-  string create_by = 4 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 } ]
-  }];
+  int64  create_at = 3 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ] }];
+  string create_by = 4 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 } ] }];
   int64  modify_at = 5;
   string modify_by = 6;
   string body      = 7;

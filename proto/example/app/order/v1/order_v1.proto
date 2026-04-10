@@ -21,22 +21,15 @@ enum State {
 }
 
 message Order {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .aggregate = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
   };
 
-  string id          = 1;
-  int64  version     = 2;
-  State  state       = 3;
-  string customer_id = 4
-      [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-        attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 } ]
-      }];
-  string customer_name = 5;
-  int64  create_at     = 6
-      [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-        attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ]
-      }];
+  string                id               = 1;
+  int64                 version          = 2;
+  State                 state            = 3;
+  string                customer_id      = 4 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 } ] }];
+  string                customer_name    = 5;
+  int64                 create_at        = 6 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ] }];
   string                create_by        = 7;
   int64                 modify_at        = 8;
   string                modify_by        = 9;
@@ -69,8 +62,7 @@ message Tag {
 // ── Commands ──
 
 message Create {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "Created" ]
     lifecycle: COMMAND_LIFECYCLE_CREATION
   };
@@ -81,8 +73,7 @@ message Create {
 }
 
 message AddItem {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "ItemAdded" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
@@ -93,8 +84,7 @@ message AddItem {
 }
 
 message RemoveItem {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "ItemRemoved" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
@@ -105,8 +95,7 @@ message RemoveItem {
 }
 
 message AddTag {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "TagAdded" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
@@ -117,8 +106,7 @@ message AddTag {
 }
 
 message RemoveTag {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "TagRemoved" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
@@ -129,8 +117,7 @@ message RemoveTag {
 }
 
 message SetShipping {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "ShippingSet" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
@@ -141,8 +128,7 @@ message SetShipping {
 }
 
 message Place {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "Placed" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT" ]
@@ -153,8 +139,7 @@ message Place {
 }
 
 message Cancel {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .command = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
     produces_events: [ "Cancelled" ]
     lifecycle: COMMAND_LIFECYCLE_MUTATION
     allowed_states: [ "STATE_DRAFT", "STATE_PLACED", "STATE_PAID" ]
@@ -228,8 +213,7 @@ message TagRemoved {
 }
 
 message ShippingSet {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .event = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
   };
   string id               = 1;
   int64  version          = 2;
@@ -239,8 +223,7 @@ message ShippingSet {
 }
 
 message Placed {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .event = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
     sets_state: "STATE_PLACED"
   };
   string id        = 1;
@@ -251,8 +234,7 @@ message Placed {
 }
 
 message Cancelled {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .event = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
     sets_state: "STATE_CANCELLED"
   };
   string id      = 1;
@@ -269,37 +251,22 @@ message Cancelled {
 // PK is the same as the aggregate; SK = "PROJ#OrderSummary".
 // GSI2 provides a status+placed_at index not present on the aggregate itself.
 message OrderSummary {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .projection = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).projection = {
   };
-
-  string id    = 1;
-  State  state = 2
-      [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-        attributes: [ { type: OPAQUE_KEY_TYPE_GSI2PK, order: 1 } ]
-      }];
-  string customer_id = 3
-      [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-        attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 } ]
-      }];
+  string id            = 1;
+  State  state         = 2 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI2PK, order: 1 } ] }];
+  string customer_id   = 3 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK, order: 1 } ] }];
   string customer_name = 4;
   int64  total_cents   = 5;
   int32  item_count    = 6;
-  int64  placed_at     = 7
-      [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-        attributes: [ { type: OPAQUE_KEY_TYPE_GSI2SK } ]
-      }];
-  int64 create_at = 8
-      [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-        attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ]
-      }];
+  int64  placed_at     = 7 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI2SK } ] }];
+  int64  create_at     = 8 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK } ] }];
 }
 
 // ── Snapshot ──
 
 message Snapshot {
-  option (funinthecloud.protosource.options.v1.protosource_message_type)
-      .snapshot = {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).snapshot = {
     every_n_events: 50
   };
   string id       = 1;

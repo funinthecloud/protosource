@@ -25,40 +25,16 @@ message Test {
   };
   string id        = 1;
   int64  version   = 2;
-  int64  create_at = 3 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_GSI4SK } ]
-  }];
-  string create_by = 4 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_GSI3SK, order: 2 } ]
-  }];
+  int64  create_at = 3 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI4SK } ] }];
+  string create_by = 4 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI3SK, order: 2 } ] }];
   int64  modify_at = 5;
   string modify_by = 6;
   string body      = 7;
-  State  state     = 8 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_GSI4PK } ]
-  }];
-  // SET game fields for GSI testing
-  string color   = 9 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [
-      { type: OPAQUE_KEY_TYPE_GSI1PK },
-      { type: OPAQUE_KEY_TYPE_GSI2PK }
-    ]
-  }];
-  string shape   = 10 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [
-      { type: OPAQUE_KEY_TYPE_GSI1SK },
-      { type: OPAQUE_KEY_TYPE_GSI3SK, order: 1 }
-    ]
-  }];
-  string number  = 11 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [
-      { type: OPAQUE_KEY_TYPE_GSI2SK },
-      { type: OPAQUE_KEY_TYPE_GSI3PK, order: 1 }
-    ]
-  }];
-  string shading = 12 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = {
-    attributes: [ { type: OPAQUE_KEY_TYPE_GSI3PK, order: 2 } ]
-  }];
+  State  state     = 8 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI4PK } ] }];
+  string color     = 9 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1PK }, { type: OPAQUE_KEY_TYPE_GSI2PK } ] }];
+  string shape     = 10 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI1SK }, { type: OPAQUE_KEY_TYPE_GSI3SK, order: 1 } ] }];
+  string number    = 11 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI2SK }, { type: OPAQUE_KEY_TYPE_GSI3PK, order: 1 } ] }];
+  string shading   = 12 [(funinthecloud.protosource.options.v1.protosource_opaque_field) = { attributes: [ { type: OPAQUE_KEY_TYPE_GSI3PK, order: 2 } ] }];
 }
 
 message TestList {
