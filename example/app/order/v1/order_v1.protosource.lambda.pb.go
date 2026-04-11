@@ -102,7 +102,10 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -148,7 +151,10 @@ func (h *Handler) HandleAddItem(ctx context.Context, request protosource.Request
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -194,7 +200,10 @@ func (h *Handler) HandleRemoveItem(ctx context.Context, request protosource.Requ
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -240,7 +249,10 @@ func (h *Handler) HandleAddTag(ctx context.Context, request protosource.Request)
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -286,7 +298,10 @@ func (h *Handler) HandleRemoveTag(ctx context.Context, request protosource.Reque
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -332,7 +347,10 @@ func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Req
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -378,7 +396,10 @@ func (h *Handler) HandlePlace(ctx context.Context, request protosource.Request) 
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
@@ -424,7 +445,10 @@ func (h *Handler) HandleCancel(ctx context.Context, request protosource.Request)
 		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
-	// Override actor from auth context to prevent spoofing.
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above (context user id preferred,
+	// otherwise request.Actor). Never trust an actor field coming
+	// from the wire — it would let any caller spoof any identity.
 	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
