@@ -84,6 +84,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"projectionsForFile":         p.projectionsForFile,
 		"aggregateForFile":           p.aggregateForFile,
 		"routePrefix":                p.routePrefix,
+		"protoPackage":               p.protoPackage,
 		"lower":                  strings.ToLower,
 		"importPath":             p.importPath,
 		"cliCommandFields":       CLICommandFields,
@@ -1054,6 +1055,14 @@ func (p *ProtosourceModule) routePrefix(f pgs.File) string {
 		return strings.TrimPrefix(rel, "/")
 	}
 	return importPath
+}
+
+// protoPackage returns the proto package name declared in a proto file
+// (e.g., "example.app.sample.v1"). Used by the lambda template to stamp the
+// canonical function name "{proto_package}.{CommandMessageName}" into each
+// generated handler's authz.Authorize call.
+func (p *ProtosourceModule) protoPackage(f pgs.File) string {
+	return f.Package().ProtoName().String()
 }
 
 func (p *ProtosourceModule) dump(input any) string {

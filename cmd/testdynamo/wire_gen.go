@@ -9,6 +9,7 @@ package main
 import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/funinthecloud/protosource"
+	"github.com/funinthecloud/protosource/authz/allowall"
 	"github.com/funinthecloud/protosource/example/app/order/v1"
 	"github.com/funinthecloud/protosource/example/app/order/v1/orderv1dynamodb"
 	"github.com/funinthecloud/protosource/example/app/sample/v1"
@@ -31,13 +32,14 @@ func InitializeRouter(client *dynamodb.Client, eventsTable dynamodbstore.EventsT
 	serializer := protobinaryserializer.NewSerializer()
 	repository := testv1dynamodb.ProvideRepository(dynamoDBStore, serializer)
 	testClient := testv1.NewTestClient(store)
-	handler := testv1.NewHandler(repository, testClient)
+	authorizer := allowall.Provide()
+	handler := testv1.NewHandler(repository, testClient, authorizer)
 	orderv1dynamodbRepository := orderv1dynamodb.ProvideRepository(dynamoDBStore, serializer)
 	orderClient := orderv1.NewOrderClient(store)
-	orderv1Handler := orderv1.NewHandler(orderv1dynamodbRepository, orderClient)
+	orderv1Handler := orderv1.NewHandler(orderv1dynamodbRepository, orderClient, authorizer)
 	samplev1dynamodbRepository := samplev1dynamodb.ProvideRepository(dynamoDBStore, serializer)
 	sampleClient := samplev1.NewSampleClient(store)
-	samplev1Handler := samplev1.NewHandler(samplev1dynamodbRepository, sampleClient)
+	samplev1Handler := samplev1.NewHandler(samplev1dynamodbRepository, sampleClient, authorizer)
 	router := provideRouter(handler, orderv1Handler, samplev1Handler)
 	return router, nil
 }
