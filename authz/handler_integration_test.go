@@ -10,6 +10,7 @@ import (
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/authz"
 	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
+	historyv1 "github.com/funinthecloud/protosource/history/v1"
 )
 
 // fakeAuthorizer is a test double for authz.Authorizer that records the
@@ -82,16 +83,28 @@ func TestGeneratedHandlerMapsForbiddenTo403(t *testing.T) {
 	}
 }
 
-func TestGeneratedHandlerMapsUnknownErrorsToForbidden(t *testing.T) {
-	// Conservative default: unknown errors from the Authorizer are treated
-	// as forbidden, not 500 — failing closed is safer than failing open.
-	custom := errors.New("custom policy engine exploded")
+func TestGeneratedHandlerMapsUnknownErrorsToServiceUnavailable(t *testing.T) {
+	// Unknown errors from the Authorizer are mapped to 503 so clients,
+	// load balancers, and monitoring can distinguish "the authorizer
+	// is unreachable" (transient, retry) from "you lack permission"
+	// (permanent, do not retry). The request is still rejected — the
+	// pipeline does not run — so this is still fail-closed; it just
+	// honestly reports WHY it is closed.
+	custom := errors.New("auth service connection refused")
 	h := newTestHandler(&fakeAuthorizer{returnErr: custom})
 
 	resp := h.HandleCreate(context.Background(), protosource.Request{Actor: "someone"})
 
-	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("StatusCode = %d, want %d", resp.StatusCode, http.StatusForbidden)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("StatusCode = %d, want %d (unknown errors should be 503, not 403)", resp.StatusCode, http.StatusServiceUnavailable)
+	}
+	if !strings.Contains(resp.Body, "AUTHZ_UNAVAILABLE") {
+		t.Errorf("body %q missing AUTHZ_UNAVAILABLE code", resp.Body)
+	}
+	// Detail must NOT leak: the raw error message from the authorizer
+	// might contain internal infrastructure hints.
+	if strings.Contains(resp.Body, "connection refused") {
+		t.Errorf("body %q leaked internal error detail", resp.Body)
 	}
 }
 
@@ -146,5 +159,107 @@ func TestGeneratedHandlerPassesAuthzThenChecksActor(t *testing.T) {
 	}
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("StatusCode = %d, want %d (CMD_NO_ACTOR after authz pass-through)", resp.StatusCode, http.StatusUnauthorized)
+	}
+}
+
+// capturingRepo is a minimal Repo implementation that records the last
+// applied command without touching any persistence. Used to observe
+// what the generated handler writes to cmd.Actor.
+type capturingRepo struct {
+	lastCmd protosource.Commander
+}
+
+func (r *capturingRepo) Apply(_ context.Context, cmd protosource.Commander) (int64, error) {
+	r.lastCmd = cmd
+	return 1, nil
+}
+
+func (r *capturingRepo) Load(_ context.Context, _ string) (protosource.Aggregate, error) {
+	return nil, protosource.ErrAggregateNotFound
+}
+
+func (r *capturingRepo) History(_ context.Context, _ string) (*historyv1.History, error) {
+	return &historyv1.History{}, nil
+}
+
+// validCreateBody is the minimum JSON for samplev1.Create to pass
+// validation: an id is required.
+const validCreateBody = `{"id":"sample-actor-test"}`
+
+func TestGeneratedHandlerPrefersAuthzContextUserIDAsActor(t *testing.T) {
+	// The key behavior: when Authorize enriches the context with a
+	// user id (via authz.WithUserID), the handler uses THAT as the
+	// command's Actor field — not the raw request.Actor. This keeps
+	// the audit trail clean in shadow-token flows where request.Actor
+	// is the opaque bearer token.
+	fake := &fakeAuthorizer{
+		enrichCtx: func(ctx context.Context) context.Context {
+			return authz.WithUserID(ctx, "user-from-ctx")
+		},
+	}
+	repo := &capturingRepo{}
+	h := samplev1.NewHandler(repo, nil, fake)
+
+	resp := h.HandleCreate(context.Background(), protosource.Request{
+		Actor:   "raw-shadow-token",
+		Body:    validCreateBody,
+		Headers: map[string]string{"Content-Type": "application/json"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("StatusCode = %d, body=%s", resp.StatusCode, resp.Body)
+	}
+	if repo.lastCmd == nil {
+		t.Fatal("repo.lastCmd is nil; Apply was not called")
+	}
+	cmd, ok := repo.lastCmd.(*samplev1.Create)
+	if !ok {
+		t.Fatalf("Apply received %T, want *samplev1.Create", repo.lastCmd)
+	}
+	if cmd.GetActor() != "user-from-ctx" {
+		t.Errorf("cmd.Actor = %q, want %q (context user id should win over request.Actor)", cmd.GetActor(), "user-from-ctx")
+	}
+}
+
+func TestGeneratedHandlerFallsBackToRequestActorWhenContextEmpty(t *testing.T) {
+	// When the Authorizer does not enrich the context (e.g.
+	// allowall.Authorizer), the handler falls back to the Actor from
+	// request.Actor populated by the adapter's ActorExtractor. This
+	// preserves the pre-phase-11 developer flow where X-Actor alone
+	// is enough.
+	fake := &fakeAuthorizer{} // returnErr nil, enrichCtx nil
+	repo := &capturingRepo{}
+	h := samplev1.NewHandler(repo, nil, fake)
+
+	resp := h.HandleCreate(context.Background(), protosource.Request{
+		Actor:   "x-actor-header-value",
+		Body:    validCreateBody,
+		Headers: map[string]string{"Content-Type": "application/json"},
+	})
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("StatusCode = %d, body=%s", resp.StatusCode, resp.Body)
+	}
+	cmd := repo.lastCmd.(*samplev1.Create)
+	if cmd.GetActor() != "x-actor-header-value" {
+		t.Errorf("cmd.Actor = %q, want %q (request.Actor fallback)", cmd.GetActor(), "x-actor-header-value")
+	}
+}
+
+func TestGeneratedHandlerRequiresSomeActorEvenWhenAuthzPasses(t *testing.T) {
+	// With both the context user id and request.Actor empty, the
+	// handler must still 401 with CMD_NO_ACTOR — a successful
+	// Authorize call does not imply an identity is present.
+	fake := &fakeAuthorizer{}
+	repo := &capturingRepo{}
+	h := samplev1.NewHandler(repo, nil, fake)
+
+	resp := h.HandleCreate(context.Background(), protosource.Request{
+		Actor: "",
+		Body:  validCreateBody,
+	})
+	if resp.StatusCode != http.StatusUnauthorized {
+		t.Errorf("StatusCode = %d, want 401", resp.StatusCode)
+	}
+	if repo.lastCmd != nil {
+		t.Errorf("Apply was called despite no actor: %+v", repo.lastCmd)
 	}
 }
