@@ -38,7 +38,14 @@ type Handler struct {
 // with the canonical function name "example.app.sample.v1.{CommandMessageName}"
 // before running the command pipeline. Applications that do not enforce
 // authorization at this layer should wire in allowall.Authorizer.
+//
+// authorizer is required; passing nil panics immediately with a descriptive
+// message rather than deferring to an opaque nil-pointer dereference on the
+// first request.
 func NewHandler(repo Repo, client *SampleClient, authorizer authz.Authorizer) *Handler {
+	if authorizer == nil {
+		panic("samplev1.NewHandler: authorizer must not be nil (use allowall.Authorizer{} for no enforcement)")
+	}
 	return &Handler{repo: repo, client: client, authorizer: authorizer}
 }
 

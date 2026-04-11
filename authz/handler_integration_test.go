@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/funinthecloud/protosource"
@@ -109,6 +110,26 @@ func TestGeneratedHandlerShortCircuitsBeforePipeline(t *testing.T) {
 
 	// No Actor, no Body, nil repo/client — only safe because authz fails first.
 	_ = h.HandleCreate(context.Background(), protosource.Request{})
+}
+
+func TestGeneratedNewHandlerPanicsOnNilAuthorizer(t *testing.T) {
+	defer func() {
+		r := recover()
+		if r == nil {
+			t.Fatal("NewHandler(nil authorizer) did not panic")
+		}
+		msg, ok := r.(string)
+		if !ok {
+			t.Fatalf("panic value = %T %v, want string", r, r)
+		}
+		// Must name the package, the constructor, and point to the fix.
+		for _, want := range []string{"samplev1.NewHandler", "authorizer", "allowall"} {
+			if !strings.Contains(msg, want) {
+				t.Errorf("panic message %q missing %q", msg, want)
+			}
+		}
+	}()
+	_ = samplev1.NewHandler(nil, nil, nil)
 }
 
 func TestGeneratedHandlerPassesAuthzThenChecksActor(t *testing.T) {
