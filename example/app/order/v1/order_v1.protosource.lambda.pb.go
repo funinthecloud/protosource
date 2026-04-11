@@ -707,11 +707,22 @@ func errorResponse(statusCode int, code, message string, cause error) protosourc
 }
 
 // authzErrorResponse maps an authz.Authorizer error to an HTTP response.
-// ErrUnauthenticated yields 401; ErrForbidden yields 403. Any other error is
-// treated as forbidden for conservative safety — implementations should wrap
-// their internal errors in one of the typed sentinels when they want a
-// specific status code. Error details are intentionally not leaked to the
-// response body.
+//
+//	ErrUnauthenticated  → 401 — the caller is not who they claim to be.
+//	ErrForbidden        → 403 — the caller is known but lacks the grant.
+//	any other error     → 503 — the authorization decision could not be
+//	                      made (auth service unreachable, timeout, DNS
+//	                      failure, etc). The handler still fails closed
+//	                      — the request is rejected — but 503 signals
+//	                      to clients and upstream monitoring that this
+//	                      is a transient condition worth retrying and
+//	                      alerting on, NOT a permission denial.
+//
+// Error details are intentionally not leaked to the response body; callers
+// that need diagnostic context should consult server-side logs.
+// Implementations that want a specific non-default status for a
+// particular internal error should wrap it in one of the typed sentinels
+// above before returning it from Authorize.
 func authzErrorResponse(err error) protosource.Response {
 	switch {
 	case errors.Is(err, authz.ErrUnauthenticated):
@@ -719,7 +730,7 @@ func authzErrorResponse(err error) protosource.Response {
 	case errors.Is(err, authz.ErrForbidden):
 		return errorResponse(http.StatusForbidden, "AUTHZ_FORBIDDEN", "forbidden", nil)
 	default:
-		return errorResponse(http.StatusForbidden, "AUTHZ_ERROR", "authorization failed", nil)
+		return errorResponse(http.StatusServiceUnavailable, "AUTHZ_UNAVAILABLE", "authorization service unavailable", nil)
 	}
 }
 

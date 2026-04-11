@@ -83,16 +83,28 @@ func TestGeneratedHandlerMapsForbiddenTo403(t *testing.T) {
 	}
 }
 
-func TestGeneratedHandlerMapsUnknownErrorsToForbidden(t *testing.T) {
-	// Conservative default: unknown errors from the Authorizer are treated
-	// as forbidden, not 500 — failing closed is safer than failing open.
-	custom := errors.New("custom policy engine exploded")
+func TestGeneratedHandlerMapsUnknownErrorsToServiceUnavailable(t *testing.T) {
+	// Unknown errors from the Authorizer are mapped to 503 so clients,
+	// load balancers, and monitoring can distinguish "the authorizer
+	// is unreachable" (transient, retry) from "you lack permission"
+	// (permanent, do not retry). The request is still rejected — the
+	// pipeline does not run — so this is still fail-closed; it just
+	// honestly reports WHY it is closed.
+	custom := errors.New("auth service connection refused")
 	h := newTestHandler(&fakeAuthorizer{returnErr: custom})
 
 	resp := h.HandleCreate(context.Background(), protosource.Request{Actor: "someone"})
 
-	if resp.StatusCode != http.StatusForbidden {
-		t.Errorf("StatusCode = %d, want %d", resp.StatusCode, http.StatusForbidden)
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Errorf("StatusCode = %d, want %d (unknown errors should be 503, not 403)", resp.StatusCode, http.StatusServiceUnavailable)
+	}
+	if !strings.Contains(resp.Body, "AUTHZ_UNAVAILABLE") {
+		t.Errorf("body %q missing AUTHZ_UNAVAILABLE code", resp.Body)
+	}
+	// Detail must NOT leak: the raw error message from the authorizer
+	// might contain internal infrastructure hints.
+	if strings.Contains(resp.Body, "connection refused") {
+		t.Errorf("body %q leaked internal error detail", resp.Body)
 	}
 }
 
