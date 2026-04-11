@@ -7,6 +7,7 @@ import (
 	"github.com/goforj/wire"
 
 	"github.com/funinthecloud/protosource"
+	"github.com/funinthecloud/protosource/authz/allowall"
 	"github.com/funinthecloud/protosource/aws/dynamoclient"
 	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
 	orderv1dynamodb "github.com/funinthecloud/protosource/example/app/order/v1/orderv1dynamodb"
@@ -39,6 +40,7 @@ func InitializeRouter(
 		wire.Bind(new(opaquedata.OpaqueStore), new(*opaquedynamo.Store)),
 		dynamodbstore.ProviderSet,
 		protobinaryserializer.ProviderSet,
+		allowall.ProviderSet,
 		testv1dynamodb.ProviderSet,
 		orderv1dynamodb.ProviderSet,
 		samplev1dynamodb.ProviderSet,

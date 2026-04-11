@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/funinthecloud/protosource"
+	"github.com/funinthecloud/protosource/authz"
 	"github.com/funinthecloud/protosource/opaquedata"
 	responsev1 "github.com/funinthecloud/protosource/response/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -27,13 +28,25 @@ type Repo interface {
 
 // Handler provides request handler functions for the Sample aggregate.
 type Handler struct {
-	repo   Repo
-	client *SampleClient
+	repo       Repo
+	client     *SampleClient
+	authorizer authz.Authorizer
 }
 
-// NewHandler creates a new Handler instance with the given repository and client.
-func NewHandler(repo Repo, client *SampleClient) *Handler {
-	return &Handler{repo: repo, client: client}
+// NewHandler creates a new Handler instance with the given repository, client,
+// and authorizer. Every generated command handler calls authorizer.Authorize
+// with the canonical function name "example.app.samplenosnapshot.v1.{CommandMessageName}"
+// before running the command pipeline. Applications that do not enforce
+// authorization at this layer should wire in allowall.Authorizer.
+//
+// authorizer is required; passing nil panics immediately with a descriptive
+// message rather than deferring to an opaque nil-pointer dereference on the
+// first request.
+func NewHandler(repo Repo, client *SampleClient, authorizer authz.Authorizer) *Handler {
+	if authorizer == nil {
+		panic("samplenoprefixv1.NewHandler: authorizer must not be nil (use allowall.Authorizer{} for no enforcement)")
+	}
+	return &Handler{repo: repo, client: client, authorizer: authorizer}
 }
 
 // RegisterRoutes registers all handler routes on the given router.
@@ -51,6 +64,11 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 // HandleCreate processes a Create command.
 func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.Create")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	if request.Actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
@@ -82,6 +100,11 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 
 // HandleUpdate processes a Update command.
 func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.Update")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	if request.Actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
@@ -304,6 +327,23 @@ func errorResponse(statusCode int, code, message string, cause error) protosourc
 		StatusCode: statusCode,
 		Body:       string(b),
 		Headers:    map[string]string{"Content-Type": "application/json"},
+	}
+}
+
+// authzErrorResponse maps an authz.Authorizer error to an HTTP response.
+// ErrUnauthenticated yields 401; ErrForbidden yields 403. Any other error is
+// treated as forbidden for conservative safety — implementations should wrap
+// their internal errors in one of the typed sentinels when they want a
+// specific status code. Error details are intentionally not leaked to the
+// response body.
+func authzErrorResponse(err error) protosource.Response {
+	switch {
+	case errors.Is(err, authz.ErrUnauthenticated):
+		return errorResponse(http.StatusUnauthorized, "AUTHZ_UNAUTHENTICATED", "unauthenticated", nil)
+	case errors.Is(err, authz.ErrForbidden):
+		return errorResponse(http.StatusForbidden, "AUTHZ_FORBIDDEN", "forbidden", nil)
+	default:
+		return errorResponse(http.StatusForbidden, "AUTHZ_ERROR", "authorization failed", nil)
 	}
 }
 
