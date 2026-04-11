@@ -83,7 +83,17 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -93,7 +103,7 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -119,7 +129,17 @@ func (h *Handler) HandleAddItem(ctx context.Context, request protosource.Request
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -129,7 +149,7 @@ func (h *Handler) HandleAddItem(ctx context.Context, request protosource.Request
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -155,7 +175,17 @@ func (h *Handler) HandleRemoveItem(ctx context.Context, request protosource.Requ
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -165,7 +195,7 @@ func (h *Handler) HandleRemoveItem(ctx context.Context, request protosource.Requ
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -191,7 +221,17 @@ func (h *Handler) HandleAddTag(ctx context.Context, request protosource.Request)
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -201,7 +241,7 @@ func (h *Handler) HandleAddTag(ctx context.Context, request protosource.Request)
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -227,7 +267,17 @@ func (h *Handler) HandleRemoveTag(ctx context.Context, request protosource.Reque
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -237,7 +287,7 @@ func (h *Handler) HandleRemoveTag(ctx context.Context, request protosource.Reque
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -263,7 +313,17 @@ func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Req
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -273,7 +333,7 @@ func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Req
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -299,7 +359,17 @@ func (h *Handler) HandlePlace(ctx context.Context, request protosource.Request) 
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -309,7 +379,7 @@ func (h *Handler) HandlePlace(ctx context.Context, request protosource.Request) 
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
@@ -335,7 +405,17 @@ func (h *Handler) HandleCancel(ctx context.Context, request protosource.Request)
 		return authzErrorResponse(err)
 	}
 
-	if request.Actor == "" {
+	// Prefer the authenticated user id stashed by the Authorizer
+	// (via authz.WithUserID) so the command's Actor field reflects
+	// the resolved identity — the raw bearer token in shadow-token
+	// flows is never written to the aggregate's audit trail. Falls
+	// back to request.Actor populated by the adapter's
+	// ActorExtractor for allowall / X-Actor developer flows.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		actor = request.Actor
+	}
+	if actor == "" {
 		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
@@ -345,7 +425,7 @@ func (h *Handler) HandleCancel(ctx context.Context, request protosource.Request)
 	}
 
 	// Override actor from auth context to prevent spoofing.
-	cmd.Actor = request.Actor
+	cmd.Actor = actor
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
