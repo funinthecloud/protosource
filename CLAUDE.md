@@ -45,6 +45,17 @@ The framework's central types:
 - **`EventTTLer`** — optional interface (`EventTTLSeconds()`) for aggregates with `event_ttl_seconds` annotation. Repository stamps records with TTL before persisting.
 - **`Request`/`Response`/`HandlerFunc`** — provider-agnostic HTTP abstractions for generated handlers.
 
+### Authorization (`authz/`)
+
+Every generated command handler calls `authz.Authorizer.Authorize(ctx, req, "{proto_package}.{CommandName}")` before the pipeline runs. The function name is stamped at codegen time from the proto.
+
+- **`authz.Authorizer`** — interface with one method. Returns `(context.Context, error)` so implementations can enrich ctx with `WithUserID` / `WithJWT` for downstream handlers.
+- **`authz/allowall`** — no-op implementation; the default wire binding for consumers that enforce authorization elsewhere.
+- **`authz.ErrUnauthenticated` → 401**, **`ErrForbidden` → 403**, **anything else → 503 `AUTHZ_UNAVAILABLE`**. The 503 default is deliberate: transient auth-service failures (timeout, DNS, upstream 5xx) must not look like permission denials to load balancers and retry logic.
+- Generated handlers prefer `authz.UserIDFromContext(ctx)` over `request.Actor` when stamping `cmd.Actor`, so shadow-token flows get the resolved user id in the audit trail instead of the raw bearer.
+
+Reference implementation: [`funinthecloud/protosource-auth`](https://github.com/funinthecloud/protosource-auth) — a full shadow-token auth service (User/Role/Token/Issuer/Key aggregates + HTTP endpoints + mgr CLI) that ships `httpauthz.Authorizer` as the concrete client.
+
 ### Code Generation (`cmd/protoc-gen-protosource/`)
 
 The buf plugin reads proto annotations and generates four files per domain package:
@@ -280,11 +291,4 @@ Hosted buf plugins require a pro account, so plugins are not published to BSR. C
 
 ## TODO
 
-- [x] Single-aggregate projections: auto-generated from proto `projection = {}` annotation, wired into Repository pipeline (PR #23)
-- [x] Nested collections: `map<string, Message>` fields with ADD/REMOVE via `collection` annotation, `PostApplyHook` for derived fields (PR #24, #25)
-- [ ] Snapshot-aware event TTL (Case 2): pre-snapshot events get TTL while snapshots persist. Deferred — needs a triggered downstream process (e.g. DynamoDB Streams) to safely mark pre-snapshot events with TTL only after confirming the snapshot exists. Writing events with TTL proactively risks data loss if snapshots don't arrive in time.
-- [ ] Multi-aggregate projections: projections that join/denormalize across multiple aggregate types (e.g. Order + Customer → OrderWithCustomerView). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
-- [ ] Build a showcase app: React frontend + Go backend demonstrating event sourcing and CQRS with a to-do list manager domain (multiple lists, items, reordering, etc.) — simple enough to understand, rich enough to show projections and state transitions. Explore GraphQL as the read-side query layer over CQRS projections (natural fit: projections map to graph types, subscriptions for real-time updates)
-- [x] Make all dependencies more Wire-friendly: shared `aws/dynamoclient` interface, generated `providers.go` with Repository wrapper types, `wire.Bind`, interface params, shared infra in `dynamodbstore/providers.go` (PR #35)
-- [ ] Extract Go client library from `*mgr` CLI commands: reusable HTTP client for command submission, Get, and History — currently the CLI (`cli.gotext`) generates a standalone `main.go` with inline HTTP logic; extract the request/response handling into a generated client package that other Go applications can import
-- [x] Generate TypeScript client for React frontends: `protoc-gen-protosource-ts` buf plugin + `@protosource/client` runtime (`ts/client/`). Generates typed TS client per aggregate with command, load, history, and query methods. Uses `@bufbuild/protobuf` v2 for serialization, `fetch` for HTTP.
+See [TODO.md](TODO.md) for remaining framework work and cross-repo tracking.
