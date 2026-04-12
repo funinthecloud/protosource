@@ -233,7 +233,7 @@ func ProvideStore(client dynamoclient.Client, opaqueStore *opaquedynamo.Store, t
 package main
 
 import (
-    "github.com/google/wire"
+    "github.com/goforj/wire"
     "github.com/funinthecloud/protosource/aws/dynamoclient"
     "github.com/funinthecloud/protosource/stores/dynamodbstore"
     taskv1 "github.com/yourorg/task-app/task/v1"
