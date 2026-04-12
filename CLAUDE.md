@@ -61,7 +61,7 @@ Reference implementation: [`funinthecloud/protosource-auth`](https://github.com/
 The buf plugin reads proto annotations and generates four files per domain package:
 - `*.protosource.pb.go` — aggregate `On` method, command builders, event emission, version validation, authorization, snapshot support (from `protosource.gotext`)
 - `*.protosource.lambda.pb.go` — per-command HTTP handlers, Get, and History endpoints (from `lambda.gotext`)
-- `*.protosource.wire.pb.go` — Wire dependency injection provider sets (from `wire.gotext`)
+- `*.protosource.wire.pb.go` — Wire `Repository` wrapper, `ProvideRepository`, and `ProviderSet` in the same package (from `wire.gotext`). Store-agnostic: the concrete `protosource.Store` is wired separately.
 - `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); commands with embedded message fields accept JSON args, commands with repeated/map fields are omitted
 
 The plugin logic is in `protosourceify.go`; templates are in `content/`.
