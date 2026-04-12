@@ -193,17 +193,22 @@ Generated code includes Wire provider sets for each aggregate. The pattern:
 
 ### Generated providers (per aggregate)
 
-Each aggregate gets a `*dynamodb/providers.go` and `*memory/providers.go`:
+Each aggregate gets a `*.protosource.wire.pb.go` in its base package:
 
 ```go
-// task/v1/taskv1dynamodb/providers.go (generated)
-package taskv1dynamodb
+// task/v1/task_v1.protosource.wire.pb.go (generated)
+package taskv1
 
 type Repository struct{ *protosource.Repository }
 
 func ProvideRepository(store protosource.Store, serializer protosource.Serializer) *Repository {
-    return &Repository{protosource.New(&taskv1.Task{}, store, serializer)}
+    return &Repository{NewRepository(store, serializer)}
 }
+
+var ProviderSet = wire.NewSet(
+    ProvideRepository,
+    wire.Bind(new(Repo), new(*Repository)),
+)
 ```
 
 ### Shared infrastructure providers
@@ -228,10 +233,10 @@ func ProvideStore(client dynamoclient.Client, opaqueStore *opaquedynamo.Store, t
 package main
 
 import (
-    "github.com/google/wire"
+    "github.com/goforj/wire"
     "github.com/funinthecloud/protosource/aws/dynamoclient"
     "github.com/funinthecloud/protosource/stores/dynamodbstore"
-    taskv1ddb "github.com/yourorg/task-app/task/v1/taskv1dynamodb"
+    taskv1 "github.com/yourorg/task-app/task/v1"
 )
 
 func InitializeApp(
@@ -243,7 +248,7 @@ func InitializeApp(
         dynamodbstore.ProvideOpaqueStore,
         dynamodbstore.ProvideStore,
         wire.Bind(new(protosource.Store), new(*dynamodbstore.DynamoDBStore)),
-        taskv1ddb.ProvideRepository,
+        taskv1.ProviderSet,
         // ... handler, router providers ...
         NewApp,
     )

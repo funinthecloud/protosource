@@ -10,12 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/authz/allowall"
-	"github.com/funinthecloud/protosource/example/app/order/v1"
-	"github.com/funinthecloud/protosource/example/app/order/v1/orderv1dynamodb"
-	"github.com/funinthecloud/protosource/example/app/sample/v1"
-	"github.com/funinthecloud/protosource/example/app/sample/v1/samplev1dynamodb"
-	"github.com/funinthecloud/protosource/example/app/test/v1"
-	"github.com/funinthecloud/protosource/example/app/test/v1/testv1dynamodb"
+	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
+	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
+	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/dynamodbstore"
 )
@@ -30,16 +27,16 @@ func InitializeRouter(client *dynamodb.Client, eventsTable dynamodbstore.EventsT
 		return nil, err
 	}
 	serializer := protobinaryserializer.NewSerializer()
-	repository := testv1dynamodb.ProvideRepository(dynamoDBStore, serializer)
+	repository := testv1.ProvideRepository(dynamoDBStore, serializer)
 	testClient := testv1.NewTestClient(store)
 	authorizer := allowall.Provide()
 	handler := testv1.NewHandler(repository, testClient, authorizer)
-	orderv1dynamodbRepository := orderv1dynamodb.ProvideRepository(dynamoDBStore, serializer)
+	orderv1Repository := orderv1.ProvideRepository(dynamoDBStore, serializer)
 	orderClient := orderv1.NewOrderClient(store)
-	orderv1Handler := orderv1.NewHandler(orderv1dynamodbRepository, orderClient, authorizer)
-	samplev1dynamodbRepository := samplev1dynamodb.ProvideRepository(dynamoDBStore, serializer)
+	orderv1Handler := orderv1.NewHandler(orderv1Repository, orderClient, authorizer)
+	samplev1Repository := samplev1.ProvideRepository(dynamoDBStore, serializer)
 	sampleClient := samplev1.NewSampleClient(store)
-	samplev1Handler := samplev1.NewHandler(samplev1dynamodbRepository, sampleClient, authorizer)
+	samplev1Handler := samplev1.NewHandler(samplev1Repository, sampleClient, authorizer)
 	router := provideRouter(handler, orderv1Handler, samplev1Handler)
 	return router, nil
 }

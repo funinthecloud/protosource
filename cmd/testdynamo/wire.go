@@ -10,11 +10,8 @@ import (
 	"github.com/funinthecloud/protosource/authz/allowall"
 	"github.com/funinthecloud/protosource/aws/dynamoclient"
 	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
-	orderv1dynamodb "github.com/funinthecloud/protosource/example/app/order/v1/orderv1dynamodb"
 	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
-	samplev1dynamodb "github.com/funinthecloud/protosource/example/app/sample/v1/samplev1dynamodb"
 	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
-	testv1dynamodb "github.com/funinthecloud/protosource/example/app/test/v1/testv1dynamodb"
 	"github.com/funinthecloud/protosource/opaquedata"
 	opaquedynamo "github.com/funinthecloud/protosource/opaquedata/dynamo"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
@@ -41,9 +38,9 @@ func InitializeRouter(
 		dynamodbstore.ProviderSet,
 		protobinaryserializer.ProviderSet,
 		allowall.ProviderSet,
-		testv1dynamodb.ProviderSet,
-		orderv1dynamodb.ProviderSet,
-		samplev1dynamodb.ProviderSet,
+		testv1.ProviderSet,
+		orderv1.ProviderSet,
+		samplev1.ProviderSet,
 		testv1.NewTestClient,
 		orderv1.NewOrderClient,
 		samplev1.NewSampleClient,
