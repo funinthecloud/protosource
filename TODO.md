@@ -26,6 +26,7 @@ Cross-repo tracking for the protosource ecosystem. Items marked against sibling 
 - [x] `authz.Authorizer` interface + generated handler integration (PR #64)
 - [x] Actor resolution prefers `authz.UserIDFromContext(ctx)` over `request.Actor` (PR #65, v0.1.3)
 - [x] Unknown authorizer errors → 503 `AUTHZ_UNAVAILABLE` instead of 403 (PR #65, v0.1.3)
+- [x] Exported `dynamodbstore.EnsureTables` + `NumGSIs` for library use (PR #68, v0.1.5) — downstream projects import instead of duplicating table creation logic. Tables created with deletion protection, PITR, TTL.
 
 ## protosource-auth
 
@@ -36,5 +37,6 @@ Tracked in its own TODO section of [`protosource-auth/CLAUDE.md`](https://github
 
 ## todoapp
 
-- [ ] **Frontend shadow-token integration.** The React frontend still sends `X-Actor`. Update it to POST `/login` against protosource-auth, store the shadow token, and send `Authorization: Bearer <token>` on every request.
-- [ ] **Deploy the auth service alongside the lambda backend.** Today `protosource-auth` runs as a standalone binary; adding a lambda deployment target for the auth service itself would let todoapp deploy both in one stack.
+- [ ] **Switch to `directauthz` in-process authorizer.** The Lambda backend currently uses `httpauthz.New(url)` for HTTP-based auth. Switch to `directauthz.New(checker)` using shared DynamoDB tables — eliminates the network hop.
+- [ ] **Frontend shadow-token integration.** The React frontend still sends `X-Actor`. Update it to POST `/login` against protosource-auth, store the shadow token (cookie or localStorage), and send `Authorization: Bearer <token>` on every request.
+- [x] **Deploy the auth service alongside the lambda backend.** protosource-auth now ships as a Lambda (`cmd/protosource-auth-lambda`) with its own SAM template.
