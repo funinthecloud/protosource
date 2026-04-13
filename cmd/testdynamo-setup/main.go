@@ -10,6 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+
+	"github.com/funinthecloud/protosource/stores/dynamodbstore"
 )
 
 const usage = `Usage: testdynamo-setup <command>
@@ -26,7 +28,7 @@ Environment variables:
   AGGREGATES_TABLE   Aggregates table name    (default: aggregates)
   AWS_ENDPOINT_URL   Custom endpoint          (e.g. http://localhost:8000 for DynamoDB Local)`
 
-const gsiCount = 20
+const gsiCount = dynamodbstore.NumGSIs
 
 func main() {
 	if len(os.Args) < 2 {
@@ -53,13 +55,10 @@ func main() {
 
 	switch os.Args[1] {
 	case "create":
-		createEventsTable(ctx, client, eventsTable)
-		createAggregatesTable(ctx, client, aggregatesTable)
-		waitForActive(ctx, client, eventsTable, aggregatesTable)
-		enablePITR(ctx, client, eventsTable)
-		enablePITR(ctx, client, aggregatesTable)
-		enableTTL(ctx, client, eventsTable, "t")
-		enableTTL(ctx, client, aggregatesTable, "t")
+		if err := dynamodbstore.EnsureTables(ctx, client, eventsTable, aggregatesTable); err != nil {
+			fatal("create: %v", err)
+		}
+		fmt.Printf("  tables created: %s, %s\n", eventsTable, aggregatesTable)
 	case "fix":
 		for _, table := range []string{eventsTable, aggregatesTable} {
 			enablePITR(ctx, client, table)
