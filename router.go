@@ -10,9 +10,10 @@ import (
 // When set, Dispatch automatically handles OPTIONS preflight requests and
 // injects CORS headers into every response.
 type CORSConfig struct {
-	AllowOrigin  string // e.g. "*" or "https://example.com"
-	AllowMethods string // e.g. "GET,POST,PUT,DELETE,OPTIONS"
-	AllowHeaders string // e.g. "Content-Type,X-Actor"
+	AllowOrigin      string // e.g. "*" or "https://example.com"
+	AllowMethods     string // e.g. "GET,POST,PUT,DELETE,OPTIONS"
+	AllowHeaders     string // e.g. "Content-Type,X-Actor"
+	AllowCredentials bool   // when true, sets Access-Control-Allow-Credentials: true
 }
 
 // Router maps HTTP method + path patterns to HandlerFunc handlers.
@@ -127,6 +128,9 @@ func (r *Router) applyCORS(resp *Response) {
 	resp.Headers["Access-Control-Allow-Origin"] = r.cors.AllowOrigin
 	resp.Headers["Access-Control-Allow-Methods"] = r.cors.AllowMethods
 	resp.Headers["Access-Control-Allow-Headers"] = r.cors.AllowHeaders
+	if r.cors.AllowCredentials {
+		resp.Headers["Access-Control-Allow-Credentials"] = "true"
+	}
 }
 
 // splitPath splits a URL path into non-empty segments.

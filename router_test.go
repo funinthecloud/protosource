@@ -212,6 +212,44 @@ func TestRouterNoCORSByDefault(t *testing.T) {
 	}
 }
 
+func TestRouterCORSCredentials(t *testing.T) {
+	r := NewRouter()
+	r.Handle("POST", "a/v1/create", handler("create"))
+	r.SetCORS(CORSConfig{
+		AllowOrigin:      "https://admin.example.com",
+		AllowMethods:     "GET,POST,OPTIONS",
+		AllowHeaders:     "Content-Type",
+		AllowCredentials: true,
+	})
+
+	// Normal response includes credentials header.
+	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{})
+	if resp.Headers["Access-Control-Allow-Credentials"] != "true" {
+		t.Fatalf("expected credentials header, got %q", resp.Headers["Access-Control-Allow-Credentials"])
+	}
+
+	// Preflight includes credentials header.
+	resp = r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{})
+	if resp.Headers["Access-Control-Allow-Credentials"] != "true" {
+		t.Fatalf("expected credentials header on preflight, got %q", resp.Headers["Access-Control-Allow-Credentials"])
+	}
+}
+
+func TestRouterCORSNoCredentialsByDefault(t *testing.T) {
+	r := NewRouter()
+	r.Handle("GET", "a/v1/x", handler("x"))
+	r.SetCORS(CORSConfig{
+		AllowOrigin:  "*",
+		AllowMethods: "GET",
+		AllowHeaders: "Content-Type",
+	})
+
+	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{})
+	if _, ok := resp.Headers["Access-Control-Allow-Credentials"]; ok {
+		t.Fatalf("expected no credentials header when not configured")
+	}
+}
+
 func TestRouterEmptyPath(t *testing.T) {
 	r := NewRouter()
 	r.Handle("GET", "foo", handler("foo"))
