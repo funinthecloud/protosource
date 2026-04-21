@@ -10,10 +10,10 @@ import (
 // When set, Dispatch automatically handles OPTIONS preflight requests and
 // injects CORS headers into every response.
 type CORSConfig struct {
-	AllowOrigin      string // e.g. "*" or "https://example.com"
-	AllowMethods     string // e.g. "GET,POST,PUT,DELETE,OPTIONS"
-	AllowHeaders     string // e.g. "Content-Type,X-Actor"
-	AllowCredentials bool   // when true, sets Access-Control-Allow-Credentials: true
+	AllowOrigins     []string // e.g. []string{"*"} or []string{"https://a.com", "https://b.com"}
+	AllowMethods     string   // e.g. "GET,POST,PUT,DELETE,OPTIONS"
+	AllowHeaders     string   // e.g. "Content-Type,X-Actor"
+	AllowCredentials bool     // when true, sets Access-Control-Allow-Credentials: true
 }
 
 // Router maps HTTP method + path patterns to HandlerFunc handlers.
@@ -66,12 +66,14 @@ func (r *Router) Handle(method, pattern string, handler HandlerFunc) {
 // extracted from the pattern are merged into request.PathParameters.
 // Returns 404 for no path match, 405 for path match with wrong method.
 func (r *Router) Dispatch(ctx context.Context, method, path string, request Request) Response {
+	origin := request.Headers["Origin"]
+
 	// Handle CORS preflight.
 	if r.cors != nil && method == http.MethodOptions {
 		resp := Response{
 			StatusCode: http.StatusNoContent,
 		}
-		r.applyCORS(&resp)
+		r.applyCORS(&resp, origin)
 		return resp
 	}
 
@@ -94,7 +96,7 @@ func (r *Router) Dispatch(ctx context.Context, method, path string, request Requ
 			request.PathParameters[k] = v
 		}
 		resp := rt.handler(ctx, request)
-		r.applyCORS(&resp)
+		r.applyCORS(&resp, origin)
 		return resp
 	}
 
@@ -104,7 +106,7 @@ func (r *Router) Dispatch(ctx context.Context, method, path string, request Requ
 			Body:       `{"error":"method not allowed"}`,
 			Headers:    map[string]string{"Content-Type": "application/json"},
 		}
-		r.applyCORS(&resp)
+		r.applyCORS(&resp, origin)
 		return resp
 	}
 
@@ -113,24 +115,45 @@ func (r *Router) Dispatch(ctx context.Context, method, path string, request Requ
 		Body:       `{"error":"not found"}`,
 		Headers:    map[string]string{"Content-Type": "application/json"},
 	}
-	r.applyCORS(&resp)
+	r.applyCORS(&resp, origin)
 	return resp
 }
 
 // applyCORS injects CORS headers into the response if CORS is configured.
-func (r *Router) applyCORS(resp *Response) {
+// It matches the request origin against AllowOrigins and echoes it back.
+func (r *Router) applyCORS(resp *Response, origin string) {
 	if r.cors == nil {
+		return
+	}
+	matched := r.cors.matchOrigin(origin)
+	if matched == "" {
 		return
 	}
 	if resp.Headers == nil {
 		resp.Headers = make(map[string]string)
 	}
-	resp.Headers["Access-Control-Allow-Origin"] = r.cors.AllowOrigin
+	resp.Headers["Access-Control-Allow-Origin"] = matched
 	resp.Headers["Access-Control-Allow-Methods"] = r.cors.AllowMethods
 	resp.Headers["Access-Control-Allow-Headers"] = r.cors.AllowHeaders
+	if matched != "*" {
+		resp.Headers["Vary"] = "Origin"
+	}
 	if r.cors.AllowCredentials {
 		resp.Headers["Access-Control-Allow-Credentials"] = "true"
 	}
+}
+
+// matchOrigin returns the origin to echo back, or "" if no match.
+func (c *CORSConfig) matchOrigin(origin string) string {
+	for _, o := range c.AllowOrigins {
+		if o == "*" {
+			return "*"
+		}
+		if o == origin {
+			return origin
+		}
+	}
+	return ""
 }
 
 // splitPath splits a URL path into non-empty segments.

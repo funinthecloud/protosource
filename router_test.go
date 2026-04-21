@@ -151,12 +151,14 @@ func TestRouterCORSPreflight(t *testing.T) {
 	r := NewRouter()
 	r.Handle("POST", "a/v1/create", handler("create"))
 	r.SetCORS(CORSConfig{
-		AllowOrigin:  "*",
+		AllowOrigins: []string{"*"},
 		AllowMethods: "GET,POST,OPTIONS",
 		AllowHeaders: "Content-Type,X-Actor",
 	})
 
-	resp := r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{})
+	resp := r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{
+		Headers: map[string]string{"Origin": "https://any.com"},
+	})
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
 	}
@@ -169,31 +171,41 @@ func TestRouterCORSPreflight(t *testing.T) {
 	if resp.Headers["Access-Control-Allow-Headers"] != "Content-Type,X-Actor" {
 		t.Fatalf("missing CORS headers header")
 	}
+	if _, ok := resp.Headers["Vary"]; ok {
+		t.Fatalf("wildcard origin should not set Vary header")
+	}
 }
 
 func TestRouterCORSOnResponse(t *testing.T) {
 	r := NewRouter()
 	r.Handle("POST", "a/v1/create", handler("create"))
 	r.SetCORS(CORSConfig{
-		AllowOrigin:  "https://example.com",
+		AllowOrigins: []string{"https://example.com"},
 		AllowMethods: "GET,POST",
 		AllowHeaders: "Content-Type",
 	})
 
-	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{})
+	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{
+		Headers: map[string]string{"Origin": "https://example.com"},
+	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
 	}
 	if resp.Headers["Access-Control-Allow-Origin"] != "https://example.com" {
 		t.Fatalf("expected CORS origin on normal response, got %q", resp.Headers["Access-Control-Allow-Origin"])
 	}
+	if resp.Headers["Vary"] != "Origin" {
+		t.Fatalf("expected Vary: Origin for specific origin, got %q", resp.Headers["Vary"])
+	}
 }
 
 func TestRouterCORSOn404(t *testing.T) {
 	r := NewRouter()
-	r.SetCORS(CORSConfig{AllowOrigin: "*", AllowMethods: "GET", AllowHeaders: "Content-Type"})
+	r.SetCORS(CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: "GET", AllowHeaders: "Content-Type"})
 
-	resp := r.Dispatch(context.Background(), "GET", "/nope", Request{})
+	resp := r.Dispatch(context.Background(), "GET", "/nope", Request{
+		Headers: map[string]string{"Origin": "https://any.com"},
+	})
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
 	}
@@ -216,20 +228,24 @@ func TestRouterCORSCredentials(t *testing.T) {
 	r := NewRouter()
 	r.Handle("POST", "a/v1/create", handler("create"))
 	r.SetCORS(CORSConfig{
-		AllowOrigin:      "https://admin.example.com",
+		AllowOrigins:     []string{"https://admin.example.com"},
 		AllowMethods:     "GET,POST,OPTIONS",
 		AllowHeaders:     "Content-Type",
 		AllowCredentials: true,
 	})
 
 	// Normal response includes credentials header.
-	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{})
+	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{
+		Headers: map[string]string{"Origin": "https://admin.example.com"},
+	})
 	if resp.Headers["Access-Control-Allow-Credentials"] != "true" {
 		t.Fatalf("expected credentials header, got %q", resp.Headers["Access-Control-Allow-Credentials"])
 	}
 
 	// Preflight includes credentials header.
-	resp = r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{})
+	resp = r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{
+		Headers: map[string]string{"Origin": "https://admin.example.com"},
+	})
 	if resp.Headers["Access-Control-Allow-Credentials"] != "true" {
 		t.Fatalf("expected credentials header on preflight, got %q", resp.Headers["Access-Control-Allow-Credentials"])
 	}
@@ -239,14 +255,45 @@ func TestRouterCORSNoCredentialsByDefault(t *testing.T) {
 	r := NewRouter()
 	r.Handle("GET", "a/v1/x", handler("x"))
 	r.SetCORS(CORSConfig{
-		AllowOrigin:  "*",
+		AllowOrigins: []string{"*"},
 		AllowMethods: "GET",
 		AllowHeaders: "Content-Type",
 	})
 
-	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{})
+	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{
+		Headers: map[string]string{"Origin": "https://any.com"},
+	})
 	if _, ok := resp.Headers["Access-Control-Allow-Credentials"]; ok {
 		t.Fatalf("expected no credentials header when not configured")
+	}
+}
+
+func TestRouterCORSMultipleOrigins(t *testing.T) {
+	r := NewRouter()
+	r.Handle("GET", "a/v1/x", handler("x"))
+	r.SetCORS(CORSConfig{
+		AllowOrigins: []string{"https://app.example.com", "https://staging.example.com"},
+		AllowMethods: "GET,POST",
+		AllowHeaders: "Content-Type",
+	})
+
+	// Matching origin is echoed back.
+	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{
+		Headers: map[string]string{"Origin": "https://staging.example.com"},
+	})
+	if resp.Headers["Access-Control-Allow-Origin"] != "https://staging.example.com" {
+		t.Fatalf("expected matching origin echoed, got %q", resp.Headers["Access-Control-Allow-Origin"])
+	}
+	if resp.Headers["Vary"] != "Origin" {
+		t.Fatalf("expected Vary: Origin, got %q", resp.Headers["Vary"])
+	}
+
+	// Non-matching origin gets no CORS headers.
+	resp = r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{
+		Headers: map[string]string{"Origin": "https://evil.com"},
+	})
+	if _, ok := resp.Headers["Access-Control-Allow-Origin"]; ok {
+		t.Fatalf("expected no CORS headers for non-matching origin")
 	}
 }
 
