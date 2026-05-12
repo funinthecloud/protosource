@@ -127,6 +127,21 @@ Always create all 20 GSI pairs (`gsi1pk`/`gsi1sk` through `gsi20pk`/`gsi20sk`). 
 ### GSI Method Naming
 When multiple GSIs share the same PK fields, the PK-only query method (`QueryByColor`) is generated once (first GSI wins). `WithSK`/`BetweenSK` variants disambiguate naturally via SK field names. Server-side `Select` methods and lambda handlers for duplicate-PK GSIs use `ViaGSI{N}` suffix and SK-scoped route paths (`/query/by-color-with-number`) to ensure each queries the correct DynamoDB index.
 
+## Cosmos DB Container Design
+
+Cross-cloud parity with DynamoDB: two containers, **events** (partitionKey `a`, item id `v`) and **aggregates** (partitionKey `pk`, item id `sk`). Same opaquedata model — the 20 GSI slot pairs (`gsi1pk`/`gsi1sk` … `gsi20pk`/`gsi20sk`) live as document properties; Cosmos serves them via cross-partition queries, no per-index objects required.
+
+- **API:** Cosmos NoSQL (Core SQL). `github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos`.
+- **TTL:** stored as both `t` (absolute epoch, used by our query filter) and `ttl` (relative seconds, used by Cosmos auto-purge). Containers must enable `DefaultTimeToLive = -1` so per-item `ttl` is honored.
+- **Concurrency:** events use `CreateItem` (Cosmos rejects duplicate `id` within a partition, giving the same version-uniqueness guarantee as Dynamo's conditional `Put`).
+- **Throughput:** serverless for dev, autoscale RU/s for prod — chosen at the tofu module, not in store code.
+- **Auth:** Managed Identity → Cosmos data-plane RBAC. No connection strings in app config.
+
+Packages:
+- `azure/cosmosclient` — `ContainerClient` interface (one per container) wrapping `*azcosmos.ContainerClient`. Adds `ExecuteCreateBatch` (atomic per-partition writes via `TransactionalBatch`) and a `Pager` for early-termination queries. Exposes `BatchError` + `IsBatchConflict` for version-collision detection.
+- `opaquedata/cosmos` — `OpaqueStore` implementation. Single-partition for main-pk queries; cross-partition for `GSIIndex > 0`.
+- `stores/cosmosdbstore` — `CosmosDBStore` implementing `Store` + `AggregateStore` + `SnapshotTailStore`. Event docs use `id = strconv(version)` so Cosmos's per-partition id uniqueness provides the same conditional-write guarantee Dynamo gets from `TransactWriteItems`. Includes `EnsureDatabase` / `EnsureContainers` (creates containers with `DefaultTimeToLive = -1` so per-item `ttl` is honored). Wire-typed `EventsContainerClient` / `AggregatesContainerClient` aliases keep the DI graph unambiguous.
+
 ## Proto Conventions
 
 Domain protos import `funinthecloud/protosource/options/v1/options_v1.proto` and use these annotations:
