@@ -112,9 +112,18 @@ func (w *wrapper) NewQueryItemsPager(query string, pk azcosmos.PartitionKey, o *
 	return &sdkPager{p: w.c.NewQueryItemsPager(query, pk, o)}
 }
 
+// MaxBatchOperations is the Cosmos transactional-batch ceiling. Callers must
+// pre-batch larger writes themselves; ExecuteCreateBatch refuses to forward a
+// request that would exceed this limit rather than letting the SDK fail with
+// an opaque server-side error.
+const MaxBatchOperations = 100
+
 func (w *wrapper) ExecuteCreateBatch(ctx context.Context, pk azcosmos.PartitionKey, items [][]byte) error {
 	if len(items) == 0 {
 		return nil
+	}
+	if len(items) > MaxBatchOperations {
+		return fmt.Errorf("cosmosclient: batch of %d items exceeds Cosmos cap of %d", len(items), MaxBatchOperations)
 	}
 	batch := w.c.NewTransactionalBatch(pk)
 	for _, it := range items {

@@ -23,12 +23,22 @@ Single-letter names matching `stores/dynamodbstore`:
 
 | Field | Purpose |
 |-------|---------|
-| `id` | Cosmos doc id (string form of version) |
-| `a`  | partition key — aggregate ID |
-| `v`  | version (number) |
-| `d`  | payload bytes (base64 in JSON) |
-| `t`  | absolute epoch seconds — app-level TTL filter |
-| `ttl`| Cosmos-native relative seconds — auto-purge |
+| `id` | Cosmos doc id (string). Set to `strconv(v)`. Enforces per-partition version uniqueness. |
+| `a`  | partition key — aggregate ID. Routes the document to a physical partition. |
+| `v`  | numeric version (int64). Used for `ORDER BY c.v` and range queries. |
+| `d`  | payload bytes (base64 in JSON). |
+| `t`  | absolute epoch seconds — app-level TTL filter. |
+| `ttl`| Cosmos-native relative seconds — auto-purge. |
+
+### Why `a`, `v`, and `id` aren't redundant
+
+Cosmos's data model forces a string `id` field on every document and guarantees `(id, partitionKey)` is unique. We need three distinct things:
+
+- A **partition key** that groups all events for one aggregate together (`a`).
+- A **numeric** version for SQL `ORDER BY` and range queries — a string version would sort lexicographically (`"10" < "2"`).
+- A **uniqueness gate** equivalent to Dynamo's `attribute_not_exists` conditional write, so a second writer attempting the same version fails fast.
+
+`id = strconv(v)` makes the Cosmos uniqueness constraint do the version-collision detection for us — that's the third bullet. We can't reuse `v` directly because `id` must be a string, and we can't make `v` a string because then ordering breaks. So we accept the small redundancy: `id` is the storage-engine constraint, `v` is the domain field.
 
 Both `t` and `ttl` are written when TTL is configured. `t` is what our query filter and opaquedata adapter inspect; `ttl` is what Cosmos uses to auto-delete. The aggregates container's documents use the opaquedata schema (`pk`/`sk`/`gsiNpk`/`gsiNsk`/etc.) — see `opaquedata/cosmos`.
 

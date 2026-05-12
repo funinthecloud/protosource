@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -175,11 +176,7 @@ func (m *mockCosmos) ExecuteCreateBatch(_ context.Context, pk azcosmos.Partition
 
 func containsASC(query string) bool {
 	// Tiny helper — query strings the store emits end with `ASC` or `DESC`.
-	if len(query) < 3 {
-		return true
-	}
-	tail := query[len(query)-4:]
-	return tail == " ASC"
+	return strings.HasSuffix(query, " ASC")
 }
 
 type mockPager struct {

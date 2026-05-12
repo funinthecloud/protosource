@@ -302,6 +302,35 @@ func TestQuery_TTLFilter(t *testing.T) {
 	assert.Contains(t, q, "c.t > @now")
 }
 
+func TestQuery_RejectsInvalidAttrNames(t *testing.T) {
+	mock := &mockCosmos{}
+	store := New(mock)
+	cases := []struct {
+		name, pkAttr, skAttr string
+	}{
+		{"pkAttr injection", "pk; DROP", "sk"},
+		{"skAttr injection", "pk", "sk OR 1=1"},
+		{"unknown gsi number", "gsi21pk", "sk"},
+		{"empty pk", "", "sk"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := store.Query(context.Background(), tc.pkAttr, "v", tc.skAttr, nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid")
+		})
+	}
+}
+
+func TestIsValidOpaqueAttr(t *testing.T) {
+	for _, ok := range []string{"pk", "sk", "gsi1pk", "gsi1sk", "gsi10pk", "gsi20sk"} {
+		assert.True(t, isValidOpaqueAttr(ok), ok)
+	}
+	for _, bad := range []string{"", "pk ", "PK", "gsi0pk", "gsi21pk", "gsipk", "gsi1", "gsi1xx", "gsi1pk; --", "c.pk"} {
+		assert.False(t, isValidOpaqueAttr(bad), bad)
+	}
+}
+
 func TestQuery_InvalidGSIIndex(t *testing.T) {
 	mock := &mockCosmos{}
 	store := New(mock)

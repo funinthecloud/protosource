@@ -91,6 +91,16 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 	if qo.GSIIndex < 0 || qo.GSIIndex > 20 {
 		return nil, fmt.Errorf("opaquedata: GSI index %d out of range [0,20]", qo.GSIIndex)
 	}
+	// Cosmos SQL cannot parameterize identifiers, so pkAttr/skAttr are
+	// interpolated into the query string. Restrict to the opaquedata schema
+	// (pk/sk plus gsi{1..20}{pk,sk}) so a caller cannot smuggle arbitrary
+	// SQL through the attribute names.
+	if !isValidOpaqueAttr(pkAttr) {
+		return nil, fmt.Errorf("opaquedata: invalid pk attribute %q", pkAttr)
+	}
+	if !isValidOpaqueAttr(skAttr) {
+		return nil, fmt.Errorf("opaquedata: invalid sk attribute %q", skAttr)
+	}
 
 	params := []azcosmos.QueryParameter{
 		{Name: "@pk", Value: pkValue},
@@ -154,6 +164,44 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 		return nil, nil
 	}
 	return results, nil
+}
+
+// isValidOpaqueAttr reports whether name is one of the opaquedata schema
+// attributes that may be interpolated into a Cosmos SQL query: pk, sk, or
+// gsi{1..20}{pk,sk}. Used as a guard against SQL injection through the
+// pkAttr / skAttr query parameters.
+func isValidOpaqueAttr(name string) bool {
+	if name == "pk" || name == "sk" {
+		return true
+	}
+	const prefix = "gsi"
+	if len(name) < len(prefix)+3 || name[:len(prefix)] != prefix {
+		return false
+	}
+	suffix := ""
+	switch {
+	case strings.HasSuffix(name, "pk"):
+		suffix = "pk"
+	case strings.HasSuffix(name, "sk"):
+		suffix = "sk"
+	default:
+		return false
+	}
+	digits := name[len(prefix) : len(name)-len(suffix)]
+	if digits == "" {
+		return false
+	}
+	n := 0
+	for _, c := range digits {
+		if c < '0' || c > '9' {
+			return false
+		}
+		n = n*10 + int(c-'0')
+		if n > 20 {
+			return false
+		}
+	}
+	return n >= 1 && n <= 20
 }
 
 // document is the on-wire JSON shape of an OpaqueData row in Cosmos. Fields

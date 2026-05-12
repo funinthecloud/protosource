@@ -96,13 +96,31 @@ func WithTTL(ttl time.Duration) Option {
 	return func(s *CosmosDBStore) { s.ttl = ttl }
 }
 
-// eventDoc is the on-wire shape of an event row. Fields use the single-letter
-// names from the Dynamo schema so the conceptual model is identical
-// across clouds.
+// eventDoc is the on-wire shape of an event row.
+//
+// Three identity-related fields look redundant but each serves a distinct
+// purpose dictated by Cosmos's data model:
+//
+//   - `a` — partition key value: the aggregate ID. Cosmos hashes this to
+//     route the document to a physical partition. Every query for the
+//     aggregate's events runs against this single partition (cheap).
+//   - `v` — numeric version (int64). Used by SQL queries: `ORDER BY c.v`,
+//     range filters, etc. Domain-meaningful.
+//   - `id` — required Cosmos document id, a *string*. Cosmos guarantees
+//     (id, partitionKey) is unique. We set `id = strconv(v)` so a second
+//     write at the same version fails with HTTP 409 — this is the
+//     Cosmos analog of Dynamo's `attribute_not_exists` conditional write
+//     and gives us the version-uniqueness invariant the event store
+//     depends on.
+//
+// `id` is a string because Cosmos requires it; `v` is a number because
+// SQL ordering on a stringified number sorts lexicographically (10 < 2).
+// They carry the same information in different shapes for different
+// engine constraints.
 type eventDoc struct {
-	ID  string `json:"id"` // Cosmos doc id — set to strconv(version) for per-partition uniqueness
-	A   string `json:"a"`  // partition key value (aggregate ID)
-	V   int64  `json:"v"`  // numeric version
+	ID  string `json:"id"` // Cosmos doc id — strconv(v). Enforces per-partition version uniqueness.
+	A   string `json:"a"`  // partition key — aggregate ID.
+	V   int64  `json:"v"`  // numeric version — used for ORDER BY / range queries.
 	D   []byte `json:"d,omitempty"`
 	T   int64  `json:"t,omitempty"`
 	TTL int64  `json:"ttl,omitempty"`
@@ -145,18 +163,18 @@ func (s *CosmosDBStore) Save(ctx context.Context, aggregateID string, records ..
 				D:  rec.GetData(),
 			}
 			// Per-record TTL: prefer the record's own ttl when set, else
-			// fall back to the store-level TTL window. Both translate to an
-			// absolute epoch in `t` and a relative seconds value in `ttl`.
-			if recTTL := rec.GetTtl(); recTTL > 0 {
-				doc.T = recTTL
-				remaining := recTTL - now.Unix()
-				if remaining < 1 {
-					remaining = 1
-				}
-				doc.TTL = remaining
-			} else if s.ttl > 0 {
+			// fall back to the store-level TTL window. Both fields are
+			// derived from the same absolute epoch so Cosmos's auto-purge
+			// (`ttl`, relative seconds) never fires before the app-level
+			// filter (`t`, absolute epoch) would have allowed reads.
+			switch {
+			case rec.GetTtl() > 0:
+				doc.T = rec.GetTtl()
+			case s.ttl > 0:
 				doc.T = now.Add(s.ttl).Unix()
-				doc.TTL = int64(s.ttl / time.Second)
+			}
+			if doc.T > 0 {
+				doc.TTL = doc.T - now.Unix()
 				if doc.TTL < 1 {
 					doc.TTL = 1
 				}
