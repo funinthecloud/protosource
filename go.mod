@@ -12,7 +12,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.57.3
 	github.com/bufbuild/buf v1.67.0
 	github.com/davecgh/go-spew v1.1.1
-	github.com/goforj/wire v1.1.0
+	github.com/goforj/wire v1.2.0
 	github.com/google/go-cmp v0.7.0
 	github.com/lyft/protoc-gen-star/v2 v2.0.4
 	github.com/stretchr/testify v1.11.1
