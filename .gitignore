@@ -54,6 +54,10 @@ ts/client/dist/
 *.tfstate
 *.tfstate.*
 *.tfplan
+# Real var files carry secrets / personal config — only the
+# *.example.tfvars templates are committed.
+deploy/**/terraform.tfvars
+deploy/**/*.auto.tfvars
 
 ## GitHub config
 !CODEOWNERS
