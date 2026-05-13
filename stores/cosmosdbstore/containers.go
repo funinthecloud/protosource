@@ -22,7 +22,8 @@ const NumGSIs = 20
 var defaultTTLMinusOne = int32(-1)
 
 // EnsureDatabase idempotently creates the Cosmos database. If it already
-// exists, no action is taken. Returns a database client either way.
+// exists, no action is taken. A 409 Conflict from CreateDatabase is treated
+// as success so concurrent startup/deploys can race safely.
 func EnsureDatabase(ctx context.Context, client *azcosmos.Client, databaseID string) (*azcosmos.DatabaseClient, error) {
 	db, err := client.NewDatabase(databaseID)
 	if err != nil {
@@ -34,7 +35,9 @@ func EnsureDatabase(ctx context.Context, client *azcosmos.Client, databaseID str
 		return nil, fmt.Errorf("cosmosdbstore.EnsureDatabase: read: %w", err)
 	}
 	if _, err := client.CreateDatabase(ctx, azcosmos.DatabaseProperties{ID: databaseID}, nil); err != nil {
-		return nil, fmt.Errorf("cosmosdbstore.EnsureDatabase: create: %w", err)
+		if !isConflict(err) {
+			return nil, fmt.Errorf("cosmosdbstore.EnsureDatabase: create: %w", err)
+		}
 	}
 	return db, nil
 }
@@ -80,7 +83,12 @@ func ensureContainer(ctx context.Context, db *azcosmos.DatabaseClient, id, parti
 		DefaultTimeToLive: &defaultTTLMinusOne,
 	}
 	if _, err := db.CreateContainer(ctx, props, nil); err != nil {
-		return fmt.Errorf("create: %w", err)
+		// A 409 here means another process won the race between our Read
+		// and CreateContainer. The container exists, which is what the
+		// caller asked for — treat as success.
+		if !isConflict(err) {
+			return fmt.Errorf("create: %w", err)
+		}
 	}
 	return nil
 }
@@ -89,6 +97,14 @@ func isNotFound(err error) bool {
 	var rerr *azcore.ResponseError
 	if errors.As(err, &rerr) {
 		return rerr.StatusCode == http.StatusNotFound
+	}
+	return false
+}
+
+func isConflict(err error) bool {
+	var rerr *azcore.ResponseError
+	if errors.As(err, &rerr) {
+		return rerr.StatusCode == http.StatusConflict
 	}
 	return false
 }

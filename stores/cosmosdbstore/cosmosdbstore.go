@@ -145,7 +145,6 @@ func (s *CosmosDBStore) Save(ctx context.Context, aggregateID string, records ..
 	}
 
 	pk := azcosmos.NewPartitionKeyString(aggregateID)
-	now := time.Now()
 
 	for i := 0; i < len(records); i += maxBatchItems {
 		end := i + maxBatchItems
@@ -153,6 +152,13 @@ func (s *CosmosDBStore) Save(ctx context.Context, aggregateID string, records ..
 			end = len(records)
 		}
 		batch := records[i:end]
+
+		// Recapture per batch: large writes may span hundreds of ms between
+		// transactions, and the relative `ttl` (seconds remaining) must
+		// reflect the actual write time, not the wall clock at the start
+		// of Save. Otherwise later batches would auto-purge later than
+		// intended.
+		now := time.Now()
 
 		items := make([][]byte, len(batch))
 		for j, rec := range batch {
