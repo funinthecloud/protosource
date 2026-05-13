@@ -15,10 +15,10 @@ Decisions locked:
 Step-by-step:
 - [x] **Step 1.** `azure/cosmosclient` interface + `opaquedata/cosmos` OpaqueStore (Put/Get/Delete/Query, all 7 sort operators, GSI bounds, TTL filter, NA coercion). Unit-tested with a mock ContainerClient.
 - [x] **Step 2.** `stores/cosmosdbstore` — `Save`/`Load`/`LoadTail`/`SaveAggregate` using `TransactionalBatch` for atomic per-aggregate event writes + `EnsureDatabase`/`EnsureContainers` (`DefaultTimeToLive = -1`). Wire provider set + `Events`/`AggregatesContainerClient` aliases. 22 unit tests with in-memory mock cosmos client, race-clean. Live emulator integration tests deferred to step 3.
-- [ ] **Step 3.** Wire provider set + `cmd/testcosmos` smoke binary.
-- [ ] **Step 4.** `tofu/modules/cosmos-eventstore` — account + DB + 2 containers + indexing/TTL + RBAC role assignment.
-- [ ] **Step 5.** `tofu/modules/container-app-service` — Container App + env + ACR + Managed Identity + Key Vault refs.
-- [ ] **Step 6.** `tofu/envs/azure-dev` against personal subscription; remote state in Azure Blob.
+- [x] **Step 3.** Wire provider set + `cmd/testcosmos` HTTP server + `cmd/testcosmos-setup` CLI. Lives on PR #80 alongside steps 1 & 2.
+- [x] **Step 4.** `deploy/modules/cosmos-eventstore` — Cosmos account (serverless, Session consistency) + SQL database + events/aggregates containers (`/a` and `/pk` partition keys, `default_ttl = -1`) + data-plane RBAC scaffold (Cosmos DB Built-in Data Contributor at the database scope). `terraform validate` clean against `hashicorp/azurerm ~> 4.0`. Path follows the `deploy/modules/` convention from PR #79's migration plan.
+- [ ] **Step 5.** `deploy/modules/container-app-service` — Container App + env + ACR + Managed Identity + Key Vault refs.
+- [ ] **Step 6.** `deploy/envs/azure-dev` against personal subscription; remote state in Azure Blob.
 - [ ] **Step 7.** Reference runtime `cmd/example-azure/main.go` proving the end-to-end pipe with a sample aggregate.
 
 ### Framework gaps

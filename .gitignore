@@ -46,6 +46,15 @@ ts/client/dist/
 !*.yaml
 !*.yml
 
+## OpenTofu / Terraform
+!*.tf
+!*.tfvars
+!*.hcl
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+
 ## GitHub config
 !CODEOWNERS
 
