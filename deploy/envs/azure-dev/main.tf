@@ -39,10 +39,18 @@
 #    Microsoft quickstart image until you push your own.
 #
 # 6. Push the testcosmos image (after apply prints acr_login_server):
-#      az acr login --name <acr_login_server>
-#      docker build -f cmd/testcosmos/Dockerfile -t <acr_login_server>/testcosmos:latest .
-#      docker push <acr_login_server>/testcosmos:latest
-#      tofu apply -var image=<acr_login_server>/testcosmos:latest
+#      # ACR `name` is the part before .azurecr.io
+#      ACR_FULL=$(tofu output -raw acr_login_server)
+#      ACR_NAME="${ACR_FULL%%.*}"
+#      az acr login --name "$ACR_NAME"
+#      cd ../../..                                   # back to repo root
+#      docker build -f cmd/testcosmos/Dockerfile -t "$ACR_FULL/testcosmos:latest" .
+#      docker push "$ACR_FULL/testcosmos:latest"
+#      cd deploy/envs/azure-dev
+#      tofu apply -var image="$ACR_FULL/testcosmos:latest"
+#    Once revision rolls (30-60s) the FQDN starts serving the real handlers
+#    on port 8080:
+#      curl "$(tofu output -raw container_app_url)/test/v1/agg-1"
 #
 # =============================================================================
 
