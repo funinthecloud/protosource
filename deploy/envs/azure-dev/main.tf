@@ -5,14 +5,26 @@
 # 1. az login
 #    az account set --subscription <your-subscription-id>
 #
-# 2. One-shot bootstrap of the state backend (local state, ~ a minute):
+# 2. Register the Azure resource providers this stack uses. One-time per
+#    subscription; fresh subscriptions only have Microsoft.Storage out of
+#    the box, and Tofu will fail with "MissingSubscriptionRegistration"
+#    without these. Registration takes 30s–2min per provider:
+#      for ns in Microsoft.App Microsoft.OperationalInsights \
+#                Microsoft.ContainerRegistry Microsoft.ManagedIdentity \
+#                Microsoft.DocumentDB; do
+#        az provider register --namespace $ns
+#      done
+#      # Wait until all five show Registered:
+#      az provider list --query "[?contains(['Microsoft.App','Microsoft.OperationalInsights','Microsoft.ContainerRegistry','Microsoft.ManagedIdentity','Microsoft.DocumentDB'], namespace)].{ns:namespace,state:registrationState}" -o table
+#
+# 3. One-shot bootstrap of the state backend (local state, ~ a minute):
 #      cd deploy/bootstrap
 #      tofu init
 #      tofu apply
 #    Note the three output values (resource_group_name, storage_account_name,
 #    container_name) — you'll pass them to the env init below.
 #
-# 3. Initialize this env against the bootstrap-provisioned backend:
+# 4. Initialize this env against the bootstrap-provisioned backend:
 #      cd ../envs/azure-dev
 #      cp example.tfvars terraform.tfvars   # then edit subscription_id
 #      tofu init \
@@ -20,13 +32,13 @@
 #        -backend-config="storage_account_name=<bootstrap sa>" \
 #        -backend-config="container_name=tfstate"
 #
-# 4. Plan + apply:
+# 5. Plan + apply:
 #      tofu plan
 #      tofu apply
 #    First apply takes ~5–10 minutes. The Container App boots on the
 #    Microsoft quickstart image until you push your own.
 #
-# 5. Push the testcosmos image (after apply prints acr_login_server):
+# 6. Push the testcosmos image (after apply prints acr_login_server):
 #      az acr login --name <acr_login_server>
 #      docker build -f cmd/testcosmos/Dockerfile -t <acr_login_server>/testcosmos:latest .
 #      docker push <acr_login_server>/testcosmos:latest
