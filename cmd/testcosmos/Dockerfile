@@ -3,30 +3,40 @@
 # example handlers, etc.), so a per-cmd context would not be enough.
 #
 # Build with:
-#   docker build -f cmd/testcosmos/Dockerfile -t <acr>.azurecr.io/testcosmos:latest .
+#   docker build --platform linux/amd64 \
+#     -f cmd/testcosmos/Dockerfile \
+#     -t <acr>.azurecr.io/testcosmos:latest .
 #
-# Cross-architecture note: Container Apps in most regions runs amd64. We
-# hard-pin GOARCH so a build from an M-series Mac produces a runnable image
-# without relying on buildx's emulation.
+# Why --platform is required from arm64 dev hosts:
+#   Container Apps runs linux/amd64. Without --platform, the runtime stage
+#   pulls the host-arch base image and Docker stamps the final manifest as
+#   arm64 even though our Go binary is cross-compiled to amd64 — ACA then
+#   rejects the image with "image OS/Arch must be linux/amd64".
+#
+# The Dockerfile uses $BUILDPLATFORM on the build stage so the Go compiler
+# runs natively (no QEMU), and $TARGETPLATFORM on the runtime stage so
+# the resulting image's manifest matches the target.
 
-FROM golang:1.25-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
+
+# These ARGs are populated automatically by buildkit from --platform.
+# Default to linux/amd64 so a plain `docker build` (no --platform) still
+# produces a Container Apps-compatible image.
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
 
 WORKDIR /src
 
-# Cache dependencies separately from sources so an edit-only rebuild skips
-# the network round-trip.
 COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w" \
     -o /out/testcosmos ./cmd/testcosmos
 
-# Distroless static: ~2 MB base, no shell, no package manager — minimal
-# attack surface and small enough that ACR pulls are quick.
-FROM gcr.io/distroless/static-debian12:nonroot
+FROM --platform=$TARGETPLATFORM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=build /out/testcosmos /testcosmos
 

@@ -44,7 +44,9 @@
 #      ACR_NAME="${ACR_FULL%%.*}"
 #      az acr login --name "$ACR_NAME"
 #      cd ../../..                                   # back to repo root
-#      docker build -f cmd/testcosmos/Dockerfile -t "$ACR_FULL/testcosmos:latest" .
+#      docker build --platform linux/amd64 \
+#        -f cmd/testcosmos/Dockerfile \
+#        -t "$ACR_FULL/testcosmos:latest" .
 #      docker push "$ACR_FULL/testcosmos:latest"
 #      cd deploy/envs/azure-dev
 #      tofu apply -var image="$ACR_FULL/testcosmos:latest"
