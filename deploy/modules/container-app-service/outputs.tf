@@ -9,8 +9,8 @@ output "identity_id" {
 }
 
 output "container_app_fqdn" {
-  description = "Public hostname of the Container App (https://<fqdn>)."
-  value       = azurerm_container_app.this.latest_revision_fqdn
+  description = "Stable public hostname of the Container App ingress (https://<fqdn>). Distinct from latest_revision_fqdn, which is revision-scoped and changes with every deploy."
+  value       = azurerm_container_app.this.ingress[0].fqdn
 }
 
 output "container_app_id" {
