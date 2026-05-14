@@ -23,8 +23,12 @@ locals {
   )
 }
 
+# count instead of for_each: principal IDs typically come from a Managed
+# Identity in a sibling module, which is unknown at plan time. for_each
+# requires keys to be known then; count only needs the list length, which
+# stays static even when the values inside don't yet exist.
 resource "azurerm_cosmosdb_sql_role_assignment" "data_contributor" {
-  for_each = toset(var.data_contributor_principal_ids)
+  count = length(var.data_contributor_principal_ids)
 
   resource_group_name = var.resource_group_name
   account_name        = azurerm_cosmosdb_account.this.name
@@ -35,6 +39,6 @@ resource "azurerm_cosmosdb_sql_role_assignment" "data_contributor" {
     local.cosmos_data_contributor_role_id,
   )
 
-  principal_id = each.value
+  principal_id = var.data_contributor_principal_ids[count.index]
   scope        = local.database_scope
 }
