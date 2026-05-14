@@ -34,16 +34,13 @@
 #
 # =============================================================================
 
-# Short hex suffix appended to globally-unique resource names so a fresh
-# clone-and-apply doesn't collide with an existing Azure tenant. random_id
-# is stable within state — the suffix only changes if you `terraform taint`
-# or destroy/recreate the random_id resource.
-resource "random_id" "suffix" {
-  byte_length = 3
-}
-
+# Short hex suffix appended to globally-unique resource names (Cosmos
+# account, ACR) so a clone-and-apply doesn't collide with an existing
+# Azure tenant. The suffix is derived deterministically from
+# subscription_id + name_prefix so it's stable across applies and
+# operators on the same env — no third-party provider required.
 locals {
-  suffix = random_id.suffix.hex
+  suffix = substr(md5("${var.subscription_id}-${var.name_prefix}"), 0, 6)
 
   cosmos_account_name = (
     var.cosmos_account_name != ""
