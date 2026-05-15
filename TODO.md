@@ -4,11 +4,27 @@ Cross-repo tracking for the protosource ecosystem. Items marked against sibling 
 
 ## protosource (framework)
 
+### Azure / Cosmos DB rollout (first client engagement)
+
+Decisions locked:
+- Cosmos NoSQL API (not Table API).
+- Runtime: Azure Container Apps (scale-to-zero). Functions ruled out — Go runs as a custom handler, and cold starts on Consumption are 2–5s.
+- Prototyping in personal Azure subscription; client's IaC stays separate.
+- Cross-cloud is first-class — same proto/handler layer deploys to AWS Lambda + Azure Container Apps.
+
+Step-by-step:
+- [x] **Step 1.** `azure/cosmosclient` interface + `opaquedata/cosmos` OpaqueStore (Put/Get/Delete/Query, all 7 sort operators, GSI bounds, TTL filter, NA coercion). Unit-tested with a mock ContainerClient.
+- [x] **Step 2.** `stores/cosmosdbstore` — `Save`/`Load`/`LoadTail`/`SaveAggregate` using `TransactionalBatch` for atomic per-aggregate event writes + `EnsureDatabase`/`EnsureContainers` (`DefaultTimeToLive = -1`). Wire provider set + `Events`/`AggregatesContainerClient` aliases. 22 unit tests with in-memory mock cosmos client, race-clean. Live emulator integration tests deferred to step 3.
+- [x] **Step 3.** Wire provider set + `cmd/testcosmos` HTTP server + `cmd/testcosmos-setup` CLI. Lives on PR #80 alongside steps 1 & 2.
+- [x] **Step 4.** `deploy/modules/cosmos-eventstore` — Cosmos account (serverless, Session consistency) + SQL database + events/aggregates containers (`/a` and `/pk` partition keys, `default_ttl = -1`) + data-plane RBAC scaffold (Cosmos DB Built-in Data Contributor at the database scope). `terraform validate` clean against `hashicorp/azurerm ~> 4.0`. Path follows the `deploy/modules/` convention from PR #79's migration plan.
+- [x] **Step 5.** `deploy/modules/container-app-service` — User-assigned Managed Identity, ACR Basic with AcrPull RBAC, Log Analytics workspace (optional reuse), Container Apps environment, Container App with `revision_mode = Single`, external ingress, scale-to-zero defaults (0..3 replicas), `secret` blocks pulling values from Key Vault via the same identity. Principal ID outputs feed `cosmos-eventstore.data_contributor_principal_ids` directly. `terraform validate` clean against `hashicorp/azurerm ~> 4.0`.
+- [x] **Step 6.** `deploy/bootstrap` (one-shot state backend: RG + Storage Account with versioning/soft-delete + tfstate container, local state by design) and `deploy/envs/azure-dev` (RG + container-app-service + cosmos-eventstore wired together, principal_id auto-flows into the Cosmos data-plane RBAC, Cosmos env vars auto-injected into the Container App). Cold-start instructions inlined as a header comment in `envs/azure-dev/main.tf`. `terraform validate` clean for both. `.gitignore` updated to track examples and ignore real `terraform.tfvars`.
+- [x] **Step 7.** End-to-end pipe proven via `cmd/testcosmos` running on Azure Container Apps against a live Cosmos account — `curl $(tofu output -raw container_app_url)/test/v1/<id>` returns the domain 404 from the real handler stack.
+
 ### Framework gaps
 
 - [ ] **Snapshot-aware event TTL.** Pre-snapshot events should get TTL while snapshots persist. Deferred — needs a triggered downstream process (DynamoDB Streams) to safely mark pre-snapshot events with TTL only after confirming the snapshot exists. Writing TTL proactively risks data loss if the snapshot does not arrive.
 - [ ] **Multi-aggregate projections.** Projections that join across aggregate types (e.g. `Order + Customer → OrderWithCustomerView`). Likely event-driven via DynamoDB Streams rather than synchronous in the pipeline.
-- [ ] **Extract Go client library from `*mgr` CLI commands.** The generated `cli.gotext` currently inlines HTTP logic in a standalone `main.go`. Extract the request/response handling into a generated client package importable by other Go applications — mirrors the existing `protoc-gen-protosource-ts` client.
 - [ ] **Evaluate supporting RS256 / ES256 on the `authz.Authorizer` side.** Not strictly a framework change — the Authorizer is pluggable — but the handler template currently hard-codes no algorithm awareness. If a future consumer needs signing-algorithm routing at the handler level (e.g. per-aggregate audience), revisit.
 
 ### Nice-to-have polish
@@ -22,6 +38,7 @@ Cross-repo tracking for the protosource ecosystem. Items marked against sibling 
 - [x] Nested collections with `map<string, Message>` + ADD/REMOVE via `collection` annotation (PR #24, #25)
 - [x] Wire-friendly provider sets + shared `dynamoclient` / `opaquedata` infra (PR #35)
 - [x] TypeScript client generation (`protoc-gen-protosource-ts` + `@protosource/client`)
+- [x] Go client generation (`client.gotext` → `*.protosource.client.pb.go`) — typed HTTP client extracted from the `*mgr` CLI template, importable by other Go apps
 - [x] Showcase app: [`todoapp`](https://github.com/funinthecloud/todoapp) ships both `backend-bolt` and `backend-lambda` + a React frontend
 - [x] `authz.Authorizer` interface + generated handler integration (PR #64)
 - [x] Actor resolution prefers `authz.UserIDFromContext(ctx)` over `request.Actor` (PR #65, v0.1.3)

@@ -46,6 +46,25 @@ ts/client/dist/
 !*.yaml
 !*.yml
 
+## OpenTofu / Terraform
+!*.tf
+!*.tfvars
+!*.hcl
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+# Real var files carry secrets / personal config — only the
+# *.example.tfvars templates are committed.
+deploy/**/terraform.tfvars
+deploy/**/*.auto.tfvars
+# State files: bootstrap runs with local state and other invocations may
+# produce non-default state filenames (state.json, state.<env>.json) that
+# slip past the generic *.tfstate rules above.
+deploy/**/state.json
+deploy/**/state.*.json
+deploy/**/*.tfstate*
+
 ## GitHub config
 !CODEOWNERS
 
