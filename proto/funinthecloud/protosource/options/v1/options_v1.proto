@@ -6,6 +6,19 @@ option go_package = "github.com/funinthecloud/protosource/options/v1;optionsv1";
 
 import "google/protobuf/descriptor.proto";
 
+// ── Reserved Extension Number Range
+// ──────────────────────────────────────────────────────────────────
+// This project owns the descriptor.proto extension number range 1296-1305,
+// assigned via the upstream protocolbuffers/protobuf global extension
+// registry. All `extend google.protobuf.*` declarations in this file MUST
+// use numbers within this range.
+//
+// Allocated:
+//   1296 — protosource_opaque_field   (FieldOptions)
+//   1297 — protosource_message_type   (MessageOptions)
+//   1298 — protosource_file           (FileOptions)
+// Free: 1299, 1300, 1301, 1302, 1303, 1304, 1305
+
 // ── File Options
 // ────────────────────────────────────────────────────────────── Wrapped in a
 // message to allow future metadata fields without consuming a new extension
