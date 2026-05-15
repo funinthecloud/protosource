@@ -98,7 +98,7 @@ func TestLoad_JSON(t *testing.T) {
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "GET", r.Method)
-		assert.Equal(t, "/test/v1/id-123", r.URL.Path)
+		assert.Equal(t, "/test/v1/load/id-123", r.URL.Path)
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(jsonBytes)
 	}))
@@ -161,7 +161,7 @@ func TestGet_JSON(t *testing.T) {
 	err = c.Get(context.Background(), "test/v1", "id-123", target)
 
 	require.NoError(t, err)
-	assert.Equal(t, "/test/v1/get/id-123", gotPath)
+	assert.Equal(t, "/test/v1/id-123", gotPath)
 	assert.Len(t, target.Records, 1)
 }
 
@@ -188,7 +188,7 @@ func TestGet_Protobuf(t *testing.T) {
 	err = c.Get(context.Background(), "test/v1", "id-456", target)
 
 	require.NoError(t, err)
-	assert.Equal(t, "/test/v1/get/id-456", gotPath)
+	assert.Equal(t, "/test/v1/id-456", gotPath)
 	assert.Len(t, target.Records, 1)
 	assert.Equal(t, int64(5), target.Records[0].Version)
 }
@@ -196,7 +196,7 @@ func TestGet_Protobuf(t *testing.T) {
 func TestGet_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		w.Write([]byte(`{"code":"GET_MAT_NOT_FOUND","error":"aggregate not found"}`))
+		w.Write([]byte(`{"code":"GET_NOT_FOUND","error":"aggregate not found"}`))
 	}))
 	defer server.Close()
 
@@ -207,13 +207,13 @@ func TestGet_NotFound(t *testing.T) {
 	apiErr, ok := err.(*APIError)
 	require.True(t, ok)
 	assert.Equal(t, 404, apiErr.StatusCode)
-	assert.Equal(t, "GET_MAT_NOT_FOUND", apiErr.Code)
+	assert.Equal(t, "GET_NOT_FOUND", apiErr.Code)
 }
 
 func TestLoad_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(404)
-		w.Write([]byte(`{"code":"GET_NOT_FOUND","error":"aggregate not found"}`))
+		w.Write([]byte(`{"code":"LOAD_NOT_FOUND","error":"aggregate not found"}`))
 	}))
 	defer server.Close()
 

@@ -34,10 +34,18 @@ type Handler struct {
 }
 
 // NewHandler creates a new Handler instance with the given repository, client,
-// and authorizer. Every generated command handler calls authorizer.Authorize
-// with the canonical function name "example.app.test.v1.{CommandMessageName}"
-// before running the command pipeline. Applications that do not enforce
-// authorization at this layer should wire in allowall.Authorizer.
+// and authorizer. Every generated handler — commands AND reads (Get, Load,
+// History, QueryBy…) — calls authorizer.Authorize with a canonical function
+// name before running. The names follow the pattern
+// "example.app.test.v1.{Operation}" where {Operation} is:
+//   - {CommandMessageName}              for commands
+//   - Get{AggregateName}                for materialized read       (GET /...prefix.../{id})
+//   - Load{AggregateName}               for event-replay read       (GET /...prefix.../load/{id})
+//   - History{AggregateName}            for event-history read      (GET /...prefix.../{id}/history)
+//   - QueryBy{Fields}[With{SKFields}]   for GSI queries             (GET /...prefix.../query/...)
+//
+// Applications that do not enforce authorization at this layer should wire in
+// allowall.Authorizer.
 //
 // authorizer is required; passing nil panics immediately with a descriptive
 // message rather than deferring to an opaque nil-pointer dereference on the
@@ -60,7 +68,7 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 
 	router.Handle("POST", "example/app/test/v1/unlock", h.HandleUnlock)
 
-	router.Handle("GET", "example/app/test/v1/get/{id}", h.HandleGetMaterialized)
+	router.Handle("GET", "example/app/test/v1/load/{id}", h.HandleLoad)
 	router.Handle("GET", "example/app/test/v1/{id}", h.HandleGet)
 	router.Handle("GET", "example/app/test/v1/{id}/history", h.HandleHistory)
 
@@ -267,19 +275,60 @@ func (h *Handler) HandleUnlock(ctx context.Context, request protosource.Request)
 	}
 }
 
-// HandleGet retrieves the current state of a Test aggregate.
-func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
+// HandleLoad retrieves the current state of a Test aggregate by
+// replaying its events through the repository. Use this for diagnostics or
+// when the materialized store is unavailable; prefer HandleGet for the common
+// case.
+func (h *Handler) HandleLoad(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.LoadTest")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	id := extractID(request)
 	if id == "" {
-		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+		return errorResponse(http.StatusBadRequest, "LOAD_NO_ID", "missing required parameter: id", nil)
 	}
 
 	aggregate, err := h.repo.Load(ctx, id)
 	if err != nil {
 		if errors.Is(err, protosource.ErrAggregateNotFound) {
+			return errorResponse(http.StatusNotFound, "LOAD_NOT_FOUND", "aggregate not found", nil)
+		}
+		return errorResponse(http.StatusInternalServerError, "LOAD_FAILED", "failed to load aggregate", err)
+	}
+
+	body, contentType, err := marshalResponse(request, aggregate)
+	if err != nil {
+		return errorResponse(http.StatusInternalServerError, "LOAD_MARSHAL", "failed to serialize aggregate", err)
+	}
+
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
+	}
+}
+
+// HandleGet retrieves the Test aggregate from the materialized store.
+// This is the common read path; use HandleLoad to force an event replay.
+func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.GetTest")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
+	id := extractID(request)
+	if id == "" {
+		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+	}
+
+	aggregate, err := h.client.GetTest(ctx, id)
+	if err != nil {
+		if errors.Is(err, opaquedata.ErrNotFound) {
 			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
 		}
-		return errorResponse(http.StatusInternalServerError, "GET_LOAD", "failed to load aggregate", err)
+		return errorResponse(http.StatusInternalServerError, "GET_FAILED", "failed to load aggregate", err)
 	}
 
 	body, contentType, err := marshalResponse(request, aggregate)
@@ -294,35 +343,13 @@ func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) pr
 	}
 }
 
-// HandleGetMaterialized retrieves the Test aggregate from the materialized store.
-func (h *Handler) HandleGetMaterialized(ctx context.Context, request protosource.Request) protosource.Response {
-	id := extractID(request)
-	if id == "" {
-		return errorResponse(http.StatusBadRequest, "GET_MAT_NO_ID", "missing required parameter: id", nil)
-	}
-
-	aggregate, err := h.client.GetTest(ctx, id)
-	if err != nil {
-		if errors.Is(err, opaquedata.ErrNotFound) {
-			return errorResponse(http.StatusNotFound, "GET_MAT_NOT_FOUND", "aggregate not found", nil)
-		}
-		return errorResponse(http.StatusInternalServerError, "GET_MAT_LOAD", "failed to load aggregate", err)
-	}
-
-	body, contentType, err := marshalResponse(request, aggregate)
-	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "GET_MAT_MARSHAL", "failed to serialize aggregate", err)
-	}
-
-	return protosource.Response{
-		StatusCode: http.StatusOK,
-		Body:       string(body),
-		Headers:    map[string]string{"Content-Type": contentType},
-	}
-}
-
 // HandleHistory retrieves the full event history for a Test aggregate.
 func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.HistoryTest")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	id := extractID(request)
 	if id == "" {
 		return errorResponse(http.StatusBadRequest, "HIST_NO_ID", "missing required parameter: id", nil)
@@ -350,6 +377,11 @@ func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request
 
 // HandleQueryByColor queries GSI1 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByColor(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.QueryByColor")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	colorRaw := request.QueryParameters["color"]
 	if colorRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: color", nil)
@@ -416,6 +448,11 @@ func (h *Handler) HandleQueryByColor(ctx context.Context, request protosource.Re
 
 // HandleQueryByColorWithNumber queries GSI2 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByColorWithNumber(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.QueryByColorWithNumber")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	colorRaw := request.QueryParameters["color"]
 	if colorRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: color", nil)
@@ -482,6 +519,11 @@ func (h *Handler) HandleQueryByColorWithNumber(ctx context.Context, request prot
 
 // HandleQueryByNumberAndShading queries GSI3 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByNumberAndShading(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.QueryByNumberAndShading")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	numberRaw := request.QueryParameters["number"]
 	if numberRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: number", nil)
@@ -574,6 +616,11 @@ func (h *Handler) HandleQueryByNumberAndShading(ctx context.Context, request pro
 
 // HandleQueryByState queries GSI4 by partition key with optional sort key condition.
 func (h *Handler) HandleQueryByState(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.test.v1.QueryByState")
+	if err != nil {
+		return authzErrorResponse(err)
+	}
+
 	stateRaw := request.QueryParameters["state"]
 	if stateRaw == "" {
 		return errorResponse(http.StatusBadRequest, "QUERY_MISSING_PK", "missing required parameter: state", nil)

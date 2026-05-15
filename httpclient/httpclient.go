@@ -123,13 +123,13 @@ func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message)
 
 // Load retrieves an aggregate by ID via event replay, unmarshaling into the provided message.
 func (c *Client) Load(ctx context.Context, routePath string, id string, target proto.Message) error {
-	reqURL := c.baseURL + "/" + routePath + "/" + url.PathEscape(id)
+	reqURL := c.baseURL + "/" + routePath + "/load/" + url.PathEscape(id)
 	return c.getInto(ctx, reqURL, target)
 }
 
 // Get retrieves a materialized aggregate by ID from the aggregate store.
 func (c *Client) Get(ctx context.Context, routePath string, id string, target proto.Message) error {
-	reqURL := c.baseURL + "/" + routePath + "/get/" + url.PathEscape(id)
+	reqURL := c.baseURL + "/" + routePath + "/" + url.PathEscape(id)
 	return c.getInto(ctx, reqURL, target)
 }
 

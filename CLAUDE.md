@@ -47,7 +47,7 @@ The framework's central types:
 
 ### Authorization (`authz/`)
 
-Every generated command handler calls `authz.Authorizer.Authorize(ctx, req, "{proto_package}.{CommandName}")` before the pipeline runs. The function name is stamped at codegen time from the proto.
+Every generated handler — commands and reads (`Get`, `Load`, `History`, `QueryBy…`) — calls `authz.Authorizer.Authorize(ctx, req, "{proto_package}.{Op}")` before doing any work. `{Op}` is the command name for writes, or `Get{Aggregate}` / `Load{Aggregate}` / `History{Aggregate}` / `QueryBy{Fields}[With{SKFields}]` for reads. The name is stamped at codegen time.
 
 - **`authz.Authorizer`** — interface with one method. Returns `(context.Context, error)` so implementations can enrich ctx with `WithUserID` / `WithJWT` for downstream handlers.
 - **`authz/allowall`** — no-op implementation; the default wire binding for consumers that enforce authorization elsewhere.
@@ -60,7 +60,7 @@ Reference implementation: [`funinthecloud/protosource-auth`](https://github.com/
 
 The buf plugin reads proto annotations and generates four files per domain package:
 - `*.protosource.pb.go` — aggregate `On` method, command builders, event emission, version validation, authorization, snapshot support (from `protosource.gotext`)
-- `*.protosource.lambda.pb.go` — per-command HTTP handlers, Get, and History endpoints (from `lambda.gotext`)
+- `*.protosource.lambda.pb.go` — per-command HTTP handlers plus read endpoints `GET /{id}` (materialized), `GET /load/{id}` (event replay), `GET /{id}/history`, and `GET /query/...` (from `lambda.gotext`). All handlers — commands and reads — call `authz.Authorizer.Authorize` with a canonical function name (`{proto_package}.{Op}` where Op is the command name or `Get{Aggregate}` / `Load{Aggregate}` / `History{Aggregate}` / `QueryBy{Fields}…`).
 - `*.protosource.wire.pb.go` — Wire `Repository` wrapper, `ProvideRepository`, and `ProviderSet` in the same package (from `wire.gotext`). Store-agnostic: the concrete `protosource.Store` is wired separately.
 - `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); commands with embedded message fields accept JSON args, commands with repeated/map fields are omitted
 

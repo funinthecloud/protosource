@@ -94,7 +94,7 @@ export class ProtosourceClient {
     id: string,
     schema: Desc,
   ): Promise<MessageShape<Desc>> {
-    const url = `${this.baseURL}/${routePath}/${encodeURIComponent(id)}`;
+    const url = `${this.baseURL}/${routePath}/load/${encodeURIComponent(id)}`;
     return this.getProto(url, schema);
   }
 
@@ -104,7 +104,7 @@ export class ProtosourceClient {
     id: string,
     schema: Desc,
   ): Promise<MessageShape<Desc>> {
-    const url = `${this.baseURL}/${routePath}/get/${encodeURIComponent(id)}`;
+    const url = `${this.baseURL}/${routePath}/${encodeURIComponent(id)}`;
     return this.getProto(url, schema);
   }
 
