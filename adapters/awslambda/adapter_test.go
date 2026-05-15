@@ -211,3 +211,33 @@ func TestWrapRouter(t *testing.T) {
 		}
 	})
 }
+
+// TestDecodeRequest_LowercasesHeaderKeys locks in the contract that all header
+// keys are normalized to lowercase before dispatch. API Gateway preserves
+// whatever case the client sent; downstream code must be able to rely on a
+// single canonical form.
+func TestDecodeRequest_LowercasesHeaderKeys(t *testing.T) {
+	in := events.APIGatewayProxyRequest{
+		HTTPMethod: "GET",
+		Path:       "/x",
+		Headers: map[string]string{
+			"Origin":       "https://example.com",
+			"Content-Type": "application/json",
+			"X-Custom":     "v",
+		},
+	}
+	req, err := decodeRequest(in, func(events.APIGatewayProxyRequest) string { return "" })
+	if err != nil {
+		t.Fatalf("decodeRequest: %v", err)
+	}
+	for _, k := range []string{"origin", "content-type", "x-custom"} {
+		if _, ok := req.Headers[k]; !ok {
+			t.Errorf("expected lowercased key %q in decoded headers, got %v", k, req.Headers)
+		}
+	}
+	for _, k := range []string{"Origin", "Content-Type", "X-Custom"} {
+		if _, ok := req.Headers[k]; ok {
+			t.Errorf("did not expect original-case key %q to remain", k)
+		}
+	}
+}

@@ -5,6 +5,7 @@ package awslambda
 import (
 	"context"
 	"encoding/base64"
+	"strings"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/funinthecloud/protosource"
@@ -84,9 +85,24 @@ func decodeRequest(request events.APIGatewayProxyRequest, extractor ActorExtract
 		Body:            body,
 		PathParameters:  request.PathParameters,
 		QueryParameters: request.QueryStringParameters,
-		Headers:         request.Headers,
+		Headers:         lowercaseHeaders(request.Headers),
 		Actor:           extractor(request),
 	}, nil
+}
+
+// lowercaseHeaders normalizes header map keys to lowercase. HTTP header names
+// are case-insensitive on the wire (RFC 7230) and required to be lowercase in
+// HTTP/2. API Gateway preserves whatever case the client/edge sent, so we
+// normalize here to give downstream code a single canonical form to look up.
+func lowercaseHeaders(in map[string]string) map[string]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]string, len(in))
+	for k, v := range in {
+		out[strings.ToLower(k)] = v
+	}
+	return out
 }
 
 // encodeResponse converts a protosource Response to an API Gateway response,

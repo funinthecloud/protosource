@@ -66,7 +66,7 @@ func (r *Router) Handle(method, pattern string, handler HandlerFunc) {
 // extracted from the pattern are merged into request.PathParameters.
 // Returns 404 for no path match, 405 for path match with wrong method.
 func (r *Router) Dispatch(ctx context.Context, method, path string, request Request) Response {
-	origin := request.Headers["Origin"]
+	origin := request.Headers["origin"]
 
 	// Handle CORS preflight.
 	if r.cors != nil && method == http.MethodOptions {

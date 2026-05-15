@@ -7,6 +7,7 @@ package httpstandard
 import (
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/funinthecloud/protosource"
 )
@@ -42,7 +43,7 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 
 		headers := make(map[string]string)
 		for k := range r.Header {
-			headers[k] = r.Header.Get(k)
+			headers[strings.ToLower(k)] = r.Header.Get(k)
 		}
 
 		req := protosource.Request{
@@ -84,7 +85,7 @@ func WrapRouter(router *protosource.Router, extractor ActorExtractor) http.Handl
 
 		headers := make(map[string]string)
 		for k := range r.Header {
-			headers[k] = r.Header.Get(k)
+			headers[strings.ToLower(k)] = r.Header.Get(k)
 		}
 
 		req := protosource.Request{

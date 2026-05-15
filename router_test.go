@@ -157,7 +157,7 @@ func TestRouterCORSPreflight(t *testing.T) {
 	})
 
 	resp := r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{
-		Headers: map[string]string{"Origin": "https://any.com"},
+		Headers: map[string]string{"origin": "https://any.com"},
 	})
 	if resp.StatusCode != http.StatusNoContent {
 		t.Fatalf("expected 204, got %d", resp.StatusCode)
@@ -186,7 +186,7 @@ func TestRouterCORSOnResponse(t *testing.T) {
 	})
 
 	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{
-		Headers: map[string]string{"Origin": "https://example.com"},
+		Headers: map[string]string{"origin": "https://example.com"},
 	})
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
@@ -204,7 +204,7 @@ func TestRouterCORSOn404(t *testing.T) {
 	r.SetCORS(CORSConfig{AllowOrigins: []string{"*"}, AllowMethods: "GET", AllowHeaders: "Content-Type"})
 
 	resp := r.Dispatch(context.Background(), "GET", "/nope", Request{
-		Headers: map[string]string{"Origin": "https://any.com"},
+		Headers: map[string]string{"origin": "https://any.com"},
 	})
 	if resp.StatusCode != http.StatusNotFound {
 		t.Fatalf("expected 404, got %d", resp.StatusCode)
@@ -236,7 +236,7 @@ func TestRouterCORSCredentials(t *testing.T) {
 
 	// Normal response includes credentials header.
 	resp := r.Dispatch(context.Background(), "POST", "/a/v1/create", Request{
-		Headers: map[string]string{"Origin": "https://admin.example.com"},
+		Headers: map[string]string{"origin": "https://admin.example.com"},
 	})
 	if resp.Headers["Access-Control-Allow-Credentials"] != "true" {
 		t.Fatalf("expected credentials header, got %q", resp.Headers["Access-Control-Allow-Credentials"])
@@ -244,7 +244,7 @@ func TestRouterCORSCredentials(t *testing.T) {
 
 	// Preflight includes credentials header.
 	resp = r.Dispatch(context.Background(), "OPTIONS", "/a/v1/create", Request{
-		Headers: map[string]string{"Origin": "https://admin.example.com"},
+		Headers: map[string]string{"origin": "https://admin.example.com"},
 	})
 	if resp.Headers["Access-Control-Allow-Credentials"] != "true" {
 		t.Fatalf("expected credentials header on preflight, got %q", resp.Headers["Access-Control-Allow-Credentials"])
@@ -261,7 +261,7 @@ func TestRouterCORSNoCredentialsByDefault(t *testing.T) {
 	})
 
 	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{
-		Headers: map[string]string{"Origin": "https://any.com"},
+		Headers: map[string]string{"origin": "https://any.com"},
 	})
 	if _, ok := resp.Headers["Access-Control-Allow-Credentials"]; ok {
 		t.Fatalf("expected no credentials header when not configured")
@@ -279,7 +279,7 @@ func TestRouterCORSMultipleOrigins(t *testing.T) {
 
 	// Matching origin is echoed back.
 	resp := r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{
-		Headers: map[string]string{"Origin": "https://staging.example.com"},
+		Headers: map[string]string{"origin": "https://staging.example.com"},
 	})
 	if resp.Headers["Access-Control-Allow-Origin"] != "https://staging.example.com" {
 		t.Fatalf("expected matching origin echoed, got %q", resp.Headers["Access-Control-Allow-Origin"])
@@ -290,10 +290,32 @@ func TestRouterCORSMultipleOrigins(t *testing.T) {
 
 	// Non-matching origin gets no CORS headers.
 	resp = r.Dispatch(context.Background(), "GET", "/a/v1/x", Request{
-		Headers: map[string]string{"Origin": "https://evil.com"},
+		Headers: map[string]string{"origin": "https://evil.com"},
 	})
 	if _, ok := resp.Headers["Access-Control-Allow-Origin"]; ok {
 		t.Fatalf("expected no CORS headers for non-matching origin")
+	}
+}
+
+// TestRouterCORSLowercaseOrigin asserts the router looks up the Origin header
+// using its lowercase key. HTTP/2 forces header names to lowercase on the wire
+// and API Gateway preserves whatever case it received, so adapters normalize
+// to lowercase before dispatch -- the router must match that contract.
+func TestRouterCORSLowercaseOrigin(t *testing.T) {
+	r := NewRouter()
+	r.Handle("GET", "a/v1/x", handler("x"))
+	r.SetCORS(CORSConfig{
+		AllowOrigins:     []string{"https://example.com"},
+		AllowMethods:     "GET,POST,OPTIONS",
+		AllowHeaders:     "Content-Type",
+		AllowCredentials: true,
+	})
+
+	resp := r.Dispatch(context.Background(), "OPTIONS", "/a/v1/x", Request{
+		Headers: map[string]string{"origin": "https://example.com"},
+	})
+	if resp.Headers["Access-Control-Allow-Origin"] != "https://example.com" {
+		t.Fatalf("lowercase origin header should match: got %q", resp.Headers["Access-Control-Allow-Origin"])
 	}
 }
 
