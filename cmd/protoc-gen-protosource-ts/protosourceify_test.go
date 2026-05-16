@@ -96,6 +96,17 @@ func TestProtoFileNameFromBase(t *testing.T) {
 	}
 }
 
+func TestRoutePrefix(t *testing.T) {
+	f := loadTestProto(t, "gsi_enum.proto")
+	p := newModule()
+
+	got := p.routePrefix(f)
+	want := "test/gsi_enum"
+	if got != want {
+		t.Errorf("routePrefix() = %q, want %q (must derive from proto package, not Go import path)", got, want)
+	}
+}
+
 func TestGSIEnumTypes_EnumPK(t *testing.T) {
 	f := loadTestProto(t, "gsi_enum.proto")
 	p := newModule()
