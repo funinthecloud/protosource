@@ -180,13 +180,13 @@ func (p *ProtosourceModule) aggregateForFile(f pgs.File) pgs.Message {
 	return nil
 }
 
+// routePrefix returns the HTTP route prefix derived from the proto package
+// declaration (e.g. proto "auth.user.v1" → "auth/user/v1"). Deriving from the
+// proto package — rather than the Go import path — keeps the generated TS
+// client aligned with the server's registered routes regardless of how the
+// downstream consumer configures `module=` in buf.gen.ts.yaml.
 func (p *ProtosourceModule) routePrefix(f pgs.File) string {
-	importPath := p.ctx.ImportPath(f).String()
-	if mod := p.params.Str("module"); mod != "" {
-		rel := strings.TrimPrefix(importPath, mod)
-		return strings.TrimPrefix(rel, "/")
-	}
-	return importPath
+	return strings.ReplaceAll(f.Package().ProtoName().String(), ".", "/")
 }
 
 // clientCommandFields returns command fields excluding id and actor.
