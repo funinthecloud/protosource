@@ -70,6 +70,17 @@ func findMessage(f pgs.File, name string) pgs.Message {
 	return nil
 }
 
+func TestRoutePrefix(t *testing.T) {
+	f := loadTestProto(t, "valid.proto")
+	p := newModule()
+
+	got := p.routePrefix(f)
+	want := "test/valid"
+	if got != want {
+		t.Errorf("routePrefix() = %q, want %q (must derive from proto package, not Go import path)", got, want)
+	}
+}
+
 func TestBuildEnumValueIndex(t *testing.T) {
 	f := loadTestProto(t, "valid.proto")
 	idx := buildEnumValueIndex(f)

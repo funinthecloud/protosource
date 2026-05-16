@@ -1012,15 +1012,13 @@ func (p *ProtosourceModule) importPath(f pgs.File) string {
 	return p.ctx.ImportPath(f).String()
 }
 
-// routePrefix returns the module-stripped import path for a proto file,
-// used to derive HTTP route prefixes (e.g., "example/app/sample/v1").
+// routePrefix returns the HTTP route prefix derived from the proto package
+// declaration (e.g. proto "example.app.sample.v1" → "example/app/sample/v1").
+// Deriving from the proto package keeps server-registered routes and
+// generated client routes aligned regardless of the `module=` plugin param
+// or the proto's go_package option.
 func (p *ProtosourceModule) routePrefix(f pgs.File) string {
-	importPath := p.ctx.ImportPath(f).String()
-	if mod := p.params.Str("module"); mod != "" {
-		rel := strings.TrimPrefix(importPath, mod)
-		return strings.TrimPrefix(rel, "/")
-	}
-	return importPath
+	return strings.ReplaceAll(f.Package().ProtoName().String(), ".", "/")
 }
 
 // protoPackage returns the proto package name declared in a proto file
