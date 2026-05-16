@@ -3,6 +3,7 @@
 Guide for an LLM (or human) consuming protosource in a downstream repo. The reference implementation is [funinthecloud/todoapp](https://github.com/funinthecloud/todoapp) — when in doubt, mirror its shape.
 
 **Hard rules:**
+- **Wire format is binary protobuf.** The whole framework — Go server, Go client, TS client, generated handlers, CLI managers — defaults to `application/protobuf` over the wire. JSON is a dev/debug opt-in only (see §7). Do not ship JSON mode to production.
 - Never hand-write the aggregate `On` method, command builders, event emission, snapshot code, lifecycle/state validation, HTTP handlers, route registration, or Wire providers. All of that is generated.
 - Never edit `*.protosource.*.pb.go`, `*.pb.go`, or `*.protosource.client.ts`. Regenerate instead.
 - Domain logic lives in proto annotations, plus (optionally) a hand-written `*_derived.go` for computed fields and `Evaluate`/`GuardState` methods for custom business rules.
@@ -240,11 +241,22 @@ import { ProtosourceClient, NoAuth, BearerTokenAuth } from "@protosource/client"
 import { ThingHTTPClient } from "./gen/myapp/thing/v1/thing_v1.protosource.client.js";
 
 const client = new ProtosourceClient(baseURL, new NoAuth(actor), {
-  useJSON: true,                  // false in production, true while debugging
+  // useJSON defaults to false (binary protobuf — production wire format).
+  // Only set true while debugging in DevTools so payloads are human-readable.
+  // Never ship useJSON: true to production.
   fetch: (i, o) => fetch(i, { ...o, credentials: "include" }),
 });
 export const thingClient = new ThingHTTPClient(client);
 ```
+
+**Wire format details:**
+- Default request: `Content-Type: application/protobuf`, `Accept: application/protobuf`. Body is binary-serialized.
+- With `useJSON: true`: `Content-Type` and `Accept` flip to `application/json`, body is `protojson` (camelCase fields, base64 bytes, string `int64`).
+- Server content-negotiates per request — there is no global server-side mode. A JSON client and a binary client can hit the same handler simultaneously.
+- Go CLI managers (`<aggregate>mgr`) use binary by default; pass `-json` to switch. Use this when piping output to `jq` for inspection.
+- The todoapp frontend currently sets `useJSON: true` because it ships as a debugging showcase. Real apps should omit the flag.
+
+**Spotting accidental JSON in prod:** open DevTools → Network → look at the request `Content-Type`. If it says `application/json`, someone left the flag on. There is no server-side log line for this — the request looks normal, just larger and slower.
 
 In components, call methods directly — they're typed:
 ```ts

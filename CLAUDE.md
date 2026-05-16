@@ -92,6 +92,8 @@ Generated TS clients import from `@protosource/client` (runtime) and sibling `*_
 - **`adapters/awslambda/`** — converts API Gateway proxy requests to/from `Request`/`Response`. Supports `Wrap` (single handler) and `WrapRouter` (router dispatch).
 - **`adapters/httpstandard/`** — converts `net/http` requests to/from `Request`/`Response`. Includes `BearerTokenExtractor` and `HeaderExtractor` for actor identity.
 
+**Wire format: binary protobuf by default, everywhere.** Generated handlers, `httpclient`, `ts/client`, and the `*mgr` CLIs all default to `application/protobuf` and content-negotiate per request via `Accept`/`Content-Type`. JSON (`protojson`) is a dev/debug opt-in: `httpclient.WithJSON()`, TS `ProtosourceClient({ useJSON: true })`, or `<aggregate>mgr -json`. There is no global server-side mode — each request stands alone. JSON should never reach production traffic; the only signal it has is the `Content-Type` on the wire (no log line).
+
 ### Command Processing Pipeline
 
 `Repository.Apply` processes commands in order:
