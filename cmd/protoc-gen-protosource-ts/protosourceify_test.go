@@ -128,6 +128,72 @@ func TestGSIEnumTypes_EnumPK(t *testing.T) {
 	}
 }
 
+// findField walks the file's messages for one named (msg, field).
+func findField(t *testing.T, f pgs.File, msgName, fieldName string) pgs.Field {
+	t.Helper()
+	for _, m := range f.AllMessages() {
+		if m.Name().String() != msgName {
+			continue
+		}
+		for _, fld := range m.Fields() {
+			if fld.Name().String() == fieldName {
+				return fld
+			}
+		}
+	}
+	t.Fatalf("field %s.%s not found", msgName, fieldName)
+	return nil
+}
+
+func TestTSParamName_ReservedWords(t *testing.T) {
+	f := loadTestProto(t, "reserved_words.proto")
+
+	cases := []struct {
+		msg, field   string
+		wantParam    string
+		wantWireName string
+	}{
+		{"SetFunction", "function", "function_", "function"},
+		{"SetFunction", "class", "class_", "class"},
+		{"SetFunction", "id", "id", "id"},
+		{"SetFunction", "actor", "actor", "actor"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.msg+"."+tc.field, func(t *testing.T) {
+			fld := findField(t, f, tc.msg, tc.field)
+			if got := tsParamName(fld); got != tc.wantParam {
+				t.Errorf("tsParamName = %q, want %q", got, tc.wantParam)
+			}
+			if got := tsFieldName(fld); got != tc.wantWireName {
+				t.Errorf("tsFieldName = %q, want %q (wire name must be preserved)", got, tc.wantWireName)
+			}
+		})
+	}
+}
+
+func TestOutputPath_NestedProtoPackage(t *testing.T) {
+	f := loadTestProto(t, "reserved_words.proto")
+	p := newModule()
+	got := p.outputPath(f, nil)
+	want := "test/reserved_words/reserved_words.protosource.client.ts"
+	if got != want {
+		t.Errorf("outputPath = %q, want %q (must derive from proto package)", got, want)
+	}
+}
+
+func TestOutputPath_DerivedFromProtoPackageNotGoImport(t *testing.T) {
+	// gsi_enum.proto has proto package "test.gsi_enum" but Go import
+	// "github.com/funinthecloud/protosource/test/gsi_enum;gsienum".
+	// The output path must follow the proto package, not the Go import.
+	f := loadTestProto(t, "gsi_enum.proto")
+	p := newModule()
+	got := p.outputPath(f, nil)
+	want := "test/gsi_enum/gsi_enum.protosource.client.ts"
+	if got != want {
+		t.Errorf("outputPath = %q, want %q", got, want)
+	}
+}
+
 func TestGSIEnumTypes_NoEnums(t *testing.T) {
 	// Use the same proto but verify a file without enum GSI fields returns empty.
 	// We'll create a simple test: gsi_enum.proto has Priority as GSI1PK (enum),

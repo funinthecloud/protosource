@@ -54,6 +54,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"lower":              strings.ToLower,
 		"tsType":             tsType,
 		"tsFieldName":        tsFieldName,
+		"tsParamName":        tsParamName,
 		"tsQueryFormatExpr":  tsQueryFormatExpr,
 		"protoFileName":      protoFileName,
 		"name":               p.ctx.Name,
@@ -108,16 +109,20 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 }
 
 // outputPath computes the output file path for a proto file.
-// Produces {proto_file_stem}.protosource.client.ts with module prefix stripping.
+//
+// The path is derived from the proto package (e.g. "auth.user.v1" →
+// "auth/user/v1/") so the generated client co-locates with the message
+// files emitted by bufbuild/protoc-gen-es, whose sibling import
+// `"./<stem>_pb.js"` then resolves correctly. Deriving from the proto
+// package — not the Go import path — also keeps the output stable across
+// downstream consumers regardless of how they configure `module=`.
 func (p *ProtosourceModule) outputPath(f pgs.File, _ *template.Template) string {
 	base := strings.TrimSuffix(f.InputPath().Base(), ".proto") + ".protosource.client.ts"
-	importPath := p.ctx.ImportPath(f).String()
-	if mod := p.params.Str("module"); mod != "" {
-		rel := strings.TrimPrefix(importPath, mod)
-		rel = strings.TrimPrefix(rel, "/")
-		return rel + "/" + base
+	pkg := f.Package().ProtoName().String()
+	if pkg == "" {
+		return base
 	}
-	return base
+	return strings.ReplaceAll(pkg, ".", "/") + "/" + base
 }
 
 // ── Annotation reading (copied subset from protoc-gen-protosource) ────────
@@ -448,9 +453,42 @@ func tsScalarType(f pgs.Field) string {
 }
 
 // tsFieldName converts a proto snake_case field name to camelCase,
-// matching protoc-gen-es v2 output.
+// matching protoc-gen-es v2 output. This is the wire-facing name used as
+// object-literal keys consumed by the generated Schema.
 func tsFieldName(f pgs.Field) string {
 	return snakeToCamel(f.Name().String())
+}
+
+// tsReservedWords are TS keywords + contextual keywords + common built-in
+// type names that are unsafe as parameter identifiers. Object-literal keys
+// (tsFieldName) are unaffected — only the param identifier needs escaping.
+var tsReservedWords = map[string]struct{}{
+	// Reserved words
+	"break": {}, "case": {}, "catch": {}, "class": {}, "const": {}, "continue": {},
+	"debugger": {}, "default": {}, "delete": {}, "do": {}, "else": {}, "enum": {},
+	"export": {}, "extends": {}, "false": {}, "finally": {}, "for": {}, "function": {},
+	"if": {}, "import": {}, "in": {}, "instanceof": {}, "new": {}, "null": {},
+	"return": {}, "super": {}, "switch": {}, "this": {}, "throw": {}, "true": {},
+	"try": {}, "typeof": {}, "var": {}, "void": {}, "while": {}, "with": {}, "yield": {},
+	// Strict-mode + future
+	"implements": {}, "interface": {}, "let": {}, "package": {}, "private": {},
+	"protected": {}, "public": {}, "static": {},
+	// Contextual / common collisions
+	"as": {}, "async": {}, "await": {}, "from": {},
+	"any": {}, "boolean": {}, "never": {}, "number": {}, "object": {},
+	"string": {}, "symbol": {}, "undefined": {}, "unknown": {},
+}
+
+// tsParamName returns a safe TS identifier for use as a function parameter.
+// If the camelCase field name collides with a reserved/contextual keyword
+// (e.g. proto field "function"), it is suffixed with "_". The wire name is
+// preserved separately via tsFieldName for object-literal keys.
+func tsParamName(f pgs.Field) string {
+	name := tsFieldName(f)
+	if _, reserved := tsReservedWords[name]; reserved {
+		return name + "_"
+	}
+	return name
 }
 
 // snakeToCamel converts a snake_case string to camelCase.

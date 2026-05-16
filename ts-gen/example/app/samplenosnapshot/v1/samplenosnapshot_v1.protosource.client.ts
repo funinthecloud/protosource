@@ -15,11 +15,11 @@ export class SampleHTTPClient {
   }
 
   async create(id: string, body: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, CreateSchema, { id, body });
+    return this.client.apply(routePath, CreateSchema, { id, body: body });
   }
 
   async update(id: string, body: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, UpdateSchema, { id, body });
+    return this.client.apply(routePath, UpdateSchema, { id, body: body });
   }
 
   async load(id: string): Promise<Sample> {

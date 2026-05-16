@@ -15,35 +15,35 @@ export class OrderHTTPClient {
   }
 
   async create(id: string, customerId: string, customerName: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, CreateSchema, { id, customerId, customerName });
+    return this.client.apply(routePath, CreateSchema, { id, customerId: customerId, customerName: customerName });
   }
 
   async addItem(id: string, item: LineItem): Promise<CommandResponse> {
-    return this.client.apply(routePath, AddItemSchema, { id, item });
+    return this.client.apply(routePath, AddItemSchema, { id, item: item });
   }
 
   async removeItem(id: string, itemId: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, RemoveItemSchema, { id, itemId });
+    return this.client.apply(routePath, RemoveItemSchema, { id, itemId: itemId });
   }
 
   async addTag(id: string, tag: Tag): Promise<CommandResponse> {
-    return this.client.apply(routePath, AddTagSchema, { id, tag });
+    return this.client.apply(routePath, AddTagSchema, { id, tag: tag });
   }
 
   async removeTag(id: string, key: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, RemoveTagSchema, { id, key });
+    return this.client.apply(routePath, RemoveTagSchema, { id, key: key });
   }
 
   async setShipping(id: string, shippingAddress: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, SetShippingSchema, { id, shippingAddress });
+    return this.client.apply(routePath, SetShippingSchema, { id, shippingAddress: shippingAddress });
   }
 
   async place(id: string, placedAt: bigint): Promise<CommandResponse> {
-    return this.client.apply(routePath, PlaceSchema, { id, placedAt });
+    return this.client.apply(routePath, PlaceSchema, { id, placedAt: placedAt });
   }
 
   async cancel(id: string, reason: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, CancelSchema, { id, reason });
+    return this.client.apply(routePath, CancelSchema, { id, reason: reason });
   }
 
   async load(id: string): Promise<Order> {

@@ -14,12 +14,12 @@ export class TestHTTPClient {
     this.client = client;
   }
 
-  async create(id: string, body: string, color: string, shape: string, number: string, shading: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, CreateSchema, { id, body, color, shape, number, shading });
+  async create(id: string, body: string, color: string, shape: string, number_: string, shading: string): Promise<CommandResponse> {
+    return this.client.apply(routePath, CreateSchema, { id, body: body, color: color, shape: shape, number: number_, shading: shading });
   }
 
-  async update(id: string, body: string, color: string, shape: string, number: string, shading: string): Promise<CommandResponse> {
-    return this.client.apply(routePath, UpdateSchema, { id, body, color, shape, number, shading });
+  async update(id: string, body: string, color: string, shape: string, number_: string, shading: string): Promise<CommandResponse> {
+    return this.client.apply(routePath, UpdateSchema, { id, body: body, color: color, shape: shape, number: number_, shading: shading });
   }
 
   async lock(id: string): Promise<CommandResponse> {
@@ -84,14 +84,14 @@ export class TestHTTPClient {
   }
 
 
-  async queryByColorWithNumber(color: string, skOp: string, number: string): Promise<Test[]> {
+  async queryByColorWithNumber(color: string, skOp: string, number_: string): Promise<Test[]> {
     if (skOp === "between") {
       throw new Error("use queryByColorBetweenNumber for between queries");
     }
     const params: Record<string, string> = {
       "color": color,
       "sk_op": skOp,
-      "number": number,
+      "number": number_,
     };
     const list = await this.client.query(routePath, "by-color-with-number", params, TestListSchema);
     return list.items;
@@ -108,9 +108,9 @@ export class TestHTTPClient {
     return list.items;
   }
 
-  async queryByNumberAndShading(number: string, shading: string): Promise<Test[]> {
+  async queryByNumberAndShading(number_: string, shading: string): Promise<Test[]> {
     const params: Record<string, string> = {
-      "number": number,
+      "number": number_,
       "shading": shading,
     };
     const list = await this.client.query(routePath, "by-number-and-shading", params, TestListSchema);
@@ -118,12 +118,12 @@ export class TestHTTPClient {
   }
 
 
-  async queryByNumberAndShadingWithShapeAndCreateBy(number: string, shading: string, skOp: string, shape: string, createBy: string): Promise<Test[]> {
+  async queryByNumberAndShadingWithShapeAndCreateBy(number_: string, shading: string, skOp: string, shape: string, createBy: string): Promise<Test[]> {
     if (skOp === "between") {
       throw new Error("use queryByNumberAndShadingBetweenShapeAndCreateBy for between queries");
     }
     const params: Record<string, string> = {
-      "number": number,
+      "number": number_,
       "shading": shading,
       "sk_op": skOp,
       "shape": shape,
@@ -133,9 +133,9 @@ export class TestHTTPClient {
     return list.items;
   }
 
-  async queryByNumberAndShadingBetweenShapeAndCreateBy(number: string, shading: string, shapeFrom: string, shapeTo: string, createByFrom: string, createByTo: string): Promise<Test[]> {
+  async queryByNumberAndShadingBetweenShapeAndCreateBy(number_: string, shading: string, shapeFrom: string, shapeTo: string, createByFrom: string, createByTo: string): Promise<Test[]> {
     const params: Record<string, string> = {
-      "number": number,
+      "number": number_,
       "shading": shading,
       "sk_op": "between",
       "shape": shapeFrom,
