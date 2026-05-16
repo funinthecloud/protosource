@@ -221,18 +221,40 @@ Worked example: [`example/app/order/v1/order_evaluators.go`](../example/app/orde
 
 **Custom state guard** — implement `GuardState(agg)` on the command for predicates beyond a flat `allowed_states` list.
 
-**Secrets and derived data (no Evaluate hook for this).** Because Evaluate cannot rewrite the event, anything derived from secret input (password hashes, signed tokens, server-generated ids) must be computed *before* `Apply` is called — the command field carries the derived value, never the secret. The canonical pattern is in [`protosource-auth/app/bootstrap.go:139-148`](https://github.com/funinthecloud/protosource-auth/blob/main/app/bootstrap.go):
+**Derived data is computed in the caller, not the aggregate.** This is intentional. The framework's job is to take a command, validate it, gate it, and durably persist the resulting events; it deliberately has no hook that rewrites command fields into different event fields. Anything that needs to be *computed* — password hashes, signed tokens, normalized emails, server-generated identifiers, geocoded addresses — is computed by the service/handler code that sits *in front of* `Apply`. The generated command then carries the already-derived value, and the event mechanically mirrors it.
+
+Concretely, the pattern looks like this everywhere it appears:
 
 ```go
-hash, err := credentials.Hash(plaintextPassword)
+// HTTP handler / service layer — owns the secret, owns the policy.
+hash, err := credentials.Hash(plaintextPassword)  // argon2id, server-side cost factor
 if err != nil { return err }
+
+// Generated command — carries the hash, never the plaintext.
 repo.Apply(ctx, &userv1.Create{
     Id: userID, Actor: actor, Email: email,
-    PasswordHash: hash,   // command/event field is the hash, never plaintext
+    PasswordHash: hash,
 })
 ```
 
-Hash in your HTTP handler or service layer (server-side, so policy and cost factor stay centralized), then call the generated command. Plaintext never enters the framework, never lands in the event log, never returns via `/history` or `/load`.
+This is exactly how the reference auth repo does it: [`protosource-auth/app/bootstrap.go:139-148`](https://github.com/funinthecloud/protosource-auth/blob/main/app/bootstrap.go). The same shape applies to anything else with a secret or server-derived value:
+
+```go
+// Signed token
+signed := jwt.Sign(claims, key)
+repo.Apply(ctx, &tokenv1.Issue{Id: id, Actor: actor, SignedJwt: signed})
+
+// Server-generated child id (don't trust the client)
+itemID := uuid.NewString()
+repo.Apply(ctx, &orderv1.AddItem{Id: orderID, Actor: actor,
+    Item: &orderv1.LineItem{ItemId: itemID, /* ... */}})
+
+// Normalized form of user input
+normalized := strings.ToLower(strings.TrimSpace(email))
+repo.Apply(ctx, &userv1.ChangeEmail{Id: id, Actor: actor, Email: normalized})
+```
+
+The payoff: plaintext never enters the framework, never lands in the event log, never returns via `/history` or `/load`; policy (password complexity, cost factor, normalization rules) lives in one obvious place; the event stream stays a faithful record of *what happened*, not *what the client typed*. If you find yourself wishing `Evaluate` could mutate the command, that's the signal to lift the computation into the calling code — not to work around the framework.
 
 Do not add methods that the generator owns (`On`, `EmitEvents`, `NewXxx`, `RegisterRoutes`, etc.). `AfterOn` is reserved — never name a command/event `AfterOn`.
 
