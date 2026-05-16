@@ -207,9 +207,32 @@ func (t *Thing) AfterOn() {
 }
 ```
 
-**Custom evaluation** — implement `Evaluate(ctx, agg) ([]proto.Message, error)` on the command type for business logic that goes beyond `produces_events`. Return `protosource.ErrSkip` for a silent no-op.
+**Custom evaluation (`Evaluate`)** — implement `Evaluate(aggregate protosource.Aggregate) error` on the command type. It runs after proto validation and the state guard but *before* events are emitted. The signature is intentionally narrow — Evaluate is a **gate**, not a transformer:
+
+| Return value | Effect |
+|---|---|
+| `nil` | proceed; events are mechanically built from the command's proto fields |
+| `protosource.ErrSkip` (or wrapped) | silent no-op — nothing persisted, caller gets current version and `nil` error |
+| any other error | abort — nothing persisted, error surfaces to the caller |
+
+Evaluate **cannot** mutate the command, substitute the event payload, or inject derived fields. Use it for idempotency checks, duplicate detection, and invariants that `protovalidate` cannot express.
+
+Worked example: [`example/app/order/v1/order_evaluators.go`](../example/app/order/v1/order_evaluators.go) shows all three branches — `RemoveItem` skips when the item is missing, `AddItem` aborts on duplicate id, and the rest of the commands proceed normally. Asserted by [`order_evaluators_test.go`](../example/app/order/v1/order_evaluators_test.go).
 
 **Custom state guard** — implement `GuardState(agg)` on the command for predicates beyond a flat `allowed_states` list.
+
+**Secrets and derived data (no Evaluate hook for this).** Because Evaluate cannot rewrite the event, anything derived from secret input (password hashes, signed tokens, server-generated ids) must be computed *before* `Apply` is called — the command field carries the derived value, never the secret. The canonical pattern is in [`protosource-auth/app/bootstrap.go:139-148`](https://github.com/funinthecloud/protosource-auth/blob/main/app/bootstrap.go):
+
+```go
+hash, err := credentials.Hash(plaintextPassword)
+if err != nil { return err }
+repo.Apply(ctx, &userv1.Create{
+    Id: userID, Actor: actor, Email: email,
+    PasswordHash: hash,   // command/event field is the hash, never plaintext
+})
+```
+
+Hash in your HTTP handler or service layer (server-side, so policy and cost factor stay centralized), then call the generated command. Plaintext never enters the framework, never lands in the event log, never returns via `/history` or `/load`.
 
 Do not add methods that the generator owns (`On`, `EmitEvents`, `NewXxx`, `RegisterRoutes`, etc.). `AfterOn` is reserved — never name a command/event `AfterOn`.
 
