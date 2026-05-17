@@ -60,6 +60,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"name":               p.ctx.Name,
 		"commandEmbeddedTypes": func(f pgs.File) []string { return commandEmbeddedTypes(f, p.isCommand) },
 		"gsiEnumTypes":         p.gsiEnumTypes,
+		"clientEnumTypes":      p.clientEnumTypes,
 	}
 }
 
@@ -412,6 +413,36 @@ func (p *ProtosourceModule) gsiEnumTypes(f pgs.File) []string {
 			}
 		}
 	}
+	return result
+}
+
+// clientEnumTypes returns every enum referenced by any rendered method
+// signature in the generated TS client: command parameter types plus GSI
+// PK/SK fields. TS enums are runtime values, so these must be imported as
+// values (not type-only). Sorted for deterministic output.
+func (p *ProtosourceModule) clientEnumTypes(f pgs.File) []string {
+	seen := make(map[string]bool)
+	var result []string
+	add := func(name string) {
+		if !seen[name] {
+			seen[name] = true
+			result = append(result, name)
+		}
+	}
+	for _, m := range f.AllMessages() {
+		if !p.isCommand(m) {
+			continue
+		}
+		for _, field := range clientCommandFields(m.Fields()) {
+			if field.Type().IsEnum() {
+				add(field.Type().Enum().Name().String())
+			}
+		}
+	}
+	for _, name := range p.gsiEnumTypes(f) {
+		add(name)
+	}
+	sort.Strings(result)
 	return result
 }
 

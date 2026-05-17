@@ -194,6 +194,41 @@ func TestOutputPath_DerivedFromProtoPackageNotGoImport(t *testing.T) {
 	}
 }
 
+func TestClientEnumTypes_CommandField(t *testing.T) {
+	// Kind appears only as a command parameter, not as a GSI field.
+	// It must still end up in the import list.
+	f := loadTestProto(t, "command_enum.proto")
+	p := newModule()
+
+	types := p.clientEnumTypes(f)
+	found := false
+	for _, n := range types {
+		if n == "Kind" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("clientEnumTypes did not include command-field enum Kind: %v", types)
+	}
+}
+
+func TestClientEnumTypes_SortedAndDeduped(t *testing.T) {
+	f := loadTestProto(t, "command_enum.proto")
+	p := newModule()
+	types := p.clientEnumTypes(f)
+
+	for i := 1; i < len(types); i++ {
+		if types[i-1] > types[i] {
+			t.Errorf("clientEnumTypes not sorted: %v", types)
+			break
+		}
+		if types[i-1] == types[i] {
+			t.Errorf("clientEnumTypes has duplicate %q: %v", types[i], types)
+		}
+	}
+}
+
 func TestGSIEnumTypes_NoEnums(t *testing.T) {
 	// Use the same proto but verify a file without enum GSI fields returns empty.
 	// We'll create a simple test: gsi_enum.proto has Priority as GSI1PK (enum),
