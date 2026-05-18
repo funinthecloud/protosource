@@ -8,6 +8,11 @@ output "identity_id" {
   value       = azurerm_user_assigned_identity.app.id
 }
 
+output "client_id" {
+  description = "Client (application) ID of the user-assigned Managed Identity. Set as AZURE_CLIENT_ID in the container so DefaultAzureCredential picks this identity off the IMDS endpoint — without it, IMDS returns 400 'Unable to load the proper Managed Identity' when more than zero user-assigned identities are attached."
+  value       = azurerm_user_assigned_identity.app.client_id
+}
+
 output "container_app_fqdn" {
   description = "Stable public hostname of the Container App ingress (https://<fqdn>). Distinct from latest_revision_fqdn, which is revision-scoped and changes with every deploy."
   value       = azurerm_container_app.this.ingress[0].fqdn

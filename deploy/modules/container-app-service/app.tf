@@ -6,6 +6,16 @@ locals {
     for k, _ in var.secret_refs :
     upper(replace(k, "-", "_")) => k
   }
+
+  # AZURE_CLIENT_ID disambiguates which user-assigned identity
+  # DefaultAzureCredential should request from IMDS. Without it, IMDS
+  # returns 400 "Unable to load the proper Managed Identity" whenever the
+  # container has any user-assigned identities attached. Merged here (not
+  # at the env call site) because the identity is created inside this
+  # module — wiring it through var.env would be a self-reference cycle.
+  managed_env = merge(var.env, {
+    AZURE_CLIENT_ID = azurerm_user_assigned_identity.app.client_id
+  })
 }
 
 # The Container App itself. Uses the user-assigned identity for both ACR
@@ -50,7 +60,7 @@ resource "azurerm_container_app" "this" {
       memory = var.memory
 
       dynamic "env" {
-        for_each = var.env
+        for_each = local.managed_env
         content {
           name  = env.key
           value = env.value
