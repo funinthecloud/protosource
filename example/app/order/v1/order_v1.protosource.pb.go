@@ -1016,3 +1016,16 @@ func rehydrateOrderSummary(results []*opaquedatav1.OpaqueData) ([]*OrderSummary,
 func (m *Snapshot) EventName() string {
 	return "Snapshot"
 }
+
+// State_Display maps each State value to a human-readable label.
+// The keyed-by-enum-type form gives a compile error if a new value is added
+// without updating the map.
+var State_Display = map[State]string{
+	State_STATE_UNSPECIFIED: "Unspecified",
+	State_STATE_DRAFT:       "Draft",
+	State_STATE_PLACED:      "Placed",
+	State_STATE_PAID:        "Paid",
+	State_STATE_SHIPPED:     "Shipped",
+	State_STATE_DELIVERED:   "Delivered",
+	State_STATE_CANCELLED:   "Cancelled",
+}

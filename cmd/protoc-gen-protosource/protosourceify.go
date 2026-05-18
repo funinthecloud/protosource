@@ -95,6 +95,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"add":                    func(a, b int) int { return a + b },
 		"lastPathComponent":      lastPathComponent,
 		"unexport":               unexport,
+		"enumDisplays":           p.enumDisplays,
 		"queryRoutePath":         queryRoutePath,
 		"gsiQueryRoutePath":      gsiQueryRoutePath,
 		"queryParseExpr":         p.queryParseExpr,

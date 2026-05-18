@@ -737,3 +737,12 @@ func (b *Builder) Unlocked(Actor string) {
 func (m *Snapshot) EventName() string {
 	return "Snapshot"
 }
+
+// State_Display maps each State value to a human-readable label.
+// The keyed-by-enum-type form gives a compile error if a new value is added
+// without updating the map.
+var State_Display = map[State]string{
+	State_STATE_UNSPECIFIED: "Unspecified",
+	State_STATE_UNLOCKED:    "Unlocked",
+	State_STATE_LOCKED:      "Locked",
+}

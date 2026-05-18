@@ -17,7 +17,8 @@ import "google/protobuf/descriptor.proto";
 //   1296 — protosource_opaque_field   (FieldOptions)
 //   1297 — protosource_message_type   (MessageOptions)
 //   1298 — protosource_file           (FileOptions)
-// Free: 1299, 1300, 1301, 1302, 1303, 1304, 1305
+//   1299 — protosource_enum           (EnumOptions)
+// Free: 1300, 1301, 1302, 1303, 1304, 1305
 
 // ── File Options
 // ────────────────────────────────────────────────────────────── Wrapped in a
@@ -240,6 +241,31 @@ message SnapshotOptions {
 //   option (protosource_message_type).snapshot = { disabled: true };
 //   option (protosource_message_type).snapshot = {}; // defer to runtime
 //   default
+
+// ── Enum Options
+// ──────────────────────────────────────────────────────────────────
+// Per-enum knobs. The plugin emits a display-name map for every enum in
+// every enabled file by default (Go: `var X_Display = map[X]string{…}`;
+// TS: `export const XDisplay: Record<X, string> = {…}` in a sibling file).
+// Set `display_names_disabled = true` to skip emission for a specific enum.
+
+extend google.protobuf.EnumOptions {
+  EnumOptions protosource_enum = 1299;
+}
+
+message EnumOptions {
+  // When true, suppress the generated *_Display map (Go) / *Display Record
+  // (TS) for this enum. Default false — display maps are emitted by default.
+  bool display_names_disabled = 1;
+}
+
+// Usage:
+//   enum Internal {
+//     option (funinthecloud.protosource.options.v1.protosource_enum) = {
+//       display_names_disabled: true
+//     };
+//     INTERNAL_UNSPECIFIED = 0;
+//   }
 
 // ── OpaqueData Field Options
 // ──────────────────────────────────────────────────────────────────

@@ -519,3 +519,13 @@ func (m *{{ $msgName }}) Projections() []proto.Message {
 
 {{ end -}}
 {{- end }}
+
+{{/* ── Enum display-name maps ─────────────────────────────────────── */}}
+{{ range $ed := enumDisplays . }}
+// {{ $ed.GoTypeName }}_Display maps each {{ $ed.GoTypeName }} value to a human-readable label.
+// The keyed-by-enum-type form gives a compile error if a new value is added
+// without updating the map.
+var {{ $ed.GoTypeName }}_Display = map[{{ $ed.GoTypeName }}]string{
+{{ range $v := $ed.Values }}    {{ $v.GoName }}: {{ printf "%q" $v.Display }},
+{{ end }}}
+{{ end }}

@@ -61,6 +61,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"commandEmbeddedTypes": func(f pgs.File) []string { return commandEmbeddedTypes(f, p.isCommand) },
 		"gsiEnumTypes":         p.gsiEnumTypes,
 		"clientEnumTypes":      p.clientEnumTypes,
+		"tsEnumDisplays":       p.tsEnumDisplays,
 	}
 }
 
@@ -104,6 +105,11 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 	}
 
 	for _, v := range p.tpls {
+		// The enums template should only emit a file when there is at least one
+		// displayable enum — otherwise we'd write an empty .protosource.enums.ts.
+		if v.Name() == "enums.tstext" && !p.fileHasDisplayableEnum(f) {
+			continue
+		}
 		outPath := p.outputPath(f, v)
 		p.AddGeneratorTemplateFile(outPath, v, f)
 	}
@@ -117,8 +123,15 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 // `"./<stem>_pb.js"` then resolves correctly. Deriving from the proto
 // package — not the Go import path — also keeps the output stable across
 // downstream consumers regardless of how they configure `module=`.
-func (p *ProtosourceModule) outputPath(f pgs.File, _ *template.Template) string {
-	base := strings.TrimSuffix(f.InputPath().Base(), ".proto") + ".protosource.client.ts"
+func (p *ProtosourceModule) outputPath(f pgs.File, tpl *template.Template) string {
+	suffix := ".protosource.client.ts"
+	if tpl != nil {
+		switch tpl.Name() {
+		case "enums.tstext":
+			suffix = ".protosource.enums.ts"
+		}
+	}
+	base := strings.TrimSuffix(f.InputPath().Base(), ".proto") + suffix
 	pkg := f.Package().ProtoName().String()
 	if pkg == "" {
 		return base

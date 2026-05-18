@@ -845,6 +845,52 @@ func (x *SnapshotOptions) GetDisabled() bool {
 	return false
 }
 
+type EnumOptions struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When true, suppress the generated *_Display map (Go) / *Display Record
+	// (TS) for this enum. Default false — display maps are emitted by default.
+	DisplayNamesDisabled bool `protobuf:"varint,1,opt,name=display_names_disabled,json=displayNamesDisabled,proto3" json:"display_names_disabled,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *EnumOptions) Reset() {
+	*x = EnumOptions{}
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EnumOptions) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EnumOptions) ProtoMessage() {}
+
+func (x *EnumOptions) ProtoReflect() protoreflect.Message {
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EnumOptions.ProtoReflect.Descriptor instead.
+func (*EnumOptions) Descriptor() ([]byte, []int) {
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *EnumOptions) GetDisplayNamesDisabled() bool {
+	if x != nil {
+		return x.DisplayNamesDisabled
+	}
+	return false
+}
+
 type OpaqueFieldOptions struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Attributes    []*OpaqueKeyMapping    `protobuf:"bytes,1,rep,name=attributes,proto3" json:"attributes,omitempty"`
@@ -854,7 +900,7 @@ type OpaqueFieldOptions struct {
 
 func (x *OpaqueFieldOptions) Reset() {
 	*x = OpaqueFieldOptions{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -866,7 +912,7 @@ func (x *OpaqueFieldOptions) String() string {
 func (*OpaqueFieldOptions) ProtoMessage() {}
 
 func (x *OpaqueFieldOptions) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[8]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -879,7 +925,7 @@ func (x *OpaqueFieldOptions) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpaqueFieldOptions.ProtoReflect.Descriptor instead.
 func (*OpaqueFieldOptions) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{8}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *OpaqueFieldOptions) GetAttributes() []*OpaqueKeyMapping {
@@ -899,7 +945,7 @@ type OpaqueKeyMapping struct {
 
 func (x *OpaqueKeyMapping) Reset() {
 	*x = OpaqueKeyMapping{}
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[9]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -911,7 +957,7 @@ func (x *OpaqueKeyMapping) String() string {
 func (*OpaqueKeyMapping) ProtoMessage() {}
 
 func (x *OpaqueKeyMapping) ProtoReflect() protoreflect.Message {
-	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[9]
+	mi := &file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -924,7 +970,7 @@ func (x *OpaqueKeyMapping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OpaqueKeyMapping.ProtoReflect.Descriptor instead.
 func (*OpaqueKeyMapping) Descriptor() ([]byte, []int) {
-	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{9}
+	return file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *OpaqueKeyMapping) GetType() OpaqueKeyType {
@@ -959,6 +1005,14 @@ var file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes = []prot
 		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
 	},
 	{
+		ExtendedType:  (*descriptorpb.EnumOptions)(nil),
+		ExtensionType: (*EnumOptions)(nil),
+		Field:         1299,
+		Name:          "funinthecloud.protosource.options.v1.protosource_enum",
+		Tag:           "bytes,1299,opt,name=protosource_enum",
+		Filename:      "funinthecloud/protosource/options/v1/options_v1.proto",
+	},
+	{
 		ExtendedType:  (*descriptorpb.FieldOptions)(nil),
 		ExtensionType: (*OpaqueFieldOptions)(nil),
 		Field:         1296,
@@ -980,10 +1034,16 @@ var (
 	E_ProtosourceMessageType = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[1]
 )
 
+// Extension fields to descriptorpb.EnumOptions.
+var (
+	// optional funinthecloud.protosource.options.v1.EnumOptions protosource_enum = 1299;
+	E_ProtosourceEnum = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[2]
+)
+
 // Extension fields to descriptorpb.FieldOptions.
 var (
 	// optional funinthecloud.protosource.options.v1.OpaqueFieldOptions protosource_opaque_field = 1296;
-	E_ProtosourceOpaqueField = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[2]
+	E_ProtosourceOpaqueField = &file_funinthecloud_protosource_options_v1_options_v1_proto_extTypes[3]
 )
 
 var File_funinthecloud_protosource_options_v1_options_v1_proto protoreflect.FileDescriptor
@@ -1024,7 +1084,9 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x11source_aggregates\x18\x01 \x03(\tR\x10sourceAggregates\"S\n" +
 	"\x0fSnapshotOptions\x12$\n" +
 	"\x0eevery_n_events\x18\x01 \x01(\rR\feveryNEvents\x12\x1a\n" +
-	"\bdisabled\x18\x02 \x01(\bR\bdisabled\"l\n" +
+	"\bdisabled\x18\x02 \x01(\bR\bdisabled\"C\n" +
+	"\vEnumOptions\x124\n" +
+	"\x16display_names_disabled\x18\x01 \x01(\bR\x14displayNamesDisabled\"l\n" +
 	"\x12OpaqueFieldOptions\x12V\n" +
 	"\n" +
 	"attributes\x18\x01 \x03(\v26.funinthecloud.protosource.options.v1.OpaqueKeyMappingR\n" +
@@ -1088,7 +1150,9 @@ const file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc = "" +
 	"\x10protosource_file\x12\x1c.google.protobuf.FileOptions\x18\x92\n" +
 	" \x01(\v21.funinthecloud.protosource.options.v1.FileOptionsR\x0fprotosourceFile:\x90\x01\n" +
 	"\x18protosource_message_type\x12\x1f.google.protobuf.MessageOptions\x18\x91\n" +
-	" \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageType:\x92\x01\n" +
+	" \x01(\v24.funinthecloud.protosource.options.v1.MessageOptionsR\x16protosourceMessageType:{\n" +
+	"\x10protosource_enum\x12\x1c.google.protobuf.EnumOptions\x18\x93\n" +
+	" \x01(\v21.funinthecloud.protosource.options.v1.EnumOptionsR\x0fprotosourceEnum:\x92\x01\n" +
 	"\x18protosource_opaque_field\x12\x1d.google.protobuf.FieldOptions\x18\x90\n" +
 	" \x01(\v28.funinthecloud.protosource.options.v1.OpaqueFieldOptionsR\x16protosourceOpaqueFieldB\xa8\x02\n" +
 	"(com.funinthecloud.protosource.options.v1B\x0eOptionsV1ProtoP\x01Z9github.com/funinthecloud/protosource/options/v1;optionsv1\xa2\x02\x03FPO\xaa\x02$Funinthecloud.Protosource.Options.V1\xca\x02$Funinthecloud\\Protosource\\Options\\V1\xe2\x020Funinthecloud\\Protosource\\Options\\V1\\GPBMetadata\xea\x02'Funinthecloud::Protosource::Options::V1b\x06proto3"
@@ -1106,7 +1170,7 @@ func file_funinthecloud_protosource_options_v1_options_v1_proto_rawDescGZIP() []
 }
 
 var file_funinthecloud_protosource_options_v1_options_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_funinthecloud_protosource_options_v1_options_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_funinthecloud_protosource_options_v1_options_v1_proto_goTypes = []any{
 	(CommandLifecycle)(0),               // 0: funinthecloud.protosource.options.v1.CommandLifecycle
 	(CollectionAction)(0),               // 1: funinthecloud.protosource.options.v1.CollectionAction
@@ -1119,11 +1183,13 @@ var file_funinthecloud_protosource_options_v1_options_v1_proto_goTypes = []any{
 	(*AggregateOptions)(nil),            // 8: funinthecloud.protosource.options.v1.AggregateOptions
 	(*ProjectionOptions)(nil),           // 9: funinthecloud.protosource.options.v1.ProjectionOptions
 	(*SnapshotOptions)(nil),             // 10: funinthecloud.protosource.options.v1.SnapshotOptions
-	(*OpaqueFieldOptions)(nil),          // 11: funinthecloud.protosource.options.v1.OpaqueFieldOptions
-	(*OpaqueKeyMapping)(nil),            // 12: funinthecloud.protosource.options.v1.OpaqueKeyMapping
-	(*descriptorpb.FileOptions)(nil),    // 13: google.protobuf.FileOptions
-	(*descriptorpb.MessageOptions)(nil), // 14: google.protobuf.MessageOptions
-	(*descriptorpb.FieldOptions)(nil),   // 15: google.protobuf.FieldOptions
+	(*EnumOptions)(nil),                 // 11: funinthecloud.protosource.options.v1.EnumOptions
+	(*OpaqueFieldOptions)(nil),          // 12: funinthecloud.protosource.options.v1.OpaqueFieldOptions
+	(*OpaqueKeyMapping)(nil),            // 13: funinthecloud.protosource.options.v1.OpaqueKeyMapping
+	(*descriptorpb.FileOptions)(nil),    // 14: google.protobuf.FileOptions
+	(*descriptorpb.MessageOptions)(nil), // 15: google.protobuf.MessageOptions
+	(*descriptorpb.EnumOptions)(nil),    // 16: google.protobuf.EnumOptions
+	(*descriptorpb.FieldOptions)(nil),   // 17: google.protobuf.FieldOptions
 }
 var file_funinthecloud_protosource_options_v1_options_v1_proto_depIdxs = []int32{
 	5,  // 0: funinthecloud.protosource.options.v1.MessageOptions.command:type_name -> funinthecloud.protosource.options.v1.CommandOptions
@@ -1134,18 +1200,20 @@ var file_funinthecloud_protosource_options_v1_options_v1_proto_depIdxs = []int32
 	0,  // 5: funinthecloud.protosource.options.v1.CommandOptions.lifecycle:type_name -> funinthecloud.protosource.options.v1.CommandLifecycle
 	1,  // 6: funinthecloud.protosource.options.v1.CollectionMapping.action:type_name -> funinthecloud.protosource.options.v1.CollectionAction
 	6,  // 7: funinthecloud.protosource.options.v1.EventOptions.collection:type_name -> funinthecloud.protosource.options.v1.CollectionMapping
-	12, // 8: funinthecloud.protosource.options.v1.OpaqueFieldOptions.attributes:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyMapping
+	13, // 8: funinthecloud.protosource.options.v1.OpaqueFieldOptions.attributes:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyMapping
 	2,  // 9: funinthecloud.protosource.options.v1.OpaqueKeyMapping.type:type_name -> funinthecloud.protosource.options.v1.OpaqueKeyType
-	13, // 10: funinthecloud.protosource.options.v1.protosource_file:extendee -> google.protobuf.FileOptions
-	14, // 11: funinthecloud.protosource.options.v1.protosource_message_type:extendee -> google.protobuf.MessageOptions
-	15, // 12: funinthecloud.protosource.options.v1.protosource_opaque_field:extendee -> google.protobuf.FieldOptions
-	3,  // 13: funinthecloud.protosource.options.v1.protosource_file:type_name -> funinthecloud.protosource.options.v1.FileOptions
-	4,  // 14: funinthecloud.protosource.options.v1.protosource_message_type:type_name -> funinthecloud.protosource.options.v1.MessageOptions
-	11, // 15: funinthecloud.protosource.options.v1.protosource_opaque_field:type_name -> funinthecloud.protosource.options.v1.OpaqueFieldOptions
-	16, // [16:16] is the sub-list for method output_type
-	16, // [16:16] is the sub-list for method input_type
-	13, // [13:16] is the sub-list for extension type_name
-	10, // [10:13] is the sub-list for extension extendee
+	14, // 10: funinthecloud.protosource.options.v1.protosource_file:extendee -> google.protobuf.FileOptions
+	15, // 11: funinthecloud.protosource.options.v1.protosource_message_type:extendee -> google.protobuf.MessageOptions
+	16, // 12: funinthecloud.protosource.options.v1.protosource_enum:extendee -> google.protobuf.EnumOptions
+	17, // 13: funinthecloud.protosource.options.v1.protosource_opaque_field:extendee -> google.protobuf.FieldOptions
+	3,  // 14: funinthecloud.protosource.options.v1.protosource_file:type_name -> funinthecloud.protosource.options.v1.FileOptions
+	4,  // 15: funinthecloud.protosource.options.v1.protosource_message_type:type_name -> funinthecloud.protosource.options.v1.MessageOptions
+	11, // 16: funinthecloud.protosource.options.v1.protosource_enum:type_name -> funinthecloud.protosource.options.v1.EnumOptions
+	12, // 17: funinthecloud.protosource.options.v1.protosource_opaque_field:type_name -> funinthecloud.protosource.options.v1.OpaqueFieldOptions
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	14, // [14:18] is the sub-list for extension type_name
+	10, // [10:14] is the sub-list for extension extendee
 	0,  // [0:10] is the sub-list for field type_name
 }
 
@@ -1167,8 +1235,8 @@ func file_funinthecloud_protosource_options_v1_options_v1_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc), len(file_funinthecloud_protosource_options_v1_options_v1_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   10,
-			NumExtensions: 3,
+			NumMessages:   11,
+			NumExtensions: 4,
 			NumServices:   0,
 		},
 		GoTypes:           file_funinthecloud_protosource_options_v1_options_v1_proto_goTypes,
