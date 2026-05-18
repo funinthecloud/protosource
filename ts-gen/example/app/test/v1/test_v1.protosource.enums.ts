@@ -6,7 +6,7 @@ import { State } from "./test_v1_pb.js";
 // The Record<State, string> typing makes a missing entry a compile error
 // when a new enum value is added.
 export const StateDisplay: Record<State, string> = {
-  [State.STATE_UNSPECIFIED]: "Unspecified",
-  [State.STATE_UNLOCKED]: "Unlocked",
-  [State.STATE_LOCKED]: "Locked",
+  [State.UNSPECIFIED]: "Unspecified",
+  [State.UNLOCKED]: "Unlocked",
+  [State.LOCKED]: "Locked",
 };

@@ -6,11 +6,11 @@ import { State } from "./order_v1_pb.js";
 // The Record<State, string> typing makes a missing entry a compile error
 // when a new enum value is added.
 export const StateDisplay: Record<State, string> = {
-  [State.STATE_UNSPECIFIED]: "Unspecified",
-  [State.STATE_DRAFT]: "Draft",
-  [State.STATE_PLACED]: "Placed",
-  [State.STATE_PAID]: "Paid",
-  [State.STATE_SHIPPED]: "Shipped",
-  [State.STATE_DELIVERED]: "Delivered",
-  [State.STATE_CANCELLED]: "Cancelled",
+  [State.UNSPECIFIED]: "Unspecified",
+  [State.DRAFT]: "Draft",
+  [State.PLACED]: "Placed",
+  [State.PAID]: "Paid",
+  [State.SHIPPED]: "Shipped",
+  [State.DELIVERED]: "Delivered",
+  [State.CANCELLED]: "Cancelled",
 };

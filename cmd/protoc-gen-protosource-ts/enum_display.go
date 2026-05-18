@@ -10,7 +10,7 @@ import (
 
 // TSEnumDisplayValue is one row in the generated TS Record.
 type TSEnumDisplayValue struct {
-	MemberName string // TS enum member, e.g. "STATE_ACTIVE" (protoc-gen-es preserves proto value names)
+	MemberName string // TS enum member, e.g. "ACTIVE" (protoc-gen-es strips the enum-name prefix from values)
 	Display    string // human-readable label, e.g. "Active"
 }
 
@@ -50,32 +50,52 @@ func (p *ProtosourceModule) tsEnumDisplays(f pgs.File) []TSEnumDisplay {
 		if !p.enumDisplayEnabled(e) {
 			continue
 		}
-		prefix := screamingSnake(e.Name().String()) + "_"
-		stripPrefix := true
+		valueNames := make([]string, 0, len(e.Values()))
 		for _, v := range e.Values() {
-			if !strings.HasPrefix(v.Name().String(), prefix) {
-				stripPrefix = false
-				break
-			}
+			valueNames = append(valueNames, v.Name().String())
 		}
+		stripped := stripEnumValuePrefix(e.Name().String(), valueNames)
 
 		d := TSEnumDisplay{TypeName: p.ctx.Name(e).String()}
 		seen := map[int32]bool{}
-		for _, v := range e.Values() {
+		for i, v := range e.Values() {
 			if seen[v.Value()] {
 				continue
 			}
 			seen[v.Value()] = true
-			raw := v.Name().String()
-			if stripPrefix {
-				raw = strings.TrimPrefix(raw, prefix)
-			}
+			member := stripped[i]
 			d.Values = append(d.Values, TSEnumDisplayValue{
-				MemberName: v.Name().String(),
-				Display:    enumDisplayLabel(raw),
+				MemberName: member,
+				Display:    enumDisplayLabel(member),
 			})
 		}
 		out = append(out, d)
+	}
+	return out
+}
+
+// stripEnumValuePrefix returns each value name with the enum-name prefix
+// removed (e.g. "STATE_ACTIVE" → "ACTIVE" when the enum is named "State").
+// The prefix is only stripped if every value carries it — otherwise the
+// names are returned unchanged. This mirrors what protoc-gen-es does when
+// it emits enum members, so the generated TS keys index the enum
+// correctly: `State.ACTIVE`, not `State.STATE_ACTIVE`.
+func stripEnumValuePrefix(enumName string, valueNames []string) []string {
+	prefix := screamingSnake(enumName) + "_"
+	stripPrefix := len(valueNames) > 0
+	for _, v := range valueNames {
+		if !strings.HasPrefix(v, prefix) {
+			stripPrefix = false
+			break
+		}
+	}
+	out := make([]string, len(valueNames))
+	for i, v := range valueNames {
+		if stripPrefix {
+			out[i] = strings.TrimPrefix(v, prefix)
+		} else {
+			out[i] = v
+		}
 	}
 	return out
 }
