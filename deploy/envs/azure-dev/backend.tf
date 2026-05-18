@@ -13,8 +13,8 @@
 terraform {
   backend "azurerm" {
     key = "azure-dev.tfstate"
-    # resource_group_name  / storage_account_name / container_name are
-    # supplied via -backend-config so the values don't get baked into a
-    # config file that may be reused by other envs.
+    resource_group_name  = "protosrctf-tfstate-rg"
+    storage_account_name = "protosrctfstate"
+    container_name       = "tfstate"
   }
 }

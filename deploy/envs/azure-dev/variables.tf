@@ -30,7 +30,7 @@ variable "acr_name" {
 variable "image" {
   description = "Container image to run. Stays on the public Microsoft quickstart until you push your own to the ACR this stack creates."
   type        = string
-  default     = "mcr.microsoft.com/k8se/quickstart:latest"
+  default     = "protosrcdevacr1aa9d7.azurecr.io/testcosmos:latest"
 }
 
 variable "tags" {
