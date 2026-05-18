@@ -29,6 +29,8 @@ buf generate --template buf.gen.ts.yaml     # generate TS client files
 cd ts/client && npm install && npm run build # build @protosource/client runtime
 ```
 
+Generated TS client files land in `ts-gen/` (see `buf.gen.ts.yaml`). They are tracked in git.
+
 The same rule applies: after modifying `cmd/protoc-gen-protosource-ts/content/*.tstext` or `cmd/protoc-gen-protosource-ts/protosourceify.go`, you MUST run `go install ./cmd/protoc-gen-protosource-ts` before `buf generate --template buf.gen.ts.yaml`.
 
 ## Architecture

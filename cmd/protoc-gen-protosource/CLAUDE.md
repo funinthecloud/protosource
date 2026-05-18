@@ -27,6 +27,10 @@ For each proto file with `protosource_file.enabled = true`:
 - Per-event: `IncrementVersion()`, `EventName()`, builder method
 - Per-aggregate: `SetCreated()`, `SetModified()`, and if snapshots are present: `Snapshot()`, `RestoreSnapshot()`, `maybeSnapshot()`
 
+## Adding a new template
+
+New templates in `content/` are auto-discovered. Route per-template output by branching on `tpl.Name()` in `outputPathForTemplate` (Go plugin) or `outputPath` (TS plugin). The TS plugin's `outputPath` is called with a `nil` template by tests — guard against that.
+
 ## Validation (compile-time via plugin)
 
 - Commands must have `id` (field 1, string) and `actor` (field 2, string)
