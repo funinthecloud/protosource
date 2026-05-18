@@ -3,6 +3,7 @@ export type { ClientOptions } from "./client.js";
 export type { AuthProvider } from "./auth.js";
 export { BearerTokenAuth, NoAuth } from "./auth.js";
 export { APIError } from "./errors.js";
+export { nowMicros, fromMicros } from "./time.js";
 export type { CommandResponse } from "./gen/response_v1_pb.js";
 export { CommandResponseSchema } from "./gen/response_v1_pb.js";
 export type { History } from "./gen/history_v1_pb.js";
