@@ -45,6 +45,9 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 		for k := range r.Header {
 			headers[strings.ToLower(k)] = r.Header.Get(k)
 		}
+		// net/http parses Host into r.Host and strips it from r.Header, so the
+		// loop above misses it. Downstream same-origin checks need it.
+		headers["host"] = r.Host
 
 		req := protosource.Request{
 			Body:            string(body),
@@ -87,6 +90,9 @@ func WrapRouter(router *protosource.Router, extractor ActorExtractor) http.Handl
 		for k := range r.Header {
 			headers[strings.ToLower(k)] = r.Header.Get(k)
 		}
+		// net/http parses Host into r.Host and strips it from r.Header, so the
+		// loop above misses it. Downstream same-origin checks need it.
+		headers["host"] = r.Host
 
 		req := protosource.Request{
 			Body:            string(body),

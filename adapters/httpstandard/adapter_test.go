@@ -49,6 +49,44 @@ func TestWrap(t *testing.T) {
 	}
 }
 
+func TestWrap_PopulatesHostHeader(t *testing.T) {
+	// net/http strips Host from r.Header into r.Host, so the adapter must
+	// re-inject it. Downstream same-origin CSRF checks (e.g. protosource-auth
+	// loginpage) read req.Headers["host"] and reject the request without it.
+	var seenHost string
+	handler := func(_ context.Context, req protosource.Request) protosource.Response {
+		seenHost = req.Headers["host"]
+		return protosource.Response{StatusCode: http.StatusOK}
+	}
+	wrapped := Wrap(handler, func(*http.Request) string { return "" })
+
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.Host = "example.com"
+
+	wrapped(httptest.NewRecorder(), req)
+	if seenHost != "example.com" {
+		t.Errorf("expected host header 'example.com', got %q", seenHost)
+	}
+}
+
+func TestWrapRouter_PopulatesHostHeader(t *testing.T) {
+	var seenHost string
+	router := protosource.NewRouter()
+	router.Handle(http.MethodPost, "/", func(_ context.Context, req protosource.Request) protosource.Response {
+		seenHost = req.Headers["host"]
+		return protosource.Response{StatusCode: http.StatusOK}
+	})
+	wrapped := WrapRouter(router, func(*http.Request) string { return "" })
+
+	req := httptest.NewRequest(http.MethodPost, "/", nil)
+	req.Host = "auth.example.com"
+
+	wrapped.ServeHTTP(httptest.NewRecorder(), req)
+	if seenHost != "auth.example.com" {
+		t.Errorf("expected host header 'auth.example.com', got %q", seenHost)
+	}
+}
+
 func TestBearerTokenExtractor(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Authorization", "Bearer my-token-123")
