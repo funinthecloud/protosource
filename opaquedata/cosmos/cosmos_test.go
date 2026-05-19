@@ -350,6 +350,73 @@ func TestQuery_EmptyResults(t *testing.T) {
 	assert.Nil(t, got)
 }
 
+func TestQuery_GSI_NoOrderBy(t *testing.T) {
+	// The Cosmos gateway rejects cross-partition queries that carry ORDER BY,
+	// so the SQL emitted for a GSI lookup must omit it.
+	mock := &mockCosmos{queryResults: [][]byte{
+		makeDoc(t, document{ID: "u1", Pk: "USER#1", Sk: "AGG", Gsi1Pk: "EMAIL#a@x", Gsi1Sk: "b"}),
+		makeDoc(t, document{ID: "u2", Pk: "USER#2", Sk: "AGG", Gsi1Pk: "EMAIL#a@x", Gsi1Sk: "a"}),
+	}}
+	store := New(mock)
+
+	results, err := store.Query(context.Background(), "gsi1pk", "EMAIL#a@x", "gsi1sk", nil, opaquedata.WithGSIIndex(1))
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	call := mock.queryCalls[0]
+	assert.Contains(t, call.query, "c.gsi1pk = @pk")
+	assert.NotContains(t, call.query, "ORDER BY")
+
+	// Cross-partition partition key is empty (no value pinned to a single partition).
+	assert.Equal(t, azcosmos.NewPartitionKey(), call.pk)
+
+	// Results sorted client-side ascending by gsi1sk: "a" before "b".
+	assert.Equal(t, "a", results[0].GetGsi1Sk())
+	assert.Equal(t, "b", results[1].GetGsi1Sk())
+}
+
+func TestQuery_GSI_WithSort_NoOrderBy(t *testing.T) {
+	// Even when a SortCondition is supplied, GSI (cross-partition) queries
+	// must not emit ORDER BY.
+	mock := &mockCosmos{queryResults: [][]byte{
+		makeDoc(t, document{ID: "u1", Pk: "USER#1", Sk: "AGG", Gsi2Pk: "ROLE#admin", Gsi2Sk: "zoe"}),
+		makeDoc(t, document{ID: "u2", Pk: "USER#2", Sk: "AGG", Gsi2Pk: "ROLE#admin", Gsi2Sk: "amy"}),
+	}}
+	store := New(mock)
+
+	results, err := store.Query(context.Background(), "gsi2pk", "ROLE#admin", "gsi2sk",
+		&opaquedata.SortCondition{Operator: opaquedata.BeginsWith, Value: ""},
+		opaquedata.WithGSIIndex(2))
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+
+	call := mock.queryCalls[0]
+	assert.Contains(t, call.query, "STARTSWITH(c.gsi2sk, @sk)")
+	assert.NotContains(t, call.query, "ORDER BY")
+	assert.Equal(t, "amy", results[0].GetGsi2Sk())
+	assert.Equal(t, "zoe", results[1].GetGsi2Sk())
+}
+
+func TestQuery_MainPartition_KeepsOrderBy(t *testing.T) {
+	// Single-partition queries still get the deterministic ORDER BY since
+	// Cosmos serves them without query-plan handling.
+	mock := &mockCosmos{queryResults: [][]byte{makeDoc(t, document{ID: "sk1", Pk: "pk1", Sk: "sk1"})}}
+	store := New(mock)
+	_, err := store.Query(context.Background(), "pk", "pk1", "sk", nil)
+	require.NoError(t, err)
+	assert.Contains(t, mock.queryCalls[0].query, "ORDER BY c.sk ASC")
+}
+
+func TestSKValueExtractor(t *testing.T) {
+	od := &opaquedatav1.OpaqueData{Sk: "main", Gsi1Sk: "g1", Gsi10Sk: "g10", Gsi20Sk: "g20"}
+	assert.Equal(t, "main", skValueExtractor("sk")(od))
+	assert.Equal(t, "g1", skValueExtractor("gsi1sk")(od))
+	assert.Equal(t, "g10", skValueExtractor("gsi10sk")(od))
+	assert.Equal(t, "g20", skValueExtractor("gsi20sk")(od))
+	// Unknown name → no-op (defense in depth; isValidOpaqueAttr already gates input).
+	assert.Equal(t, "", skValueExtractor("bogus")(od))
+}
+
 func TestQuery_ParametersBound(t *testing.T) {
 	mock := &mockCosmos{queryResults: [][]byte{makeDoc(t, document{ID: "sk1", Pk: "pk1", Sk: "sk1"})}}
 	store := New(mock)

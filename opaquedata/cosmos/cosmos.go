@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	stdsort "sort"
 	"strings"
 	"time"
 
@@ -139,7 +140,12 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 	sb.WriteString(" AND (NOT IS_DEFINED(c.t) OR c.t = 0 OR c.t > @now)")
 
 	// Deterministic ordering on the sort key for predictable client-side iteration.
-	fmt.Fprintf(&sb, " ORDER BY c.%s ASC", skAttr)
+	// Skip for cross-partition (GSI) queries: the Cosmos gateway rejects ORDER BY
+	// on cross-partition queries with a 400 ("can not be directly served by the
+	// gateway"), so we sort client-side after fetch instead.
+	if qo.GSIIndex == 0 {
+		fmt.Fprintf(&sb, " ORDER BY c.%s ASC", skAttr)
+	}
 
 	// GSI queries are cross-partition; main-partition queries pin to the pkValue partition.
 	pk := azcosmos.NewPartitionKey()
@@ -163,7 +169,65 @@ func (s *Store) Query(ctx context.Context, pkAttr, pkValue, skAttr string, sort 
 	if len(results) == 0 {
 		return nil, nil
 	}
+	// Cross-partition queries skipped ORDER BY at the gateway; sort here to
+	// preserve the deterministic ascending-by-sk contract callers rely on.
+	if qo.GSIIndex > 0 {
+		extract := skValueExtractor(skAttr)
+		stdsort.SliceStable(results, func(i, j int) bool { return extract(results[i]) < extract(results[j]) })
+	}
 	return results, nil
+}
+
+// skValueExtractor returns a getter for the validated opaquedata sk attribute
+// name so client-side sorting can read the same field the SQL ORDER BY would
+// have used. skAttr is guaranteed to be one of {sk, gsi{1..20}sk} by
+// isValidOpaqueAttr; any other input returns a no-op extractor.
+func skValueExtractor(skAttr string) func(*opaquedatav1.OpaqueData) string {
+	switch skAttr {
+	case "sk":
+		return (*opaquedatav1.OpaqueData).GetSk
+	case "gsi1sk":
+		return (*opaquedatav1.OpaqueData).GetGsi1Sk
+	case "gsi2sk":
+		return (*opaquedatav1.OpaqueData).GetGsi2Sk
+	case "gsi3sk":
+		return (*opaquedatav1.OpaqueData).GetGsi3Sk
+	case "gsi4sk":
+		return (*opaquedatav1.OpaqueData).GetGsi4Sk
+	case "gsi5sk":
+		return (*opaquedatav1.OpaqueData).GetGsi5Sk
+	case "gsi6sk":
+		return (*opaquedatav1.OpaqueData).GetGsi6Sk
+	case "gsi7sk":
+		return (*opaquedatav1.OpaqueData).GetGsi7Sk
+	case "gsi8sk":
+		return (*opaquedatav1.OpaqueData).GetGsi8Sk
+	case "gsi9sk":
+		return (*opaquedatav1.OpaqueData).GetGsi9Sk
+	case "gsi10sk":
+		return (*opaquedatav1.OpaqueData).GetGsi10Sk
+	case "gsi11sk":
+		return (*opaquedatav1.OpaqueData).GetGsi11Sk
+	case "gsi12sk":
+		return (*opaquedatav1.OpaqueData).GetGsi12Sk
+	case "gsi13sk":
+		return (*opaquedatav1.OpaqueData).GetGsi13Sk
+	case "gsi14sk":
+		return (*opaquedatav1.OpaqueData).GetGsi14Sk
+	case "gsi15sk":
+		return (*opaquedatav1.OpaqueData).GetGsi15Sk
+	case "gsi16sk":
+		return (*opaquedatav1.OpaqueData).GetGsi16Sk
+	case "gsi17sk":
+		return (*opaquedatav1.OpaqueData).GetGsi17Sk
+	case "gsi18sk":
+		return (*opaquedatav1.OpaqueData).GetGsi18Sk
+	case "gsi19sk":
+		return (*opaquedatav1.OpaqueData).GetGsi19Sk
+	case "gsi20sk":
+		return (*opaquedatav1.OpaqueData).GetGsi20Sk
+	}
+	return func(*opaquedatav1.OpaqueData) string { return "" }
 }
 
 // isValidOpaqueAttr reports whether name is one of the opaquedata schema
