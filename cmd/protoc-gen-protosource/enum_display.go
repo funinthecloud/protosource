@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	optionsv1 "github.com/funinthecloud/protosource/options/v1"
+	optionsv1 "github.com/funinthecloud/protosource/gen/options/v1"
 	pgs "github.com/lyft/protoc-gen-star/v2"
 )
 
@@ -84,7 +84,7 @@ func (p *ProtosourceModule) buildEnumDisplay(e pgs.Enum) EnumDisplay {
 // TSEnumDisplay is the same data shaped for the TS template (which keys the
 // Record by short TS enum constant — e.g. "ACTIVE", not "State_STATE_ACTIVE").
 type TSEnumDisplay struct {
-	TSTypeName string             // TS enum type name, e.g. "State"
+	TSTypeName string // TS enum type name, e.g. "State"
 	Values     []TSEnumDisplayValue
 }
 
