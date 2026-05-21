@@ -12,9 +12,6 @@ import (
 
 func TestWrap(t *testing.T) {
 	handler := func(ctx context.Context, req protosource.Request) protosource.Response {
-		if req.Actor != "user-123" {
-			t.Errorf("expected actor 'user-123', got %q", req.Actor)
-		}
 		if req.Body != `{"id":"agg-1"}` {
 			t.Errorf("expected body, got %q", req.Body)
 		}
@@ -28,8 +25,7 @@ func TestWrap(t *testing.T) {
 		}
 	}
 
-	extractor := HeaderExtractor("X-User-Id")
-	wrapped := Wrap(handler, extractor)
+	wrapped := Wrap(handler)
 
 	body := strings.NewReader(`{"id":"agg-1"}`)
 	req := httptest.NewRequest(http.MethodPost, "/create?filter=active", body)
@@ -58,7 +54,7 @@ func TestWrap_PopulatesHostHeader(t *testing.T) {
 		seenHost = req.Headers["host"]
 		return protosource.Response{StatusCode: http.StatusOK}
 	}
-	wrapped := Wrap(handler, func(*http.Request) string { return "" })
+	wrapped := Wrap(handler)
 
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	req.Host = "example.com"
@@ -76,7 +72,7 @@ func TestWrapRouter_PopulatesHostHeader(t *testing.T) {
 		seenHost = req.Headers["host"]
 		return protosource.Response{StatusCode: http.StatusOK}
 	})
-	wrapped := WrapRouter(router, func(*http.Request) string { return "" })
+	wrapped := WrapRouter(router)
 
 	req := httptest.NewRequest(http.MethodPost, "/", nil)
 	req.Host = "auth.example.com"
@@ -147,8 +143,7 @@ func TestWrapRouter(t *testing.T) {
 		}
 	})
 
-	extractor := HeaderExtractor("X-User-Id")
-	handler := WrapRouter(router, extractor)
+	handler := WrapRouter(router)
 
 	t.Run("GET with param", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/sample/v1/abc-123", nil)

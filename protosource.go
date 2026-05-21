@@ -601,7 +601,6 @@ type Request struct {
 	PathParameters  map[string]string
 	QueryParameters map[string]string
 	Headers         map[string]string
-	Actor           string
 }
 
 // Response is a provider-agnostic representation of an HTTP response.

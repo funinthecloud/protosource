@@ -11,30 +11,24 @@ import (
 	"github.com/funinthecloud/protosource"
 )
 
-// ActorExtractor extracts the actor identity from an API Gateway request.
-// Return an empty string if no identity can be determined.
-type ActorExtractor func(events.APIGatewayProxyRequest) string
-
 // Adapter wraps a protosource.HandlerFunc with AWS API Gateway conversion
 // and actor extraction.
 type Adapter struct {
-	handler   protosource.HandlerFunc
-	extractor ActorExtractor
+	handler protosource.HandlerFunc
 }
 
 // New creates an Adapter that converts API Gateway requests to protosource
 // requests, extracts the actor using the provided extractor, and converts
 // the protosource response back to an API Gateway response.
-func New(handler protosource.HandlerFunc, extractor ActorExtractor) *Adapter {
+func New(handler protosource.HandlerFunc) *Adapter {
 	return &Adapter{
-		handler:   handler,
-		extractor: extractor,
+		handler: handler,
 	}
 }
 
 // Handle is the Lambda entry point. Pass this to lambda.Start().
 func (a *Adapter) Handle(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	req, err := decodeRequest(request, a.extractor)
+	req, err := decodeRequest(request)
 	if err != nil {
 		return encodeResponse(protosource.Response{
 			StatusCode: 400,
@@ -48,15 +42,15 @@ func (a *Adapter) Handle(ctx context.Context, request events.APIGatewayProxyRequ
 
 // Wrap is a convenience function that returns the Handle method directly,
 // suitable for passing to lambda.Start().
-func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return New(handler, extractor).Handle
+func Wrap(handler protosource.HandlerFunc) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	return New(handler).Handle
 }
 
 // WrapRouter returns a Lambda handler that dispatches to the router based on
 // the request's HTTP method and path. Suitable for passing to lambda.Start().
-func WrapRouter(router *protosource.Router, extractor ActorExtractor) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func WrapRouter(router *protosource.Router) func(context.Context, events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	return func(ctx context.Context, request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-		req, err := decodeRequest(request, extractor)
+		req, err := decodeRequest(request)
 		if err != nil {
 			return encodeResponse(protosource.Response{
 				StatusCode: 400,
@@ -72,7 +66,7 @@ func WrapRouter(router *protosource.Router, extractor ActorExtractor) func(conte
 // decodeRequest converts an API Gateway request to a protosource Request,
 // decoding base64 bodies when IsBase64Encoded is set. Returns an error if
 // base64 decoding fails.
-func decodeRequest(request events.APIGatewayProxyRequest, extractor ActorExtractor) (protosource.Request, error) {
+func decodeRequest(request events.APIGatewayProxyRequest) (protosource.Request, error) {
 	body := request.Body
 	if request.IsBase64Encoded {
 		decoded, err := base64.StdEncoding.DecodeString(body)
@@ -86,7 +80,6 @@ func decodeRequest(request events.APIGatewayProxyRequest, extractor ActorExtract
 		PathParameters:  request.PathParameters,
 		QueryParameters: request.QueryStringParameters,
 		Headers:         lowercaseHeaders(request.Headers),
-		Actor:           extractor(request),
 	}, nil
 }
 

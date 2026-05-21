@@ -68,7 +68,7 @@ func main() {
 	port := envOrDefault("PORT", "8080")
 	addr := ":" + port
 	fmt.Fprintf(os.Stdout, "listening on %s\n", addr)
-	if err := http.ListenAndServe(addr, httpstandard.WrapRouter(router, httpstandard.HeaderExtractor("X-Actor"))); err != nil {
+	if err := http.ListenAndServe(addr, httpstandard.WrapRouter(router)); err != nil {
 		fatal("http.ListenAndServe: %v", err)
 	}
 }

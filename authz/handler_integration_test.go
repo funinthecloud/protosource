@@ -52,7 +52,7 @@ func TestGeneratedHandlerCallsAuthorizeWithCanonicalFunctionName(t *testing.T) {
 	fake := &fakeAuthorizer{returnErr: authz.ErrForbidden}
 	h := newTestHandler(fake)
 
-	_ = h.HandleCreate(context.Background(), protosource.Request{Actor: "someone"})
+	_ = h.HandleCreate(context.Background(), protosource.Request{})
 
 	if fake.calls != 1 {
 		t.Fatalf("authorizer called %d times, want 1", fake.calls)
@@ -66,7 +66,7 @@ func TestGeneratedHandlerCallsAuthorizeWithCanonicalFunctionName(t *testing.T) {
 func TestGeneratedHandlerMapsUnauthenticatedTo401(t *testing.T) {
 	h := newTestHandler(&fakeAuthorizer{returnErr: authz.ErrUnauthenticated})
 
-	resp := h.HandleCreate(context.Background(), protosource.Request{Actor: "someone"})
+	resp := h.HandleCreate(context.Background(), protosource.Request{})
 
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("StatusCode = %d, want %d", resp.StatusCode, http.StatusUnauthorized)
@@ -76,7 +76,7 @@ func TestGeneratedHandlerMapsUnauthenticatedTo401(t *testing.T) {
 func TestGeneratedHandlerMapsForbiddenTo403(t *testing.T) {
 	h := newTestHandler(&fakeAuthorizer{returnErr: authz.ErrForbidden})
 
-	resp := h.HandleCreate(context.Background(), protosource.Request{Actor: "someone"})
+	resp := h.HandleCreate(context.Background(), protosource.Request{})
 
 	if resp.StatusCode != http.StatusForbidden {
 		t.Errorf("StatusCode = %d, want %d", resp.StatusCode, http.StatusForbidden)
@@ -93,7 +93,7 @@ func TestGeneratedHandlerMapsUnknownErrorsToServiceUnavailable(t *testing.T) {
 	custom := errors.New("auth service connection refused")
 	h := newTestHandler(&fakeAuthorizer{returnErr: custom})
 
-	resp := h.HandleCreate(context.Background(), protosource.Request{Actor: "someone"})
+	resp := h.HandleCreate(context.Background(), protosource.Request{})
 
 	if resp.StatusCode != http.StatusServiceUnavailable {
 		t.Errorf("StatusCode = %d, want %d (unknown errors should be 503, not 403)", resp.StatusCode, http.StatusServiceUnavailable)
@@ -152,7 +152,7 @@ func TestGeneratedHandlerPassesAuthzThenChecksActor(t *testing.T) {
 	fake := &fakeAuthorizer{returnErr: nil}
 	h := newTestHandler(fake)
 
-	resp := h.HandleCreate(context.Background(), protosource.Request{Actor: ""})
+	resp := h.HandleCreate(context.Background(), protosource.Request{})
 
 	if fake.calls != 1 {
 		t.Errorf("authorizer called %d times, want 1", fake.calls)
@@ -201,7 +201,6 @@ func TestGeneratedHandlerPrefersAuthzContextUserIDAsActor(t *testing.T) {
 	h := samplev1.NewHandler(repo, nil, fake)
 
 	resp := h.HandleCreate(context.Background(), protosource.Request{
-		Actor:   "raw-shadow-token",
 		Body:    validCreateBody,
 		Headers: map[string]string{"Content-Type": "application/json"},
 	})
@@ -220,30 +219,6 @@ func TestGeneratedHandlerPrefersAuthzContextUserIDAsActor(t *testing.T) {
 	}
 }
 
-func TestGeneratedHandlerFallsBackToRequestActorWhenContextEmpty(t *testing.T) {
-	// When the Authorizer does not enrich the context (e.g.
-	// allowall.Authorizer), the handler falls back to the Actor from
-	// request.Actor populated by the adapter's ActorExtractor. This
-	// preserves the pre-phase-11 developer flow where X-Actor alone
-	// is enough.
-	fake := &fakeAuthorizer{} // returnErr nil, enrichCtx nil
-	repo := &capturingRepo{}
-	h := samplev1.NewHandler(repo, nil, fake)
-
-	resp := h.HandleCreate(context.Background(), protosource.Request{
-		Actor:   "x-actor-header-value",
-		Body:    validCreateBody,
-		Headers: map[string]string{"Content-Type": "application/json"},
-	})
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("StatusCode = %d, body=%s", resp.StatusCode, resp.Body)
-	}
-	cmd := repo.lastCmd.(*samplev1.Create)
-	if cmd.GetActor() != "x-actor-header-value" {
-		t.Errorf("cmd.Actor = %q, want %q (request.Actor fallback)", cmd.GetActor(), "x-actor-header-value")
-	}
-}
-
 func TestGeneratedHandlerRequiresSomeActorEvenWhenAuthzPasses(t *testing.T) {
 	// With both the context user id and request.Actor empty, the
 	// handler must still 401 with CMD_NO_ACTOR — a successful
@@ -253,8 +228,7 @@ func TestGeneratedHandlerRequiresSomeActorEvenWhenAuthzPasses(t *testing.T) {
 	h := samplev1.NewHandler(repo, nil, fake)
 
 	resp := h.HandleCreate(context.Background(), protosource.Request{
-		Actor: "",
-		Body:  validCreateBody,
+		Body: validCreateBody,
 	})
 	if resp.StatusCode != http.StatusUnauthorized {
 		t.Errorf("StatusCode = %d, want 401", resp.StatusCode)
