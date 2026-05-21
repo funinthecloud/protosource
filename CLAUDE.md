@@ -299,10 +299,10 @@ git checkout -b <branch-name> origin/main
 
 ## Releasing
 
-A git tag (`v*`) triggers `.github/workflows/release.yml` which publishes two artifacts:
+Pushes to `main` and git tags (`v*`) trigger `.github/workflows/release.yml`:
 
-1. **Proto module** -- `buf push --label ${VERSION}` pushes to `buf.build/funinthecloud/protosource`
-2. **npm package** -- `@protosource/client` published to npm
+- On `main` pushes: proto module is pushed with label `main` (for `:main` consumers).
+- On `v*` tags: proto module pushed with the tag label + `@protosource/client` npm package published.
 
 Requires `BUF_TOKEN` in GitHub Actions secrets. npm publishing uses OIDC (`id-token: write`).
 
