@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/davecgh/go-spew/spew"
-	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
+	samplev1 "github.com/funinthecloud/protosource/gen/example/app/sample/v1"
 )
 
 func main() {

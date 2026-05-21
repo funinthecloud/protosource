@@ -7,9 +7,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
-	responsev1 "github.com/funinthecloud/protosource/response/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
+	responsev1 "github.com/funinthecloud/protosource/gen/response/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protojson"

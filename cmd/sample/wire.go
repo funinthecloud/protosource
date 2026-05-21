@@ -4,7 +4,7 @@ package main
 
 import (
 	"github.com/funinthecloud/protosource"
-	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
+	samplev1 "github.com/funinthecloud/protosource/gen/example/app/sample/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 	"github.com/goforj/wire"

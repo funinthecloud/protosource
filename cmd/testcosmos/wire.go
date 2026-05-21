@@ -7,11 +7,11 @@ import (
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/authz/allowall"
-	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
-	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
-	"github.com/funinthecloud/protosource/opaquedata"
-	opaquecosmos "github.com/funinthecloud/protosource/opaquedata/cosmos"
+	orderv1 "github.com/funinthecloud/protosource/gen/example/app/order/v1"
+	samplev1 "github.com/funinthecloud/protosource/gen/example/app/sample/v1"
+	testv1 "github.com/funinthecloud/protosource/gen/example/app/test/v1"
+	"github.com/funinthecloud/protosource/gen/opaquedata"
+	opaquecosmos "github.com/funinthecloud/protosource/gen/opaquedata/cosmos"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/cosmosdbstore"
 )

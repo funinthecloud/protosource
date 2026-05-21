@@ -9,8 +9,8 @@ import (
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/authz"
-	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
+	samplev1 "github.com/funinthecloud/protosource/gen/example/app/sample/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
 )
 
 // fakeAuthorizer is a test double for authz.Authorizer that records the

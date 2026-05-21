@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package example.app.order.v1;
 
-option go_package = "github.com/funinthecloud/protosource/example/app/order/v1;orderv1";
+option go_package = "github.com/funinthecloud/protosource/gen/example/app/order/v1;orderv1";
 
 import "funinthecloud/protosource/options/v1/options_v1.proto";
 

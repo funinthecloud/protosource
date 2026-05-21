@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/funinthecloud/protosource"
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
+	testv1 "github.com/funinthecloud/protosource/gen/example/app/test/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/boltdbstore"
 )

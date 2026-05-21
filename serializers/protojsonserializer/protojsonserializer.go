@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/funinthecloud/protosource"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"
