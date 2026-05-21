@@ -15,11 +15,5 @@ func main() {
 		defer stdinFile.Close()
 		os.Stdin = stdinFile
 	}
-	pgs.Init(
-		pgs.DebugEnv("DEBUG"),
-	).RegisterModule(
-		Protosourceify(),
-	).RegisterPostProcessor(
-		GoFmtProcessor{},
-	).Render()
+	pgs.Init(pgs.DebugEnv("DEBUG")).RegisterModule(Protosourceify()).RegisterPostProcessor(GoFmtProcessor{}).Render()
 }

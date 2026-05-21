@@ -21,11 +21,11 @@ import (
 )
 
 {{ $aggregate := "" }}
-{{ range $message := .AllMessages }}
-    {{ if isAggregate $message }}
-        {{ $aggregate = $message.Name }}
-    {{ end }}
-{{ end }}
+{{- range $message := .AllMessages -}}
+    {{- if isAggregate $message -}}
+        {{- $aggregate = $message.Name -}}
+    {{- end -}}
+{{- end -}}
 
 // Repo is a package-specific interface for dependency injection.
 // It embeds protosource.Repo so that *protosource.Repository satisfies it,
@@ -67,19 +67,22 @@ func NewHandler(repo Repo, client *{{ $aggregate }}Client, authorizer authz.Auth
 
 // RegisterRoutes registers all handler routes on the given router.
 func (h *Handler) RegisterRoutes(router *protosource.Router) {
-{{ range $message := .AllMessages }}
-{{ if isCommand $message }}    router.Handle("POST", "{{ routePrefix $ }}/{{ lower $message.Name.String }}", h.Handle{{ $message.Name }})
-{{ end }}
-{{ end }}    router.Handle("GET", "{{ routePrefix $ }}/load/{id}", h.HandleLoad)
-    router.Handle("GET", "{{ routePrefix $ }}/{id}", h.HandleGet)
-    router.Handle("GET", "{{ routePrefix $ }}/{id}/history", h.HandleHistory)
-{{ $agg := aggregateForFile . }}
-{{ range $gsi := opaqueUsedGSIs $agg }}    router.Handle("GET", "{{ routePrefix $ }}/query/{{ gsiQueryRoutePath $gsi }}", h.HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ if $gsi.HasSK }}{{ if $gsi.PKOnlyDup }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ end }}{{ end }})
-{{ end }}
+{{- range $message := .AllMessages -}}
+{{- if isCommand $message }}
+       router.Handle("POST", "{{ routePrefix $ }}/{{ lower $message.Name.String }}", h.Handle{{ $message.Name }})
+{{- end -}}
+{{- end }}
+       router.Handle("GET", "{{ routePrefix $ }}/load/{id}", h.HandleLoad)
+       router.Handle("GET", "{{ routePrefix $ }}/{id}", h.HandleGet)
+       router.Handle("GET", "{{ routePrefix $ }}/{id}/history", h.HandleHistory)
+{{- $agg := aggregateForFile . -}}
+{{- range $gsi := opaqueUsedGSIs $agg }}
+       router.Handle("GET", "{{ routePrefix $ }}/query/{{ gsiQueryRoutePath $gsi }}", h.HandleQueryBy{{ range $i, $fm := $gsi.PKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ if $gsi.HasSK }}{{ if $gsi.PKOnlyDup }}With{{ range $i, $fm := $gsi.SKFields }}{{ if $i }}And{{ end }}{{ name $fm.Field }}{{ end }}{{ end }}{{ end }})
+{{- end }}
 }
 
-{{ range $message := .AllMessages }}
-{{ if isCommand $message }}
+{{ range $message := .AllMessages -}}
+{{- if isCommand $message }}
 // Handle{{ $message.Name }} processes a {{ $message.Name }} command.
 func (h *Handler) Handle{{ $message.Name }}(ctx context.Context, request protosource.Request) protosource.Response {
     ctx, err := h.authorizer.Authorize(ctx, request, "{{ protoPackage $ }}.{{ $message.Name }}")

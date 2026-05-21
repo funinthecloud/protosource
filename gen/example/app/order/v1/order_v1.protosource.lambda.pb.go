@@ -59,29 +59,18 @@ func NewHandler(repo Repo, client *OrderClient, authorizer authz.Authorizer) *Ha
 
 // RegisterRoutes registers all handler routes on the given router.
 func (h *Handler) RegisterRoutes(router *protosource.Router) {
-
 	router.Handle("POST", "example/app/order/v1/create", h.HandleCreate)
-
 	router.Handle("POST", "example/app/order/v1/additem", h.HandleAddItem)
-
 	router.Handle("POST", "example/app/order/v1/removeitem", h.HandleRemoveItem)
-
 	router.Handle("POST", "example/app/order/v1/addtag", h.HandleAddTag)
-
 	router.Handle("POST", "example/app/order/v1/removetag", h.HandleRemoveTag)
-
 	router.Handle("POST", "example/app/order/v1/setshipping", h.HandleSetShipping)
-
 	router.Handle("POST", "example/app/order/v1/place", h.HandlePlace)
-
 	router.Handle("POST", "example/app/order/v1/cancel", h.HandleCancel)
-
 	router.Handle("GET", "example/app/order/v1/load/{id}", h.HandleLoad)
 	router.Handle("GET", "example/app/order/v1/{id}", h.HandleGet)
 	router.Handle("GET", "example/app/order/v1/{id}/history", h.HandleHistory)
-
 	router.Handle("GET", "example/app/order/v1/query/by-customer-id", h.HandleQueryByCustomerId)
-
 }
 
 // HandleCreate processes a Create command.
