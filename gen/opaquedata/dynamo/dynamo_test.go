@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
 	"github.com/funinthecloud/protosource/gen/opaquedata"
-	"github.com/funinthecloud/protosource/gen/opaquedata/v1"
 	opaquedatav1 "github.com/funinthecloud/protosource/gen/opaquedata/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
