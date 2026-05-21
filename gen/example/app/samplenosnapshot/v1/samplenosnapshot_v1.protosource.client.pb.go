@@ -27,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 }
 
 // Create sends the Create command.
-func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Create(ctx context.Context, id string, body string) (responsev1.Responseer, error) {
 	cmd := &Create{
 		Id:   id,
 		Body: body,
@@ -36,7 +36,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, body string) (*respo
 }
 
 // Update sends the Update command.
-func (c *HTTPClient) Update(ctx context.Context, id string, body string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Update(ctx context.Context, id string, body string) (responsev1.Responseer, error) {
 	cmd := &Update{
 		Id:   id,
 		Body: body,

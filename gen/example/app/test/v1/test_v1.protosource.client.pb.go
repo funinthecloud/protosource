@@ -27,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 }
 
 // Create sends the Create command.
-func (c *HTTPClient) Create(ctx context.Context, id string, body string, color string, shape string, number string, shading string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Create(ctx context.Context, id string, body string, color string, shape string, number string, shading string) (responsev1.Responseer, error) {
 	cmd := &Create{
 		Id:      id,
 		Body:    body,
@@ -40,7 +40,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, body string, color s
 }
 
 // Update sends the Update command.
-func (c *HTTPClient) Update(ctx context.Context, id string, body string, color string, shape string, number string, shading string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Update(ctx context.Context, id string, body string, color string, shape string, number string, shading string) (responsev1.Responseer, error) {
 	cmd := &Update{
 		Id:      id,
 		Body:    body,
@@ -53,7 +53,7 @@ func (c *HTTPClient) Update(ctx context.Context, id string, body string, color s
 }
 
 // Lock sends the Lock command.
-func (c *HTTPClient) Lock(ctx context.Context, id string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Lock(ctx context.Context, id string) (responsev1.Responseer, error) {
 	cmd := &Lock{
 		Id: id,
 	}
@@ -61,7 +61,7 @@ func (c *HTTPClient) Lock(ctx context.Context, id string) (*responsev1.CommandRe
 }
 
 // Unlock sends the Unlock command.
-func (c *HTTPClient) Unlock(ctx context.Context, id string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Unlock(ctx context.Context, id string) (responsev1.Responseer, error) {
 	cmd := &Unlock{
 		Id: id,
 	}

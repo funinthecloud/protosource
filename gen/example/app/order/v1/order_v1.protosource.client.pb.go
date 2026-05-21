@@ -27,7 +27,7 @@ func NewHTTPClient(c httpclient.Doer) *HTTPClient {
 }
 
 // Create sends the Create command.
-func (c *HTTPClient) Create(ctx context.Context, id string, customerId string, customerName string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Create(ctx context.Context, id string, customerId string, customerName string) (responsev1.Responseer, error) {
 	cmd := &Create{
 		Id:           id,
 		CustomerId:   customerId,
@@ -37,7 +37,7 @@ func (c *HTTPClient) Create(ctx context.Context, id string, customerId string, c
 }
 
 // AddItem sends the AddItem command.
-func (c *HTTPClient) AddItem(ctx context.Context, id string, item *LineItem) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) AddItem(ctx context.Context, id string, item *LineItem) (responsev1.Responseer, error) {
 	cmd := &AddItem{
 		Id:   id,
 		Item: item,
@@ -46,7 +46,7 @@ func (c *HTTPClient) AddItem(ctx context.Context, id string, item *LineItem) (*r
 }
 
 // RemoveItem sends the RemoveItem command.
-func (c *HTTPClient) RemoveItem(ctx context.Context, id string, itemId string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) RemoveItem(ctx context.Context, id string, itemId string) (responsev1.Responseer, error) {
 	cmd := &RemoveItem{
 		Id:     id,
 		ItemId: itemId,
@@ -55,7 +55,7 @@ func (c *HTTPClient) RemoveItem(ctx context.Context, id string, itemId string) (
 }
 
 // AddTag sends the AddTag command.
-func (c *HTTPClient) AddTag(ctx context.Context, id string, tag *Tag) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) AddTag(ctx context.Context, id string, tag *Tag) (responsev1.Responseer, error) {
 	cmd := &AddTag{
 		Id:  id,
 		Tag: tag,
@@ -64,7 +64,7 @@ func (c *HTTPClient) AddTag(ctx context.Context, id string, tag *Tag) (*response
 }
 
 // RemoveTag sends the RemoveTag command.
-func (c *HTTPClient) RemoveTag(ctx context.Context, id string, key string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) RemoveTag(ctx context.Context, id string, key string) (responsev1.Responseer, error) {
 	cmd := &RemoveTag{
 		Id:  id,
 		Key: key,
@@ -73,7 +73,7 @@ func (c *HTTPClient) RemoveTag(ctx context.Context, id string, key string) (*res
 }
 
 // SetShipping sends the SetShipping command.
-func (c *HTTPClient) SetShipping(ctx context.Context, id string, shippingAddress string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) SetShipping(ctx context.Context, id string, shippingAddress string) (responsev1.Responseer, error) {
 	cmd := &SetShipping{
 		Id:              id,
 		ShippingAddress: shippingAddress,
@@ -82,7 +82,7 @@ func (c *HTTPClient) SetShipping(ctx context.Context, id string, shippingAddress
 }
 
 // Place sends the Place command.
-func (c *HTTPClient) Place(ctx context.Context, id string, placedAt int64) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Place(ctx context.Context, id string, placedAt int64) (responsev1.Responseer, error) {
 	cmd := &Place{
 		Id:       id,
 		PlacedAt: placedAt,
@@ -91,7 +91,7 @@ func (c *HTTPClient) Place(ctx context.Context, id string, placedAt int64) (*res
 }
 
 // Cancel sends the Cancel command.
-func (c *HTTPClient) Cancel(ctx context.Context, id string, reason string) (*responsev1.CommandResponse, error) {
+func (c *HTTPClient) Cancel(ctx context.Context, id string, reason string) (responsev1.Responseer, error) {
 	cmd := &Cancel{
 		Id:     id,
 		Reason: reason,
