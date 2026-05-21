@@ -12,5 +12,3 @@ plugins:
     out: gen
     opt:
       - module=github.com/funinthecloud/protosource/gen
-  - local: protoc-gen-protosource-ts
-    out: ts-gen
