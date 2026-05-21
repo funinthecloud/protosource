@@ -3,7 +3,7 @@ package dynamodbstore
 import (
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/aws/dynamoclient"
-	opaquedynamo "github.com/funinthecloud/protosource/opaquedata/dynamo"
+	opaquedynamo "github.com/funinthecloud/protosource/gen/opaquedata/dynamo"
 	"github.com/goforj/wire"
 )
 

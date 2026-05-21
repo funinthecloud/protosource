@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 	"google.golang.org/protobuf/proto"
 )
@@ -300,4 +300,3 @@ func TestLoad_RecordProtoEquality(t *testing.T) {
 		t.Errorf("saved and loaded records are not proto-equal\nsaved:  %v\nloaded: %v", saved, loaded)
 	}
 }
-

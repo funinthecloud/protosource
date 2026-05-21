@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package funinthecloud.protosource.opaquedata.v1;
 
-option go_package = "github.com/funinthecloud/protosource/opaquedata/v1;opaquedatav1";
+option go_package = "github.com/funinthecloud/protosource/gen/opaquedata/v1;opaquedatav1";
 
 message OpaqueData {
   string pk = 1;

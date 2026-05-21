@@ -33,9 +33,9 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/azure/cosmosclient"
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
-	"github.com/funinthecloud/protosource/opaquedata"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	"github.com/funinthecloud/protosource/gen/opaquedata"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"google.golang.org/protobuf/proto"
 )
 

@@ -2,19 +2,19 @@ package dynamodbstore
 
 import (
 	"context"
-	"math"
 	"fmt"
+	"math"
 	"strconv"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	"github.com/funinthecloud/protosource/aws/dynamoclient"
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
 	"github.com/funinthecloud/protosource"
-	"github.com/funinthecloud/protosource/opaquedata"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	"github.com/funinthecloud/protosource/aws/dynamoclient"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	"github.com/funinthecloud/protosource/gen/opaquedata"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"google.golang.org/protobuf/proto"
 )
 
