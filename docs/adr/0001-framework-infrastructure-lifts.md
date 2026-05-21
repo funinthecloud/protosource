@@ -160,7 +160,7 @@ All items listed in the "Keep in auth (look generic, aren't)" table of `FRAMEWOR
   2. Replace most of `app/backend*.go` + config wiring with `host`.
   3. Thin `app/` wrapper allowed for one release if desired.
   4. Later cut over fully and delete the duplicated code.
-- Generated code and Wire providers are unaffected (they continue to consume `protosource.Store`).
+- Generated code and per-aggregate Wire providers are unaffected (they continue to consume `protosource.Store`). The new value is that `host` becomes the thing that *provides* that `Store` (plus KeyProvider, etc.) via Wire in a backend-agnostic way.
 
 ### Open questions closed by this ADR
 - **Harness name**: `host` (see rationale above).
@@ -169,6 +169,7 @@ All items listed in the "Keep in auth (look generic, aren't)" table of `FRAMEWOR
 - **Cookie helper location**: `protosource/httputil`.
 - **Terraform versioning**: next minor; consumers pin immediately.
 - **Harness scope**: storage + keyproviders + lifecycle + first-run hook dispatch. No HTTP service shape ownership.
+- **Wire-centric design**: The primary deliverable of `host` is `ProviderSet` values and provider funcs that eliminate manual DI boilerplate (the pain point observed in `protosource-auth/app/`). A plain `New(...)` runtime constructor is secondary.
 
 ---
 
@@ -186,6 +187,8 @@ Adopt the ordering from the source document, with emphasis on the two highest-le
 ## Initial Host Package Sketch (for implementers)
 
 This is a **starting point only** — names, exact boundaries, and error handling will be refined during implementation. The goal is to give the first PR author a concrete shape rather than a blank page.
+
+**Wire-first design is a primary goal.** The single biggest source of boilerplate and accidental complexity in the reference `protosource-auth` implementation was manual dependency wiring and backend switching inside `app/`. The `host` package must invert this: it should be the source of high-quality `wire.ProviderSet` values so that a typical service's `cmd/*/wire.go` (or equivalent) becomes a small composition of the harness providers + the generated per-aggregate `ProviderSet`s + a handful of service-specific constructors. Manual `if backend == "..."` switches and hand-written provider functions for stores/keyproviders should become unnecessary for the common case.
 
 ```go
 // Package host provides the cross-cloud service harness: storage backend
@@ -289,7 +292,49 @@ func (h *Host) Run(ctx context.Context, opts RunOptions) error { ... }
 - KeyProvider construction lives alongside Store construction because both are "cross-cloud infrastructure adapters" that almost every service will need.
 - The sketch above is intentionally incomplete on exact interfaces for `opaquedata.Store` visibility — that can be adjusted once the first integration happens.
 
+### Example consumer wire.go (target state)
+
+With a well-designed `host` package, a service's wiring file should look roughly like this (for a Container Apps / plain binary deployment):
+
+```go
+//go:build wireinject
+
+package main
+
+import (
+	"github.com/goforj/wire"
+
+	"github.com/funinthecloud/protosource/authz/allowall"
+	"github.com/funinthecloud/protosource/host"                    // the new harness
+	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
+
+	myappv1 "github.com/example/myapp/gen/myapp/v1"
+	// ... other aggregates
+)
+
+func provideRouter(...) *protosource.Router { ... }
+
+func InitializeApp(cfg host.BaseConfig) (*App, error) {
+	wire.Build(
+		host.ProviderSet,                    // ← brings in the chosen Store, KeyProvider, Host, etc.
+		protobinaryserializer.ProviderSet,
+		allowall.ProviderSet,                // or the real authorizer
+
+		myappv1.ProviderSet,
+		// ... other domain ProviderSets
+
+		provideRouter,
+		NewApp,                              // service-specific composition root
+	)
+	return nil, nil
+}
+```
+
+The `host.ProviderSet` (plus helpers like `host.ProvideConfigFromEnv` or `host.ProvideKeyProvider`) is expected to encapsulate all the backend + keyprovider conditional logic that currently lives in handwritten `app/backend_*.go` files.
+
 ---
+
+**Design constraints called out during planning:**
 
 ## References
 
