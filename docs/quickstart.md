@@ -26,6 +26,31 @@ go install ./cmd/protoc-gen-protosource-ts
 
 This puts `protoc-gen-protosource` and `protoc-gen-protosource-ts` in your `$GOPATH/bin`.
 
+### Using the official Docker images (no Go install required)
+
+The plugins are also published as multi-arch container images on GitHub Container Registry:
+
+- `ghcr.io/funinthecloud/protoc-gen-protosource`
+- `ghcr.io/funinthecloud/protoc-gen-protosource-ts`
+
+Tags: `latest` (v* releases), `main` (rolling development), plus semver tags (`v0.9.0`, `0.9`, `0`, etc.).
+
+In `buf.gen.yaml` you can reference them directly:
+
+```yaml
+plugins:
+  - docker: ghcr.io/funinthecloud/protoc-gen-protosource:main
+    out: .
+    opt:
+      - module=github.com/yourorg/task-app
+  - docker: ghcr.io/funinthecloud/protoc-gen-protosource-ts:main
+    out: ts-gen
+    opt:
+      - module=github.com/yourorg/task-app
+```
+
+This is the lowest-ceremony option for CI pipelines and teams that do not want the plugins on their developer machines.
+
 ## 2. Create your project
 
 ```bash

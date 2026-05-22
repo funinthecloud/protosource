@@ -1,12 +1,32 @@
-FROM golang:1.25 AS build
+# Multi-arch Dockerfile for protoc-gen-protosource (Go buf plugin).
+#
+# Build context must be the repository root.
+#
+# Local multi-arch build example:
+#   docker buildx build --platform linux/amd64,linux/arm64 \
+#     -f Dockerfile.protosource -t ghcr.io/funinthecloud/protoc-gen-protosource:local .
+#
+# The build stage runs on the build host's native architecture (fast).
+# The final scratch image is produced for the target platform(s).
+
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
+
+# These ARGs are automatically populated by buildx from --platform.
+# Defaults allow plain `docker build` (no --platform) to still work.
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /protoc-gen-protosource ./cmd/protoc-gen-protosource
+
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+    go build -trimpath -ldflags="-s -w" \
+    -o /out/protoc-gen-protosource ./cmd/protoc-gen-protosource
 
 FROM scratch
 COPY --from=build /etc/passwd /etc/passwd
-COPY --from=build /protoc-gen-protosource /
+COPY --from=build /out/protoc-gen-protosource /protoc-gen-protosource
 USER nobody
 ENTRYPOINT ["/protoc-gen-protosource"]

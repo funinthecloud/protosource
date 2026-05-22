@@ -123,13 +123,21 @@ deps:
   - buf.build/bufbuild/protovalidate
 ```
 
-`buf.gen.yaml` — invokes the local plugin:
+`buf.gen.yaml` — two supported styles:
+
+**Docker (recommended — no local plugin install):**
 ```yaml
-version: v2
-managed:
-  enabled: true
-  disable:
-    - file_option: go_package
+plugins:
+  - local: protoc-gen-go
+    out: backend-bolt/gen
+    opt: [module=github.com/myorg/myapp/backend-bolt/gen]
+  - docker: ghcr.io/funinthecloud/protoc-gen-protosource:main
+    out: backend-bolt/gen
+    opt: [module=github.com/myorg/myapp/backend-bolt/gen]
+```
+
+**Local binary (requires `go install` first):**
+```yaml
 plugins:
   - local: protoc-gen-go
     out: backend-bolt/gen
@@ -139,29 +147,23 @@ plugins:
     opt: [module=github.com/myorg/myapp/backend-bolt/gen]
 ```
 
-`buf.gen.ts.yaml`:
+`buf.gen.ts.yaml` (docker form shown; `local:` also works):
 ```yaml
-version: v2
-managed:
-  enabled: true
 plugins:
   - local: protoc-gen-es
     out: frontend/src/gen
     opt: [target=ts]
     include_imports: true
-  - local: protoc-gen-protosource-ts
+  - docker: ghcr.io/funinthecloud/protoc-gen-protosource-ts:main
     out: frontend/src/gen
     opt: [module=github.com/myorg/myapp/backend-bolt/gen]
 ```
 
 **Build sequence (the part Claude usually gets wrong):**
 
-```bash
-# One-time, in the protosource checkout:
-go install ./cmd/protoc-gen-protosource
-go install ./cmd/protoc-gen-protosource-ts
+When using the **Docker images** (recommended), there is nothing to install locally — `buf generate` will pull the containers on demand:
 
-# Every time .proto changes:
+```bash
 clang-format --style=file -i proto/**/*.proto
 buf generate
 buf generate --template buf.gen.ts.yaml
@@ -174,7 +176,7 @@ go build ./...
 go test ./...
 ```
 
-The plugins are *local binaries on PATH*. Running `go build` on protosource is not enough — they must be `go install`-ed so `buf generate` can exec them.
+If you choose the local-binary style instead of Docker, you must run the one-time `go install` steps from a protosource checkout before `buf generate` will succeed. The Docker images eliminate this step.
 
 ---
 
