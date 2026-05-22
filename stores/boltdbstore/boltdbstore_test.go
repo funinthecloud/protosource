@@ -9,7 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"github.com/funinthecloud/protosource/stores/boltdbstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

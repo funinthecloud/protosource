@@ -5,10 +5,10 @@ managed:
     - file_option: go_package
 plugins:
   - local: protoc-gen-go
-    out: .
+    out: gen
     opt:
-      - module=github.com/funinthecloud/protosource
+      - module=github.com/funinthecloud/protosource/gen
   - local: protoc-gen-protosource
-    out: .
+    out: gen
     opt:
-      - module=github.com/funinthecloud/protosource
+      - module=github.com/funinthecloud/protosource/gen

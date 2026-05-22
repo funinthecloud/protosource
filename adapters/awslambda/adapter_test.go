@@ -11,9 +11,6 @@ import (
 
 func TestAdapter_Handle(t *testing.T) {
 	handler := func(ctx context.Context, req protosource.Request) protosource.Response {
-		if req.Actor != "test-actor" {
-			t.Errorf("expected actor 'test-actor', got %q", req.Actor)
-		}
 		if req.Body != `{"id":"123"}` {
 			t.Errorf("expected body, got %q", req.Body)
 		}
@@ -30,11 +27,7 @@ func TestAdapter_Handle(t *testing.T) {
 		}
 	}
 
-	extractor := func(request events.APIGatewayProxyRequest) string {
-		return "test-actor"
-	}
-
-	adapter := New(handler, extractor)
+	adapter := New(handler)
 
 	request := events.APIGatewayProxyRequest{
 		Body:                  `{"id":"123"}`,
@@ -62,8 +55,7 @@ func TestAdapter_Handle_Base64Body(t *testing.T) {
 		return protosource.Response{StatusCode: http.StatusOK, Body: "ok"}
 	}
 
-	extractor := func(request events.APIGatewayProxyRequest) string { return "actor" }
-	adapter := New(handler, extractor)
+	adapter := New(handler)
 
 	// "decoded-binary" base64-encoded
 	request := events.APIGatewayProxyRequest{
@@ -86,8 +78,7 @@ func TestAdapter_Handle_Base64DecodeFailure(t *testing.T) {
 		return protosource.Response{}
 	}
 
-	extractor := func(request events.APIGatewayProxyRequest) string { return "actor" }
-	adapter := New(handler, extractor)
+	adapter := New(handler)
 
 	request := events.APIGatewayProxyRequest{
 		Body:            "not-valid-base64!!!",
@@ -112,8 +103,7 @@ func TestAdapter_Handle_BinaryResponse(t *testing.T) {
 		}
 	}
 
-	extractor := func(request events.APIGatewayProxyRequest) string { return "actor" }
-	adapter := New(handler, extractor)
+	adapter := New(handler)
 
 	resp, err := adapter.Handle(context.Background(), events.APIGatewayProxyRequest{})
 	if err != nil {
@@ -131,11 +121,8 @@ func TestWrap(t *testing.T) {
 	handler := func(ctx context.Context, req protosource.Request) protosource.Response {
 		return protosource.Response{StatusCode: http.StatusOK, Body: "ok"}
 	}
-	extractor := func(request events.APIGatewayProxyRequest) string {
-		return "actor"
-	}
 
-	fn := Wrap(handler, extractor)
+	fn := Wrap(handler)
 	resp, err := fn(context.Background(), events.APIGatewayProxyRequest{})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
@@ -162,8 +149,7 @@ func TestWrapRouter(t *testing.T) {
 		}
 	})
 
-	extractor := func(request events.APIGatewayProxyRequest) string { return "actor" }
-	fn := WrapRouter(router, extractor)
+	fn := WrapRouter(router)
 
 	t.Run("GET with param", func(t *testing.T) {
 		resp, err := fn(context.Background(), events.APIGatewayProxyRequest{
@@ -226,7 +212,7 @@ func TestDecodeRequest_LowercasesHeaderKeys(t *testing.T) {
 			"X-Custom":     "v",
 		},
 	}
-	req, err := decodeRequest(in, func(events.APIGatewayProxyRequest) string { return "" })
+	req, err := decodeRequest(in)
 	if err != nil {
 		t.Fatalf("decodeRequest: %v", err)
 	}

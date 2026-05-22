@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package example.app.samplenosnapshot.v1;
 
-option go_package = "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1;samplenoprefixv1";
+option go_package = "github.com/funinthecloud/protosource/gen/example/app/samplenosnapshot/v1;samplenoprefixv1";
 
 import "funinthecloud/protosource/options/v1/options_v1.proto";
 

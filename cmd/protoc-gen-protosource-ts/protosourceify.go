@@ -8,9 +8,9 @@ import (
 	"text/template"
 	"unicode"
 
+	optionsv1 "github.com/funinthecloud/protosource/gen/options/v1"
 	pgs "github.com/lyft/protoc-gen-star/v2"
 	pgsgo "github.com/lyft/protoc-gen-star/v2/lang/go"
-	optionsv1 "github.com/funinthecloud/protosource/options/v1"
 )
 
 // ProtosourceModule generates TypeScript client code for protosource domains.
@@ -35,29 +35,29 @@ func (p *ProtosourceModule) InitContext(c pgs.BuildContext) {
 
 func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"isAggregate":        p.isAggregate,
-		"isCommand":          p.isCommand,
-		"isEvent":            p.isEvent,
-		"isProjection":       p.isProjection,
-		"isSnapshot":         p.isSnapshot,
-		"commandLifecycle":   p.commandLifecycle,
-		"clientCommandFields": clientCommandFields,
-		"aggregateForFile":   p.aggregateForFile,
-		"routePrefix":        p.routePrefix,
-		"opaqueUsedGSIs":     p.opaqueUsedGSIs,
-		"opaquePKFields":     p.opaquePKFields,
-		"opaqueGSISKFields":  p.opaqueGSISKFields,
+		"isAggregate":          p.isAggregate,
+		"isCommand":            p.isCommand,
+		"isEvent":              p.isEvent,
+		"isProjection":         p.isProjection,
+		"isSnapshot":           p.isSnapshot,
+		"commandLifecycle":     p.commandLifecycle,
+		"clientCommandFields":  clientCommandFields,
+		"aggregateForFile":     p.aggregateForFile,
+		"routePrefix":          p.routePrefix,
+		"opaqueUsedGSIs":       p.opaqueUsedGSIs,
+		"opaquePKFields":       p.opaquePKFields,
+		"opaqueGSISKFields":    p.opaqueGSISKFields,
 		"opaqueFieldNameLower": opaqueFieldNameLower,
-		"queryRoutePath":     queryRoutePath,
-		"gsiQueryRoutePath":  gsiQueryRoutePath,
-		"unexport":           unexport,
-		"lower":              strings.ToLower,
-		"tsType":             tsType,
-		"tsFieldName":        tsFieldName,
-		"tsParamName":        tsParamName,
-		"tsQueryFormatExpr":  tsQueryFormatExpr,
-		"protoFileName":      protoFileName,
-		"name":               p.ctx.Name,
+		"queryRoutePath":       queryRoutePath,
+		"gsiQueryRoutePath":    gsiQueryRoutePath,
+		"unexport":             unexport,
+		"lower":                strings.ToLower,
+		"tsType":               tsType,
+		"tsFieldName":          tsFieldName,
+		"tsParamName":          tsParamName,
+		"tsQueryFormatExpr":    tsQueryFormatExpr,
+		"protoFileName":        protoFileName,
+		"name":                 p.ctx.Name,
 		"commandEmbeddedTypes": func(f pgs.File) []string { return commandEmbeddedTypes(f, p.isCommand) },
 		"gsiEnumTypes":         p.gsiEnumTypes,
 		"clientEnumTypes":      p.clientEnumTypes,
@@ -228,14 +228,14 @@ type opaqueFieldMapping struct {
 }
 
 type opaqueUsedGSI struct {
-	Num        int
-	HasPK      bool
-	HasSK      bool
-	PKType     optionsv1.OpaqueKeyType
-	SKType     optionsv1.OpaqueKeyType
-	PKFields   []opaqueFieldMapping
-	SKFields   []opaqueFieldMapping
-	PKOnlyDup  bool
+	Num       int
+	HasPK     bool
+	HasSK     bool
+	PKType    optionsv1.OpaqueKeyType
+	SKType    optionsv1.OpaqueKeyType
+	PKFields  []opaqueFieldMapping
+	SKFields  []opaqueFieldMapping
+	PKOnlyDup bool
 }
 
 func fieldOpaqueOptions(f pgs.Field) *optionsv1.OpaqueFieldOptions {

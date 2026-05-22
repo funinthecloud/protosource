@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -601,7 +601,6 @@ type Request struct {
 	PathParameters  map[string]string
 	QueryParameters map[string]string
 	Headers         map[string]string
-	Actor           string
 }
 
 // Response is a provider-agnostic representation of an HTTP response.

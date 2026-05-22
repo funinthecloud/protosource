@@ -19,7 +19,7 @@ type ActorExtractor func(*http.Request) string
 // Wrap returns an http.HandlerFunc that converts between net/http and
 // protosource's provider-agnostic types. The extractor populates the
 // actor identity on each request.
-func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.HandlerFunc {
+func Wrap(handler protosource.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -54,7 +54,6 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 			PathParameters:  pathParams,
 			QueryParameters: queryParams,
 			Headers:         headers,
-			Actor:           extractor(r),
 		}
 
 		resp := handler(r.Context(), req)
@@ -69,7 +68,7 @@ func Wrap(handler protosource.HandlerFunc, extractor ActorExtractor) http.Handle
 
 // WrapRouter returns an http.Handler that dispatches to the router based on
 // the request's HTTP method and URL path.
-func WrapRouter(router *protosource.Router, extractor ActorExtractor) http.Handler {
+func WrapRouter(router *protosource.Router) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -98,7 +97,6 @@ func WrapRouter(router *protosource.Router, extractor ActorExtractor) http.Handl
 			Body:            string(body),
 			QueryParameters: queryParams,
 			Headers:         headers,
-			Actor:           extractor(r),
 		}
 
 		resp := router.Dispatch(r.Context(), r.Method, r.URL.Path, req)

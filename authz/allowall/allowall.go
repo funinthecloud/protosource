@@ -24,7 +24,7 @@ type Authorizer struct{}
 
 // Authorize always returns the incoming context unchanged and a nil error.
 func (Authorizer) Authorize(ctx context.Context, _ protosource.Request, _ string) (context.Context, error) {
-	return ctx, nil
+	return authz.WithUserID(ctx, "Unknown"), nil
 }
 
 // Compile-time assertion that Authorizer satisfies [authz.Authorizer].

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package funinthecloud.protosource.options.v1;
 
-option go_package = "github.com/funinthecloud/protosource/options/v1;optionsv1";
+option go_package = "github.com/funinthecloud/protosource/gen/options/v1;optionsv1";
 
 import "google/protobuf/descriptor.proto";
 

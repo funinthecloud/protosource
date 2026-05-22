@@ -3,7 +3,7 @@ package cosmosdbstore
 import (
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/azure/cosmosclient"
-	opaquecosmos "github.com/funinthecloud/protosource/opaquedata/cosmos"
+	opaquecosmos "github.com/funinthecloud/protosource/gen/opaquedata/cosmos"
 	"github.com/goforj/wire"
 )
 

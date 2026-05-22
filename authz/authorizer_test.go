@@ -14,13 +14,13 @@ func TestAllowAllPermitsEveryRequest(t *testing.T) {
 	var a authz.Authorizer = allowall.Authorizer{}
 
 	ctx := context.Background()
-	req := protosource.Request{Actor: "anyone"}
+	req := protosource.Request{}
 
 	gotCtx, err := a.Authorize(ctx, req, "example.v1.AnyCommand")
 	if err != nil {
 		t.Fatalf("allowall.Authorize returned error: %v", err)
 	}
-	if gotCtx != ctx {
+	if authz.UserIDFromContext(gotCtx) != "Unknown" {
 		t.Errorf("allowall.Authorize returned a different context; expected pass-through")
 	}
 }

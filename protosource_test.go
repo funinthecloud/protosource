@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/funinthecloud/protosource"
-	orderv1 "github.com/funinthecloud/protosource/example/app/order/v1"
-	samplenov1 "github.com/funinthecloud/protosource/example/app/samplenosnapshot/v1"
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	orderv1 "github.com/funinthecloud/protosource/gen/example/app/order/v1"
+	samplenov1 "github.com/funinthecloud/protosource/gen/example/app/samplenosnapshot/v1"
+	testv1 "github.com/funinthecloud/protosource/gen/example/app/test/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 	"google.golang.org/protobuf/proto"
@@ -157,9 +157,9 @@ func TestApply_LockThenUnlockThenUpdate(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})   // v1,v2
-	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})                     // Locked(v3)→Snap(v4)
-	mustApply(t, repo, &testv1.Unlock{Id: "id-1", Actor: "actor"})                   // Unlocked(v5)
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"}) // v1,v2
+	mustApply(t, repo, &testv1.Lock{Id: "id-1", Actor: "actor"})                  // Locked(v3)→Snap(v4)
+	mustApply(t, repo, &testv1.Unlock{Id: "id-1", Actor: "actor"})                // Unlocked(v5)
 
 	// After unlock, update should succeed: Updated(v6)→Snap(v7)
 	version, err := repo.Apply(ctx, &testv1.Update{Id: "id-1", Actor: "actor", Body: "updated"})
@@ -269,9 +269,9 @@ func TestLoad_AfterMultipleUpdates(t *testing.T) {
 	repo := newTestRepo()
 	ctx := context.Background()
 
-	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"})  // v1,v2
-	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"})  // Updated(v3)→Snap(v4)
-	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v3"})  // Updated(v5)
+	mustApply(t, repo, &testv1.Create{Id: "id-1", Actor: "actor", Body: "v1"}) // v1,v2
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v2"}) // Updated(v3)→Snap(v4)
+	mustApply(t, repo, &testv1.Update{Id: "id-1", Actor: "actor", Body: "v3"}) // Updated(v5)
 
 	agg, err := repo.Load(ctx, "id-1")
 	if err != nil {

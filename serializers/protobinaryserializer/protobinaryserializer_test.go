@@ -6,7 +6,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/funinthecloud/protosource"
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
+	testv1 "github.com/funinthecloud/protosource/gen/example/app/test/v1"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/anypb"

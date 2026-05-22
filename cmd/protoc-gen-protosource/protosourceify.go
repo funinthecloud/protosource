@@ -9,9 +9,9 @@ import (
 	"text/template"
 	"unicode"
 
+	optionsv1 "github.com/funinthecloud/protosource/gen/options/v1"
 	pgs "github.com/lyft/protoc-gen-star/v2"
 	pgsgo "github.com/lyft/protoc-gen-star/v2/lang/go"
-	optionsv1 "github.com/funinthecloud/protosource/options/v1"
 )
 
 // ProtosourceModule generates boilerplate for protosource domains.
@@ -38,46 +38,46 @@ func (p *ProtosourceModule) InitContext(c pgs.BuildContext) {
 
 func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 	return template.FuncMap{
-		"package":                p.ctx.PackageName,
-		"name":                   p.ctx.Name,
-		"dump":                   p.dump,
-		"gotype":                 p.ctx.Type,
-		"isAggregate":            p.isAggregate,
-		"isCommand":              p.isCommand,
-		"isEvent":                p.isEvent,
-		"isProjection":           p.isProjection,
-		"isSnapshot":             p.isSnapshot,
-		"isCreationEvent":        p.isCreationEvent,
-		"aggregateHasField":      p.aggregateHasField,
-		"excludeInternal":        ExcludeInternal,
-		"excludeCommandInternal": ExcludeCommandInternal,
-		"commandEvents":          p.commandEvents,
-		"commandLifecycle":       p.commandLifecycle,
-		"commandAllowedStates":   p.commandAllowedStates,
-		"stateEnumName":          p.stateEnumName,
-		"snapshotEveryN":         p.snapshotEveryN,
-		"eventTTLSeconds":        p.eventTTLSeconds,
-		"eventMessage":           p.eventMessage,
-		"eventSetsState":              p.eventSetsState,
-		"eventCollectionMapping":      p.eventCollectionMapping,
-		"eventCollectionAction":       p.eventCollectionAction,
-		"eventCollectionTarget":       p.eventCollectionTarget,
-		"eventCollectionKeyField":     p.eventCollectionKeyField,
-		"eventCollectionSourceField":  p.eventCollectionSourceField,
-		"collectionElementTypeName":   p.collectionElementTypeName,
-		"collectionKeyFieldGoName":    p.collectionKeyFieldGoName,
-		"aggregateFieldGoName":        p.aggregateFieldGoName,
-		"eventFieldGoName":            p.eventFieldGoName,
-		"hasOpaqueAnnotations":        p.hasOpaqueAnnotations,
-		"opaqueKeyMappings":      p.opaqueKeyMappings,
-		"opaqueKeyPrefix":        p.opaqueKeyPrefix,
-		"opaqueAllKeySlots":      opaqueAllKeySlots,
-		"opaqueUsedGSIs":         p.opaqueUsedGSIs,
-		"opaqueGSISKFields":      p.opaqueGSISKFields,
-		"opaquePKFields":         p.opaquePKFields,
-		"opaqueFieldNameLower":   opaqueFieldNameLower,
-		"opaqueKeySlotName":      opaqueKeySlotName,
-		"opaqueKeySlotGSINum":    opaqueKeySlotGSINum,
+		"package":                    p.ctx.PackageName,
+		"name":                       p.ctx.Name,
+		"dump":                       p.dump,
+		"gotype":                     p.ctx.Type,
+		"isAggregate":                p.isAggregate,
+		"isCommand":                  p.isCommand,
+		"isEvent":                    p.isEvent,
+		"isProjection":               p.isProjection,
+		"isSnapshot":                 p.isSnapshot,
+		"isCreationEvent":            p.isCreationEvent,
+		"aggregateHasField":          p.aggregateHasField,
+		"excludeInternal":            ExcludeInternal,
+		"excludeCommandInternal":     ExcludeCommandInternal,
+		"commandEvents":              p.commandEvents,
+		"commandLifecycle":           p.commandLifecycle,
+		"commandAllowedStates":       p.commandAllowedStates,
+		"stateEnumName":              p.stateEnumName,
+		"snapshotEveryN":             p.snapshotEveryN,
+		"eventTTLSeconds":            p.eventTTLSeconds,
+		"eventMessage":               p.eventMessage,
+		"eventSetsState":             p.eventSetsState,
+		"eventCollectionMapping":     p.eventCollectionMapping,
+		"eventCollectionAction":      p.eventCollectionAction,
+		"eventCollectionTarget":      p.eventCollectionTarget,
+		"eventCollectionKeyField":    p.eventCollectionKeyField,
+		"eventCollectionSourceField": p.eventCollectionSourceField,
+		"collectionElementTypeName":  p.collectionElementTypeName,
+		"collectionKeyFieldGoName":   p.collectionKeyFieldGoName,
+		"aggregateFieldGoName":       p.aggregateFieldGoName,
+		"eventFieldGoName":           p.eventFieldGoName,
+		"hasOpaqueAnnotations":       p.hasOpaqueAnnotations,
+		"opaqueKeyMappings":          p.opaqueKeyMappings,
+		"opaqueKeyPrefix":            p.opaqueKeyPrefix,
+		"opaqueAllKeySlots":          opaqueAllKeySlots,
+		"opaqueUsedGSIs":             p.opaqueUsedGSIs,
+		"opaqueGSISKFields":          p.opaqueGSISKFields,
+		"opaquePKFields":             p.opaquePKFields,
+		"opaqueFieldNameLower":       opaqueFieldNameLower,
+		"opaqueKeySlotName":          opaqueKeySlotName,
+		"opaqueKeySlotGSINum":        opaqueKeySlotGSINum,
 		"opaqueKeySlotIsSK":          opaqueKeySlotIsSK,
 		"projectionSKValue":          p.projectionSKValue,
 		"projectionMatchingFields":   p.projectionMatchingFields,
@@ -85,22 +85,22 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"aggregateForFile":           p.aggregateForFile,
 		"routePrefix":                p.routePrefix,
 		"protoPackage":               p.protoPackage,
-		"lower":                  strings.ToLower,
-		"importPath":             p.importPath,
-		"cliCommandFields":       CLICommandFields,
-		"cliParseExpr":           cliParseExpr,
-		"cliParseExprFull":       p.cliParseExprFull,
-		"cliFieldUsageHint":     cliFieldUsageHint,
-		"commandSupportsCLI":    commandSupportsCLI,
-		"add":                    func(a, b int) int { return a + b },
-		"lastPathComponent":      lastPathComponent,
-		"unexport":               unexport,
-		"enumDisplays":           p.enumDisplays,
-		"queryRoutePath":         queryRoutePath,
-		"gsiQueryRoutePath":      gsiQueryRoutePath,
-		"queryParseExpr":         p.queryParseExpr,
-		"queryFormatExpr":        p.queryFormatExpr,
-		"cliQueryParseExpr":      p.cliQueryParseExpr,
+		"lower":                      strings.ToLower,
+		"importPath":                 p.importPath,
+		"cliCommandFields":           CLICommandFields,
+		"cliParseExpr":               cliParseExpr,
+		"cliParseExprFull":           p.cliParseExprFull,
+		"cliFieldUsageHint":          cliFieldUsageHint,
+		"commandSupportsCLI":         commandSupportsCLI,
+		"add":                        func(a, b int) int { return a + b },
+		"lastPathComponent":          lastPathComponent,
+		"unexport":                   unexport,
+		"enumDisplays":               p.enumDisplays,
+		"queryRoutePath":             queryRoutePath,
+		"gsiQueryRoutePath":          gsiQueryRoutePath,
+		"queryParseExpr":             p.queryParseExpr,
+		"queryFormatExpr":            p.queryFormatExpr,
+		"cliQueryParseExpr":          p.cliQueryParseExpr,
 	}
 }
 
@@ -646,7 +646,6 @@ func CLICommandFields(fields []pgs.Field) []pgs.Field {
 	}
 	return results
 }
-
 
 // cliParseExpr returns the Go expression to parse an os.Args value into the
 // correct type for a command field. For strings it returns the arg directly;
@@ -1364,14 +1363,14 @@ func opaqueFieldNameLower(f pgs.Field) string {
 // for the same PK fields. Templates skip PK-only variants for duplicates since the
 // WithSK/BetweenSK variants naturally disambiguate via their SK field names.
 type opaqueUsedGSI struct {
-	Num        int
-	HasPK      bool
-	HasSK      bool
-	PKType     optionsv1.OpaqueKeyType
-	SKType     optionsv1.OpaqueKeyType
-	PKFields   []opaqueFieldMapping
-	SKFields   []opaqueFieldMapping
-	PKOnlyDup  bool
+	Num       int
+	HasPK     bool
+	HasSK     bool
+	PKType    optionsv1.OpaqueKeyType
+	SKType    optionsv1.OpaqueKeyType
+	PKFields  []opaqueFieldMapping
+	SKFields  []opaqueFieldMapping
+	PKOnlyDup bool
 }
 
 // opaqueUsedGSIs returns info about all GSIs that have at least a PK defined.

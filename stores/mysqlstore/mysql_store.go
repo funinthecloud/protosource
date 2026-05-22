@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 )
 
 // MySQLStore is a database-backed implementation of the Store interface.

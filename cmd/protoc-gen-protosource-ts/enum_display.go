@@ -4,7 +4,7 @@ import (
 	"strings"
 	"unicode"
 
-	optionsv1 "github.com/funinthecloud/protosource/options/v1"
+	optionsv1 "github.com/funinthecloud/protosource/gen/options/v1"
 	pgs "github.com/lyft/protoc-gen-star/v2"
 )
 

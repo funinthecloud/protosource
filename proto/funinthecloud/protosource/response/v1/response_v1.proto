@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package funinthecloud.protosource.response.v1;
 
-option go_package = "github.com/funinthecloud/protosource/response/v1;responsev1";
+option go_package = "github.com/funinthecloud/protosource/gen/response/v1;responsev1";
 
 // CommandResponse is the result of a successful command application.
 message CommandResponse {

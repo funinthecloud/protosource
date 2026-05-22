@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 
-	"github.com/aws/aws-lambda-go/events"
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
@@ -29,12 +28,8 @@ func main() {
 		panic(err)
 	}
 
-	handler := awslambda.WrapRouter(router, extractActor)
+	handler := awslambda.WrapRouter(router)
 	lambda.Start(handler)
-}
-
-func extractActor(_ events.APIGatewayProxyRequest) string {
-	return "lambda"
 }
 
 func envOrDefault(key, fallback string) string {

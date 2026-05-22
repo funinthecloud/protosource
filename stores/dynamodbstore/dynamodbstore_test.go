@@ -2,8 +2,8 @@ package dynamodbstore
 
 import (
 	"context"
-	"math"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"sync"
@@ -12,10 +12,10 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
-	"github.com/funinthecloud/protosource/opaquedata"
-	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	testv1 "github.com/funinthecloud/protosource/gen/example/app/test/v1"
+	"github.com/funinthecloud/protosource/gen/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/gen/opaquedata/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -30,7 +30,7 @@ import (
 type mockDynamoer struct {
 	mu       sync.Mutex
 	tables   map[string]map[string]map[string]types.AttributeValue // table -> compositeKey -> item
-	pageSize int                                                    // 0 = no pagination
+	pageSize int                                                   // 0 = no pagination
 }
 
 func newMockDynamoer() *mockDynamoer {
@@ -681,4 +681,3 @@ func TestWithEventsTable(t *testing.T) {
 	store, _ := newTestStore(t, WithEventsTable("my-events"))
 	assert.Equal(t, "my-events", store.eventsTable)
 }
-

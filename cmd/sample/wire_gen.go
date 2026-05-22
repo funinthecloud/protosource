@@ -7,7 +7,7 @@
 package main
 
 import (
-	samplev1 "github.com/funinthecloud/protosource/example/app/sample/v1"
+	"github.com/funinthecloud/protosource/gen/example/app/sample/v1"
 	"github.com/funinthecloud/protosource/serializers/protobinaryserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 )

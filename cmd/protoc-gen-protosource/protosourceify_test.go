@@ -6,11 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	optionsv1 "github.com/funinthecloud/protosource/gen/options/v1"
 	pgs "github.com/lyft/protoc-gen-star/v2"
 	pgsgo "github.com/lyft/protoc-gen-star/v2/lang/go"
 	"github.com/lyft/protoc-gen-star/v2/testutils"
-
-	optionsv1 "github.com/funinthecloud/protosource/options/v1"
 )
 
 // repoRoot returns the absolute path to the repository root, computed relative

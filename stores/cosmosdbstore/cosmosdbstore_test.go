@@ -13,10 +13,10 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/funinthecloud/protosource/azure/cosmosclient"
-	testv1 "github.com/funinthecloud/protosource/example/app/test/v1"
-	"github.com/funinthecloud/protosource/opaquedata"
-	opaquedatav1 "github.com/funinthecloud/protosource/opaquedata/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	testv1 "github.com/funinthecloud/protosource/gen/example/app/test/v1"
+	"github.com/funinthecloud/protosource/gen/opaquedata"
+	opaquedatav1 "github.com/funinthecloud/protosource/gen/opaquedata/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

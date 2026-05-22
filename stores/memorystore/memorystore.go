@@ -5,17 +5,17 @@ import (
 	"fmt"
 	"sync"
 
-	historyv1 "github.com/funinthecloud/protosource/history/v1"
-	recordv1 "github.com/funinthecloud/protosource/record/v1"
+	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
+	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 )
 
 // MemoryStore is an in-memory implementation for managing and storing histories.
 // It uses a map to associate aggregate IDs with their corresponding histories,
 // and a mutex to ensure thread-safe operations.
 type MemoryStore struct {
-	mu               sync.RWMutex                    // Read-Write mutex for protecting the maps.
-	events           map[string]*historyv1.History   // Stores histories indexed by aggregate IDs.
-	snapshotInterval int32                           // Configurable snapshot interval value.
+	mu               sync.RWMutex                  // Read-Write mutex for protecting the maps.
+	events           map[string]*historyv1.History // Stores histories indexed by aggregate IDs.
+	snapshotInterval int32                         // Configurable snapshot interval value.
 }
 
 // New initializes and returns a new instance of MemoryStore.
