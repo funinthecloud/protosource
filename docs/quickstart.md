@@ -17,6 +17,37 @@ Build an event-sourced Task manager with a Go backend and TypeScript client. By 
 
 ## 1. Install the plugins
 
+You have three good options. Most teams should start with one of the first two.
+
+### Option A — Pre-built binaries (recommended for most people)
+
+Download the latest release from GitHub:
+
+https://github.com/funinthecloud/protosource/releases
+
+Look for the assets named like:
+
+- `protosource_vX.Y.Z_linux_arm64.tar.gz`
+- `protosource_vX.Y.Z_darwin_arm64.tar.gz`
+- `protosource_vX.Y.Z_windows_amd64.zip`
+
+Extract the binary (or binaries) you need and place it somewhere on your `$PATH`:
+
+```bash
+# Example for macOS arm64
+tar -xzf protosource_v0.9.0_darwin_arm64.tar.gz
+chmod +x protoc-gen-protosource
+mv protoc-gen-protosource /usr/local/bin/
+```
+
+Both `protoc-gen-protosource` and `protoc-gen-protosource-ts` are included in every release.
+
+The binaries support `--version` / `-v`.
+
+### For contributors and when modifying the generator
+
+If you are actively working on the protosource code generator itself (editing `protosourceify.go` or the templates), use the classic `go install` path:
+
 ```bash
 git clone https://github.com/funinthecloud/protosource.git
 cd protosource
@@ -24,32 +55,20 @@ go install ./cmd/protoc-gen-protosource
 go install ./cmd/protoc-gen-protosource-ts
 ```
 
-This puts `protoc-gen-protosource` and `protoc-gen-protosource-ts` in your `$GOPATH/bin`.
+See `CLAUDE.md` for the development workflow.
 
-### Using the official Docker images (no Go install required)
+### Docker images
 
-The plugins are also published as multi-arch container images on GitHub Container Registry:
+Docker images for the plugins are published (`ghcr.io/funinthecloud/protoc-gen-protosource` and the `-ts` variant). These have very limited usefulness because `docker:` is not a supported plugin type in `buf.gen.yaml`. They are only relevant if you want to run the plugin binaries inside a container you control.
 
-- `ghcr.io/funinthecloud/protoc-gen-protosource`
-- `ghcr.io/funinthecloud/protoc-gen-protosource-ts`
-
-Tags: `latest` (v* releases), `main` (rolling development), plus semver tags (`v0.9.0`, `0.9`, `0`, etc.).
-
-In `buf.gen.yaml` you can reference them directly:
-
-```yaml
-plugins:
-  - docker: ghcr.io/funinthecloud/protoc-gen-protosource:main
-    out: .
-    opt:
-      - module=github.com/yourorg/task-app
-  - docker: ghcr.io/funinthecloud/protoc-gen-protosource-ts:main
-    out: ts-gen
-    opt:
-      - module=github.com/yourorg/task-app
+```bash
+git clone https://github.com/funinthecloud/protosource.git
+cd protosource
+go install ./cmd/protoc-gen-protosource
+go install ./cmd/protoc-gen-protosource-ts
 ```
 
-This is the lowest-ceremony option for CI pipelines and teams that do not want the plugins on their developer machines.
+See `CLAUDE.md` for the development workflow when working on the plugins themselves.
 
 ## 2. Create your project
 

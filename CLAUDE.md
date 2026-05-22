@@ -19,7 +19,10 @@ go test -run TestApply ./...             # run a specific test by name
 go vet ./...                             # static analysis
 ```
 
-**IMPORTANT**: After modifying the plugin template (`cmd/protoc-gen-protosource/content/*.gotext`) or plugin code (`cmd/protoc-gen-protosource/protosourceify.go`), you MUST run `go install ./cmd/protoc-gen-protosource` before `buf generate`. The `buf generate` command invokes `protoc-gen-protosource` as a local plugin from `$GOPATH/bin`, so `go build` alone is not enough — the binary must be installed.
+**IMPORTANT**: When you are actively modifying the plugin (`protosourceify.go` or the `*.gotext` templates), you must:
+- run `go install ./cmd/protoc-gen-protosource` (and the `-ts` equivalent)
+
+Normal development of applications that *use* protosource no longer requires this step. See the "Developing the code generator itself" section below.
 
 ### TypeScript Client Generation
 
@@ -31,7 +34,25 @@ cd ts/client && npm install && npm run build # build @protosource/client runtime
 
 Generated TS client files land in `ts-gen/` (see `buf.gen.ts.yaml`). They are tracked in git.
 
-The same rule applies: after modifying `cmd/protoc-gen-protosource-ts/content/*.tstext` or `cmd/protoc-gen-protosource-ts/protosourceify.go`, you MUST run `go install ./cmd/protoc-gen-protosource-ts` before `buf generate --template buf.gen.ts.yaml`.
+The same rule applies when modifying the TS generator: use `go install` or the local template override.
+
+## Releasing
+
+Real releases are triggered automatically on `v*` tags via GitHub Actions (see `.github/workflows/release-binaries.yml`).
+
+When changing `.goreleaser.yaml`, the templates, or anything release-related, test locally first using snapshot mode:
+
+```bash
+# Fast check — just builds the binaries
+goreleaser build --snapshot --clean
+
+# Full simulation of what a release would look like (including archives)
+goreleaser release --snapshot --clean
+```
+
+After the second command, inspect the `dist/` directory. You should see one combined archive per platform containing both plugins (e.g. `protosource_vX.Y.Z-next_linux_amd64.tar.gz`).
+
+When actively developing the generator itself, continue using `buf generate --template buf.gen.local.yaml`.
 
 ## Architecture
 

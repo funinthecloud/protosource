@@ -123,20 +123,13 @@ deps:
   - buf.build/bufbuild/protovalidate
 ```
 
-`buf.gen.yaml` — two supported styles:
+`buf.gen.yaml` — supported styles:
 
-**Docker (recommended — no local plugin install):**
-```yaml
-plugins:
-  - local: protoc-gen-go
-    out: backend-bolt/gen
-    opt: [module=github.com/myorg/myapp/backend-bolt/gen]
-  - docker: ghcr.io/funinthecloud/protoc-gen-protosource:main
-    out: backend-bolt/gen
-    opt: [module=github.com/myorg/myapp/backend-bolt/gen]
-```
+**Pre-built binaries from GitHub Releases (recommended)**
+1. Download from https://github.com/funinthecloud/protosource/releases
+2. Put the binary on your `$PATH`
+3. Use normal `local:` references:
 
-**Local binary (requires `go install` first):**
 ```yaml
 plugins:
   - local: protoc-gen-go
@@ -147,21 +140,39 @@ plugins:
     opt: [module=github.com/myorg/myapp/backend-bolt/gen]
 ```
 
-`buf.gen.ts.yaml` (docker form shown; `local:` also works):
+**Local binary via `go install` (only when modifying the generator)**
+```yaml
+plugins:
+  - local: protoc-gen-go
+    out: backend-bolt/gen
+    opt: [module=github.com/myorg/myapp/backend-bolt/gen]
+  - local: protoc-gen-protosource
+    out: backend-bolt/gen
+    opt: [module=github.com/myorg/myapp/backend-bolt/gen]
+```
+
+`buf.gen.ts.yaml`:
 ```yaml
 plugins:
   - local: protoc-gen-es
     out: frontend/src/gen
     opt: [target=ts]
     include_imports: true
-  - docker: ghcr.io/funinthecloud/protoc-gen-protosource-ts:main
+  - local: protoc-gen-protosource-ts
     out: frontend/src/gen
     opt: [module=github.com/myorg/myapp/backend-bolt/gen]
 ```
 
 **Build sequence (the part Claude usually gets wrong):**
 
-When using the **Docker images** (recommended), there is nothing to install locally — `buf generate` will pull the containers on demand:
+The recommended path for most teams is:
+
+1. Download the latest release from https://github.com/funinthecloud/protosource/releases
+2. Put the binary (or binaries) on your `$PATH`
+3. Use normal `local:` entries in `buf.gen.yaml` (as shown above)
+4. Run `buf generate`
+
+This approach means you do **not** need to clone the protosource repository just to generate code.
 
 ```bash
 clang-format --style=file -i proto/**/*.proto
@@ -176,7 +187,22 @@ go build ./...
 go test ./...
 ```
 
-If you choose the local-binary style instead of Docker, you must run the one-time `go install` steps from a protosource checkout before `buf generate` will succeed. The Docker images eliminate this step.
+The `go install` route from a protosource checkout is only needed when you are actively developing the generator code itself.
+
+```bash
+clang-format --style=file -i proto/**/*.proto
+buf generate
+buf generate --template buf.gen.ts.yaml
+
+# After Wire-related changes:
+go generate ./...   # installs wire (first time only)
+wire ./backend-bolt/cmd/server   # regen wire_gen.go
+
+go build ./...
+go test ./...
+```
+
+The old `go install` route from a protosource checkout is now only required when you are actively developing the generator itself (see `CLAUDE.md`).
 
 ---
 

@@ -1,0 +1,107 @@
+# goreleaser configuration for protosource
+# https://goreleaser.com/customization/
+
+version: 2
+
+project_name: protosource
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: protosource
+    main: ./cmd/protoc-gen-protosource
+    binary: protoc-gen-protosource
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+  - id: protosource-ts
+    main: ./cmd/protoc-gen-protosource-ts
+    binary: protoc-gen-protosource-ts
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  # Single combined archive containing both plugins
+  - id: protosource
+    ids:
+      - protosource
+      - protosource-ts
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    formats: ['tar.gz']
+    format_overrides:
+      - goos: windows
+        formats: ['zip']
+
+checksum:
+  name_template: 'checksums.txt'
+  algorithm: sha256
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+      - "^chore:"
+      - "^build:"
+  groups:
+    - title: Features
+      regexp: "^feat[(\\([\\w\\s]*\\)]!?:"
+    - title: Bug Fixes
+      regexp: "^fix[(\\([\\w\\s]*\\)]!?:"
+    - title: Performance Improvements
+      regexp: "^perf[(\\([\\w\\s]*\\)]!?:"
+    - title: Others
+      regexp: "^.*"
+  template: |
+    {{- range .Groups }}
+    ### {{ .Title }}
+
+    {{- range .Commits }}
+    - {{ .ShortHash }} {{ .Title }} ({{ .AuthorName }})
+    {{- end }}
+    {{- end }}
+  template: |
+    {{- range .Groups }}
+    ### {{ .Title }}
+
+    {{- range .Commits }}
+    - {{ .ShortHash }} {{ .Title }} ({{ .AuthorName }})
+    {{- end }}
+    {{- end }}
+
+release:
+  github:
+    owner: funinthecloud
+    name: protosource
+  draft: false
+  replace_existing_draft: true
+  mode: replace
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
