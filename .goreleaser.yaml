@@ -86,14 +86,6 @@ changelog:
     - {{ .ShortHash }} {{ .Title }} ({{ .AuthorName }})
     {{- end }}
     {{- end }}
-  template: |
-    {{- range .Groups }}
-    ### {{ .Title }}
-
-    {{- range .Commits }}
-    - {{ .ShortHash }} {{ .Title }} ({{ .AuthorName }})
-    {{- end }}
-    {{- end }}
 
 release:
   github:
