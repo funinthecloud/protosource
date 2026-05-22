@@ -21,6 +21,35 @@ Step-by-step:
 - [x] **Step 6.** `deploy/bootstrap` (one-shot state backend: RG + Storage Account with versioning/soft-delete + tfstate container, local state by design) and `deploy/envs/azure-dev` (RG + container-app-service + cosmos-eventstore wired together, principal_id auto-flows into the Cosmos data-plane RBAC, Cosmos env vars auto-injected into the Container App). Cold-start instructions inlined as a header comment in `envs/azure-dev/main.tf`. `terraform validate` clean for both. `.gitignore` updated to track examples and ignore real `terraform.tfvars`.
 - [x] **Step 7.** End-to-end pipe proven via `cmd/testcosmos` running on Azure Container Apps against a live Cosmos account — `curl $(tofu output -raw container_app_url)/test/v1/<id>` returns the domain 404 from the real handler stack.
 
+### Framework Infrastructure Lifts (from protosource-auth experience)
+
+Building the first real consumer (`protosource-auth`) surfaced several pieces of reusable cross-cloud infrastructure. The detailed analysis and "would the second service re-invent this?" filtering live in:
+
+- [FRAMEWORK_LIFT_CANDIDATES.md](FRAMEWORK_LIFT_CANDIDATES.md) — raw source notes and keep/lift rationale
+- [docs/adr/0001-framework-infrastructure-lifts.md](docs/adr/0001-framework-infrastructure-lifts.md) — decided plan, scope boundaries, and closed questions
+
+**Key decisions locked in ADR-0001 (2026-05-21):**
+- Harness package name: `protosource/host`
+- `keyproviders/` lives at top level (peer to `stores/`, not under `crypto/`)
+- Admin CLI starts as a **library** (services embed into their own `cmd/*mgr`)
+- Small HTTP helpers → `protosource/httputil` (MountRouter + cookiescope)
+- Harness scope is deliberately narrow: storage + keyprovider wiring + lifecycle + `FirstRunHook` dispatch. It must never own "what an HTTP service looks like."
+- Explicit non-lifts: password hashing, JWT signing, policy languages, login UX, authorizer *implementations*, and all aggregate-specific domain code.
+
+**Sequenced work (highest leverage first for new service bootstrap):**
+
+- [ ] **Lift `keyproviders/`** (interface + `local/`, `awskms/`, `azurekeyvault/` implementations). Smallest blast radius. Validates upstream package layout. Auth keeps only its `keys.Resolver` policy.
+- [ ] **`protosource/host` package** (the big one). `BaseConfig`, `Load*`, `New(...) (*Host, error)`, `EnsureStorage`, `Close`, `FirstRunHook`, **and especially rich `wire.ProviderSet` values**. The goal is to make the manual backend-switching + DI code that lived in `protosource-auth/app/backend*.go` unnecessary. A typical service's `cmd/*/wire.go` should become a small composition of `host.ProviderSet` + generated aggregate providers + a few service-specific bits. **Highest Go DX impact.**
+- [ ] **`protosource/admin` library** + universal `ensure-tables` subcommand (powered by the new host). Unblocks every future service's operational `cmd/*mgr`.
+- [ ] **`protosource/httputil`** — `MountRouter` + CORS helper + `cookiescope` (eTLD+1 via `publicsuffix`). Small quality-of-life win; centralizes a footgun dependency.
+- [ ] **`deploy/modules/lambda-eventstore`** terraform module (AWS parity with the existing Azure `cosmos-eventstore` + `container-app-service` modules). Inputs for function image, KMS, tables, custom domain; outputs API Gateway URL + ARNs. **Highest practical impact** on "a new protosource service is a reasonable starting point on AWS."
+- [ ] Wire the `FirstRunHook` into `host.Run` (or equivalent lifecycle entrypoint) once the Host API is stable. Services supply aggregate-specific bootstrap (e.g. default Issuer/Role/User) via the hook; the harness owns only the calling convention and `ErrAlreadyCreated` idempotency.
+
+**Non-goals (re-stated for clarity):**
+- No ownership of HTTP middleware composition or transport choice.
+- No lifting of auth-product concepts (`credentials/`, `signers/`, `functions/`, `loginpage/`, `keys.Resolver` policy, `service/` directory logic, etc.).
+- `authz/httpauthz` and `authz/directauthz` remain downstream (they are implementations of the already-upstream `Authorizer` interface).
+
 ### Framework gaps
 
 - [ ] **Snapshot-aware event TTL.** Pre-snapshot events should get TTL while snapshots persist. Deferred — needs a triggered downstream process (DynamoDB Streams) to safely mark pre-snapshot events with TTL only after confirming the snapshot exists. Writing TTL proactively risks data loss if the snapshot does not arrive.
