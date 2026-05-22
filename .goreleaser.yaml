@@ -62,6 +62,7 @@ checksum:
 
 changelog:
   sort: asc
+  use: github-native
   filters:
     exclude:
       - "^docs:"
@@ -78,14 +79,6 @@ changelog:
       regexp: "^perf[(\\([\\w\\s]*\\)]!?:"
     - title: Others
       regexp: "^.*"
-  template: |
-    {{- range .Groups }}
-    ### {{ .Title }}
-
-    {{- range .Commits }}
-    - {{ .ShortHash }} {{ .Title }} ({{ .AuthorName }})
-    {{- end }}
-    {{- end }}
 
 release:
   github:
