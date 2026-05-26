@@ -41,6 +41,7 @@
 !*.json
 ts/client/node_modules/
 ts/client/dist/
+dist/
 
 ## yaml
 !*.yaml
@@ -62,14 +63,14 @@ deploy/**/*.auto.tfvars
 # produce non-default state filenames (state.json, state.<env>.json) that
 # slip past the generic *.tfstate rules above.
 deploy/**/state.json
-deploy/**/state.*.json
-deploy/**/*.tfstate*
+#deploy/**/state.*.json
+#deploy/**/*.tfstate*
 
 ## GitHub config
 !CODEOWNERS
 
 ##### End dont ignore
 
-vendor/
+#vendor/
 
-.idea/
+#.idea/
