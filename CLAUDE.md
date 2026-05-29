@@ -28,11 +28,12 @@ Normal development of applications that *use* protosource no longer requires thi
 
 ```bash
 go install ./cmd/protoc-gen-protosource-ts  # install TS plugin to $GOPATH/bin
-buf generate --template buf.gen.ts.yaml     # generate TS client files
-cd ts/client && npm install && npm run build # build @protosource/client runtime
+cd ts/client && npm install && cd -          # protoc-gen-es lives in ts/client/node_modules
+buf generate --template buf.gen.ts.yaml      # generate framework TS runtime types
+cd ts/client && npm run build                # build @protosource/client runtime
 ```
 
-Generated TS client files land in `ts-gen/` (see `buf.gen.ts.yaml`). They are tracked in git.
+Go generation (`buf.gen.yaml`) and TypeScript generation (`buf.gen.ts.yaml`) are **two separate `buf generate` invocations**. `buf.gen.ts.yaml` runs `protoc-gen-es` + `protoc-gen-protosource-ts` and is scoped via `inputs.paths` to the framework's own protos (`funinthecloud/protosource/**`, minus `options`/`opaquedata`), emitting nested files into `ts/client/src/gen/` (e.g. `gen/funinthecloud/protosource/apierror/v1/apierror_v1_pb.ts`). Scoping keeps example/domain types out of the published `@protosource/client` package. All generated files are tracked in git.
 
 The same rule applies when modifying the TS generator: use `go install` or the local template override.
 
@@ -103,7 +104,7 @@ Uses a copied subset of the Go plugin's annotation-reading logic (message classi
 Published as `@protosource/client`. Mirrors Go's `httpclient/` package:
 - **`ProtosourceClient`** — generic HTTP client with `apply()`, `load()`, `history()`, `query()` methods
 - **`AuthProvider`** interface with `BearerTokenAuth` and `NoAuth` implementations
-- **`APIError`** — structured error from server responses
+- **`APIError`** — structured error from server responses; decoded from the `apierror.v1.Error` wire body (proto binary or JSON) plus the HTTP status line
 - Content negotiation: protobuf binary default, `useJSON` option for debug mode
 - Uses `fetch` API (browser + Node 18+) and `@bufbuild/protobuf` v2 for serialization
 
@@ -116,6 +117,8 @@ Generated TS clients import from `@protosource/client` (runtime) and sibling `*_
 - **`adapters/httpstandard/`** — converts `net/http` requests to/from `Request`/`Response`. Includes `BearerTokenExtractor` and `HeaderExtractor` for actor identity.
 
 **Wire format: binary protobuf by default, everywhere.** Generated handlers, `httpclient`, `ts/client`, and the `*mgr` CLIs all default to `application/protobuf` and content-negotiate per request via `Accept`/`Content-Type`. JSON (`protojson`) is a dev/debug opt-in: `httpclient.WithJSON()`, TS `ProtosourceClient({ useJSON: true })`, or `<aggregate>mgr -json`. There is no global server-side mode — each request stands alone. JSON should never reach production traffic; the only signal it has is the `Content-Type` on the wire (no log line).
+
+**Error bodies are content-negotiated too.** Non-2xx responses carry an `apierror.v1.Error` (`code`/`message`/`detail`) marshaled in the request's negotiated format — protobuf binary by default, JSON when the request opted in — with the HTTP status on the status line, not in the body. Both clients (`httpclient.APIError`, TS `APIError`) decode by the response `Content-Type` and fall back to a synthetic `UNKNOWN` error carrying the raw body when it isn't a valid `Error` (e.g. a plaintext LB 503 or HTML gateway page).
 
 ### Command Processing Pipeline
 
@@ -294,7 +297,7 @@ Event messages must have `id` (field 1), `version` (field 2, int64), `at` (field
 
 - Module path: `github.com/funinthecloud/protosource`
 - Go 1.25+
-- Generated Go files (`options/v1/`, `record/v1/`, `history/v1/`, `example/app/`) are auto-generated — never edit by hand
+- Generated Go files (`options/v1/`, `record/v1/`, `history/v1/`, `apierror/v1/`, `example/app/`) are auto-generated — never edit by hand
 - The options proto lives in this repo; no external BSR dependency
 - `buf.gen.yaml` uses `module=` option to strip the Go module prefix, placing generated code at the repo root
 - Proto files use explicit `option go_package` to control Go output paths independently of proto directory structure

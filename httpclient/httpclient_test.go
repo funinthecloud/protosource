@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	apierrorv1 "github.com/funinthecloud/protosource/gen/apierror/v1"
 	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
 	responsev1 "github.com/funinthecloud/protosource/gen/response/v1"
@@ -71,8 +72,10 @@ func TestApply_Protobuf(t *testing.T) {
 
 func TestApply_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := proto.Marshal(&apierrorv1.Error{Code: "CMD_UNMARSHAL", Message: "bad request"})
+		w.Header().Set("Content-Type", "application/protobuf")
 		w.WriteHeader(400)
-		w.Write([]byte(`{"code":"CMD_UNMARSHAL","error":"bad request"}`))
+		w.Write(body)
 	}))
 	defer server.Close()
 
@@ -195,8 +198,10 @@ func TestGet_Protobuf(t *testing.T) {
 
 func TestGet_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := protojson.Marshal(&apierrorv1.Error{Code: "GET_NOT_FOUND", Message: "aggregate not found"})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(404)
-		w.Write([]byte(`{"code":"GET_NOT_FOUND","error":"aggregate not found"}`))
+		w.Write(body)
 	}))
 	defer server.Close()
 
@@ -212,8 +217,10 @@ func TestGet_NotFound(t *testing.T) {
 
 func TestLoad_NotFound(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := proto.Marshal(&apierrorv1.Error{Code: "LOAD_NOT_FOUND", Message: "aggregate not found"})
+		w.Header().Set("Content-Type", "application/protobuf")
 		w.WriteHeader(404)
-		w.Write([]byte(`{"code":"LOAD_NOT_FOUND","error":"aggregate not found"}`))
+		w.Write(body)
 	}))
 	defer server.Close()
 
@@ -305,8 +312,10 @@ func TestQuery_JSON(t *testing.T) {
 
 func TestQuery_ServerError(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := protojson.Marshal(&apierrorv1.Error{Code: "QUERY_MISSING_PK", Message: "missing parameter"})
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(400)
-		w.Write([]byte(`{"code":"QUERY_MISSING_PK","error":"missing parameter"}`))
+		w.Write(body)
 	}))
 	defer server.Close()
 

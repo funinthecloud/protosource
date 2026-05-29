@@ -1,8 +1,31 @@
+# buf.gen.ts.yaml — generates the framework's own TypeScript runtime types
+# (protoc-gen-es) plus protosource-ts clients. Scoped via `inputs.paths` to the
+# framework's own protos (funinthecloud/protosource/**) so example/domain types
+# never land inside the published @protosource/client runtime package.
+#
+# Run with:  buf generate --template buf.gen.ts.yaml
+# (protoc-gen-go + protoc-gen-protosource Go generation lives in buf.gen.yaml.)
 version: v2
 managed:
   enabled: true
   disable:
     - file_option: go_package
+inputs:
+  - directory: proto
+    paths:
+      - proto/funinthecloud/protosource
+    exclude_paths:
+      # options = build-time annotations; opaquedata = internal storage.
+      # Neither is a client-facing wire type, so keep them out of the runtime.
+      - proto/funinthecloud/protosource/options
+      - proto/funinthecloud/protosource/opaquedata
 plugins:
+  - local: ts/client/node_modules/.bin/protoc-gen-es
+    out: ts/client/src/gen
+    opt:
+      - target=ts
+      # Emit .js on relative sibling imports — required for pure Node ESM
+      # ("type": "module") since module: ES2020 leaves specifiers verbatim.
+      - import_extension=js
   - local: protoc-gen-protosource-ts
-    out: ts-gen
+    out: ts/client/src/gen

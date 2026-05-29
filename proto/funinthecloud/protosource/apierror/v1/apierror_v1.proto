@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package funinthecloud.protosource.apierror.v1;
+
+option go_package = "github.com/funinthecloud/protosource/gen/apierror/v1;apierrorv1";
+
+// Error is the body of any non-2xx response from a protosource server.
+// It is content-negotiated like every other message: protobuf binary by
+// default, protojson when the request opts into JSON. The HTTP status code
+// is NOT carried here — it rides the HTTP status line.
+message Error {
+  // Machine-readable code for tracing, e.g. "CMD_VALIDATION", "AUTHZ_FORBIDDEN".
+  string code = 1;
+  // Human-readable summary of what went wrong.
+  string message = 2;
+  // Optional additional detail (e.g. an underlying cause).
+  string detail = 3;
+}
