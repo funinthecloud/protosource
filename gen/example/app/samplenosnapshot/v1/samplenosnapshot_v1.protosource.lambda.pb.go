@@ -4,7 +4,6 @@ package samplenoprefixv1
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/authz"
+	"github.com/funinthecloud/protosource/gen/apierror/v1"
 	"github.com/funinthecloud/protosource/gen/opaquedata"
 	"github.com/funinthecloud/protosource/gen/response/v1"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -70,18 +70,18 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request) protosource.Response {
 	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.Create")
 	if err != nil {
-		return authzErrorResponse(err)
+		return authzErrorResponse(request, err)
 	}
 
 	// Actor must be extracted by the Authorizer and put into ctx.
 	actor := authz.UserIDFromContext(ctx)
 	if actor == "" {
-		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
+		return errorResponse(request, http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &Create{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
+		return errorResponse(request, http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Overwrite any Actor the client supplied in the command payload
@@ -92,13 +92,13 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
-		return commandErrorResponse(err)
+		return commandErrorResponse(request, err)
 	}
 
 	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
 	body, contentType, err := marshalResponse(request, resp)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+		return errorResponse(request, http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
 	}
 	return protosource.Response{
 		StatusCode: http.StatusOK,
@@ -111,18 +111,18 @@ func (h *Handler) HandleCreate(ctx context.Context, request protosource.Request)
 func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request) protosource.Response {
 	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.Update")
 	if err != nil {
-		return authzErrorResponse(err)
+		return authzErrorResponse(request, err)
 	}
 
 	// Actor must be extracted by the Authorizer and put into ctx.
 	actor := authz.UserIDFromContext(ctx)
 	if actor == "" {
-		return errorResponse(http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
+		return errorResponse(request, http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
 	}
 
 	cmd := &Update{}
 	if err := unmarshalCommand(request, cmd); err != nil {
-		return errorResponse(http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
+		return errorResponse(request, http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}
 
 	// Overwrite any Actor the client supplied in the command payload
@@ -133,13 +133,13 @@ func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request)
 
 	version, err := h.repo.Apply(ctx, cmd)
 	if err != nil {
-		return commandErrorResponse(err)
+		return commandErrorResponse(request, err)
 	}
 
 	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
 	body, contentType, err := marshalResponse(request, resp)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+		return errorResponse(request, http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
 	}
 	return protosource.Response{
 		StatusCode: http.StatusOK,
@@ -155,25 +155,25 @@ func (h *Handler) HandleUpdate(ctx context.Context, request protosource.Request)
 func (h *Handler) HandleLoad(ctx context.Context, request protosource.Request) protosource.Response {
 	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.LoadSample")
 	if err != nil {
-		return authzErrorResponse(err)
+		return authzErrorResponse(request, err)
 	}
 
 	id := extractID(request)
 	if id == "" {
-		return errorResponse(http.StatusBadRequest, "LOAD_NO_ID", "missing required parameter: id", nil)
+		return errorResponse(request, http.StatusBadRequest, "LOAD_NO_ID", "missing required parameter: id", nil)
 	}
 
 	aggregate, err := h.repo.Load(ctx, id)
 	if err != nil {
 		if errors.Is(err, protosource.ErrAggregateNotFound) {
-			return errorResponse(http.StatusNotFound, "LOAD_NOT_FOUND", "aggregate not found", nil)
+			return errorResponse(request, http.StatusNotFound, "LOAD_NOT_FOUND", "aggregate not found", nil)
 		}
-		return errorResponse(http.StatusInternalServerError, "LOAD_FAILED", "failed to load aggregate", err)
+		return errorResponse(request, http.StatusInternalServerError, "LOAD_FAILED", "failed to load aggregate", err)
 	}
 
 	body, contentType, err := marshalResponse(request, aggregate)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "LOAD_MARSHAL", "failed to serialize aggregate", err)
+		return errorResponse(request, http.StatusInternalServerError, "LOAD_MARSHAL", "failed to serialize aggregate", err)
 	}
 
 	return protosource.Response{
@@ -188,25 +188,25 @@ func (h *Handler) HandleLoad(ctx context.Context, request protosource.Request) p
 func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) protosource.Response {
 	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.GetSample")
 	if err != nil {
-		return authzErrorResponse(err)
+		return authzErrorResponse(request, err)
 	}
 
 	id := extractID(request)
 	if id == "" {
-		return errorResponse(http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
+		return errorResponse(request, http.StatusBadRequest, "GET_NO_ID", "missing required parameter: id", nil)
 	}
 
 	aggregate, err := h.client.GetSample(ctx, id)
 	if err != nil {
 		if errors.Is(err, opaquedata.ErrNotFound) {
-			return errorResponse(http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
+			return errorResponse(request, http.StatusNotFound, "GET_NOT_FOUND", "aggregate not found", nil)
 		}
-		return errorResponse(http.StatusInternalServerError, "GET_FAILED", "failed to load aggregate", err)
+		return errorResponse(request, http.StatusInternalServerError, "GET_FAILED", "failed to load aggregate", err)
 	}
 
 	body, contentType, err := marshalResponse(request, aggregate)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
+		return errorResponse(request, http.StatusInternalServerError, "GET_MARSHAL", "failed to serialize aggregate", err)
 	}
 
 	return protosource.Response{
@@ -220,25 +220,25 @@ func (h *Handler) HandleGet(ctx context.Context, request protosource.Request) pr
 func (h *Handler) HandleHistory(ctx context.Context, request protosource.Request) protosource.Response {
 	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.samplenosnapshot.v1.HistorySample")
 	if err != nil {
-		return authzErrorResponse(err)
+		return authzErrorResponse(request, err)
 	}
 
 	id := extractID(request)
 	if id == "" {
-		return errorResponse(http.StatusBadRequest, "HIST_NO_ID", "missing required parameter: id", nil)
+		return errorResponse(request, http.StatusBadRequest, "HIST_NO_ID", "missing required parameter: id", nil)
 	}
 
 	history, err := h.repo.History(ctx, id)
 	if err != nil {
 		if errors.Is(err, protosource.ErrAggregateNotFound) {
-			return errorResponse(http.StatusNotFound, "HIST_NOT_FOUND", "aggregate not found", nil)
+			return errorResponse(request, http.StatusNotFound, "HIST_NOT_FOUND", "aggregate not found", nil)
 		}
-		return errorResponse(http.StatusInternalServerError, "HIST_LOAD", "failed to load history", err)
+		return errorResponse(request, http.StatusInternalServerError, "HIST_LOAD", "failed to load history", err)
 	}
 
 	body, contentType, err := marshalResponse(request, history)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "HIST_MARSHAL", "failed to serialize history", err)
+		return errorResponse(request, http.StatusInternalServerError, "HIST_MARSHAL", "failed to serialize history", err)
 	}
 
 	return protosource.Response{
@@ -309,7 +309,7 @@ func queryResponse(request protosource.Request, results []*Sample) protosource.R
 	list := &SampleList{Items: results}
 	body, contentType, err := marshalResponse(request, list)
 	if err != nil {
-		return errorResponse(http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
+		return errorResponse(request, http.StatusInternalServerError, "QUERY_MARSHAL", "failed to serialize results", err)
 	}
 	return protosource.Response{
 		StatusCode: http.StatusOK,
@@ -348,18 +348,31 @@ func parseSortOperator(s string) (opaquedata.SortOperator, bool) {
 	}
 }
 
-// errorResponse builds a JSON error response with a code for tracing.
-// If cause is non-nil, its message is included in the detail field.
-func errorResponse(statusCode int, code, message string, cause error) protosource.Response {
-	body := map[string]string{"error": message, "code": code}
+// errorResponse builds an error response carrying an apierror.v1.Error body,
+// content-negotiated (protobuf binary by default, JSON when the request opts
+// in) exactly like successful responses. The HTTP status code is not part of
+// the body — it rides the HTTP status line. If cause is non-nil, its message
+// is included in the detail field.
+func errorResponse(request protosource.Request, statusCode int, code, message string, cause error) protosource.Response {
+	apiErr := &apierrorv1.Error{Code: code, Message: message}
 	if cause != nil {
-		body["detail"] = cause.Error()
+		apiErr.Detail = cause.Error()
 	}
-	b, _ := json.Marshal(body)
+	body, contentType, err := marshalResponse(request, apiErr)
+	if err != nil {
+		// Last-resort fallback: serialization of a three-string message should
+		// never fail, but if it does, return a plaintext body so the caller
+		// still sees the code and message rather than an empty response.
+		return protosource.Response{
+			StatusCode: statusCode,
+			Body:       fmt.Sprintf("%s: %s", code, message),
+			Headers:    map[string]string{"Content-Type": "text/plain; charset=utf-8"},
+		}
+	}
 	return protosource.Response{
 		StatusCode: statusCode,
-		Body:       string(b),
-		Headers:    map[string]string{"Content-Type": "application/json"},
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
 	}
 }
 
@@ -380,34 +393,34 @@ func errorResponse(statusCode int, code, message string, cause error) protosourc
 // Implementations that want a specific non-default status for a
 // particular internal error should wrap it in one of the typed sentinels
 // above before returning it from Authorize.
-func authzErrorResponse(err error) protosource.Response {
+func authzErrorResponse(request protosource.Request, err error) protosource.Response {
 	switch {
 	case errors.Is(err, authz.ErrUnauthenticated):
-		return errorResponse(http.StatusUnauthorized, "AUTHZ_UNAUTHENTICATED", "unauthenticated", nil)
+		return errorResponse(request, http.StatusUnauthorized, "AUTHZ_UNAUTHENTICATED", "unauthenticated", nil)
 	case errors.Is(err, authz.ErrForbidden):
-		return errorResponse(http.StatusForbidden, "AUTHZ_FORBIDDEN", "forbidden", nil)
+		return errorResponse(request, http.StatusForbidden, "AUTHZ_FORBIDDEN", "forbidden", nil)
 	default:
-		return errorResponse(http.StatusServiceUnavailable, "AUTHZ_UNAVAILABLE", "authorization service unavailable", nil)
+		return errorResponse(request, http.StatusServiceUnavailable, "AUTHZ_UNAVAILABLE", "authorization service unavailable", nil)
 	}
 }
 
 // commandErrorResponse maps protosource errors to appropriate HTTP responses.
-func commandErrorResponse(err error) protosource.Response {
+func commandErrorResponse(request protosource.Request, err error) protosource.Response {
 	switch {
 	case errors.Is(err, protosource.ErrValidationFailed):
-		return errorResponse(http.StatusBadRequest, "CMD_VALIDATION", err.Error(), nil)
+		return errorResponse(request, http.StatusBadRequest, "CMD_VALIDATION", err.Error(), nil)
 	case errors.Is(err, protosource.ErrEmptyAggregateId):
-		return errorResponse(http.StatusBadRequest, "CMD_EMPTY_ID", "aggregate id is required", nil)
+		return errorResponse(request, http.StatusBadRequest, "CMD_EMPTY_ID", "aggregate id is required", nil)
 	case errors.Is(err, protosource.ErrAlreadyCreated):
-		return errorResponse(http.StatusConflict, "CMD_ALREADY_CREATED", "aggregate already exists", nil)
+		return errorResponse(request, http.StatusConflict, "CMD_ALREADY_CREATED", "aggregate already exists", nil)
 	case errors.Is(err, protosource.ErrNotCreatedYet):
-		return errorResponse(http.StatusNotFound, "CMD_NOT_CREATED", "aggregate not found", nil)
+		return errorResponse(request, http.StatusNotFound, "CMD_NOT_CREATED", "aggregate not found", nil)
 	case errors.Is(err, protosource.ErrAggregateNotFound):
-		return errorResponse(http.StatusNotFound, "CMD_NOT_FOUND", "aggregate not found", nil)
+		return errorResponse(request, http.StatusNotFound, "CMD_NOT_FOUND", "aggregate not found", nil)
 	case errors.Is(err, protosource.ErrStateNotAllowed):
-		return errorResponse(http.StatusConflict, "CMD_STATE_VIOLATION", "command not allowed in current aggregate state", nil)
+		return errorResponse(request, http.StatusConflict, "CMD_STATE_VIOLATION", "command not allowed in current aggregate state", nil)
 	default:
-		return errorResponse(http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
+		return errorResponse(request, http.StatusInternalServerError, "CMD_INTERNAL", fmt.Sprintf("internal error: %s", err), nil)
 	}
 }
 

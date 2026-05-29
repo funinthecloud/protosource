@@ -111,7 +111,7 @@ func (c *Client) Apply(ctx context.Context, routePath string, cmd proto.Message)
 	}
 
 	if resp.StatusCode >= 400 {
-		return nil, parseAPIError(resp.StatusCode, respBody)
+		return nil, parseAPIError(resp.StatusCode, resp.Header.Get("Content-Type"), respBody)
 	}
 
 	result := &responsev1.CommandResponse{}
@@ -183,7 +183,7 @@ func (c *Client) getInto(ctx context.Context, reqURL string, target proto.Messag
 	}
 
 	if resp.StatusCode >= 400 {
-		return parseAPIError(resp.StatusCode, respBody)
+		return parseAPIError(resp.StatusCode, resp.Header.Get("Content-Type"), respBody)
 	}
 
 	return c.unmarshal(respBody, resp.Header.Get("Content-Type"), target)

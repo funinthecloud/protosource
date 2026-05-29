@@ -10,10 +10,10 @@ import {
 } from "@bufbuild/protobuf";
 import type { AuthProvider } from "./auth.js";
 import { parseAPIError } from "./errors.js";
-import type { CommandResponse } from "./gen/response_v1_pb.js";
-import { CommandResponseSchema } from "./gen/response_v1_pb.js";
-import type { History } from "./gen/history_v1_pb.js";
-import { HistorySchema } from "./gen/history_v1_pb.js";
+import type { CommandResponse } from "./gen/funinthecloud/protosource/response/v1/response_v1_pb.js";
+import { CommandResponseSchema } from "./gen/funinthecloud/protosource/response/v1/response_v1_pb.js";
+import type { History } from "./gen/funinthecloud/protosource/history/v1/history_v1_pb.js";
+import { HistorySchema } from "./gen/funinthecloud/protosource/history/v1/history_v1_pb.js";
 
 export interface ClientOptions {
   /** Use JSON serialization instead of protobuf binary. */
@@ -75,8 +75,9 @@ export class ProtosourceClient {
     const resp = await this.fetch(url, { method: "POST", headers, body });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      throw parseAPIError(resp.status, text);
+      const contentType = resp.headers.get("Content-Type") ?? "";
+      const errBody = new Uint8Array(await resp.arrayBuffer());
+      throw parseAPIError(resp.status, contentType, errBody);
     }
 
     const contentType = resp.headers.get("Content-Type") ?? "";
@@ -137,8 +138,9 @@ export class ProtosourceClient {
     const resp = await this.fetch(url, { method: "GET", headers });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      throw parseAPIError(resp.status, text);
+      const contentType = resp.headers.get("Content-Type") ?? "";
+      const errBody = new Uint8Array(await resp.arrayBuffer());
+      throw parseAPIError(resp.status, contentType, errBody);
     }
 
     const contentType = resp.headers.get("Content-Type") ?? "";
