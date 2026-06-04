@@ -119,6 +119,10 @@ plugins:
     out: ts-gen
     opt:
       - target=ts
+      # Emit .js on relative sibling imports (e.g. record_v1_pb.js) — required
+      # for pure Node ESM ("type": "module") since module: ES2020 leaves
+      # specifiers verbatim. (moduleResolution: bundler hides the issue at build.)
+      - import_extension=js
   - local: protoc-gen-protosource-ts
     out: ts-gen
     opt:

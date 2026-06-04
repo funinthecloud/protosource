@@ -5,6 +5,31 @@ correspond to git tags (`vX.Y.Z`) which release both the proto module
 (`buf.build/funinthecloud/protosource`) and the npm package
 (`@protosource/client`).
 
+## Unreleased
+
+### Changed
+- Error responses are now first-class content-negotiated protos using the new
+  `funinthecloud.protosource.apierror.v1.Error` message (fields: `code`, `message`,
+  `detail`). Server handlers, Go `httpclient`, and TS `@protosource/client` all
+  use the same marshal/unmarshal path as success bodies (binary protobuf default;
+  JSON for debug). HTTP status code stays on the status line. Clients decode
+  according to the response `Content-Type` and fall back to `code: "UNKNOWN"`
+  wrapping the raw body for non-Error responses (e.g. load-balancer 503 pages or
+  HTML error gateways). Public `APIError` shape (`statusCode`/`code`/`message`/`detail`
+  or equivalent) is unchanged for callers.
+- TypeScript codegen now emits ESM-compatible sibling imports (e.g.
+  `.../record_v1_pb.js`) by default. Consumers must add
+  `import_extension=js` under the `protoc-gen-es` entry in their
+  `buf.gen.ts.yaml` (framework `buf.gen.ts.yaml`, quickstart, and consumer guide
+  updated). Without it, generated files fail to resolve at runtime under strict
+  Node ESM (`"type": "module"`).
+
+### Added
+- `proto/funinthecloud/protosource/apierror/v1/apierror_v1.proto` (and generated
+  Go/TS) — the single wire contract for all error bodies. This proto is published
+  with the rest of the framework protos (but is primarily consumed via the
+  provided client libraries).
+
 ## v0.3.8
 
 ### Added

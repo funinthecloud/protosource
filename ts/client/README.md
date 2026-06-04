@@ -52,7 +52,12 @@ Implement `AuthProvider` for custom auth schemes.
 
 ### `APIError`
 
-Thrown on non-2xx responses. Fields: `statusCode`, `code`, `message`, `detail`.
+Thrown on non-2xx responses. The wire body is an `apierror.v1.Error` (protobuf binary by default, JSON in debug mode); `statusCode` comes from the HTTP status line, not the body. Both success and error responses are content-negotiated the same way.
+
+Fields (plus the inherited `Error.message` which contains the formatted summary):
+- `statusCode: number`
+- `code: string` — e.g. `"CMD_VALIDATION"`, `"AUTHZ_FORBIDDEN"`, `"GET_NOT_FOUND"`
+- `detail: string` — optional additional info
 
 ### `ClientOptions`
 

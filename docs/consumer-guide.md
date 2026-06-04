@@ -156,7 +156,11 @@ plugins:
 plugins:
   - local: protoc-gen-es
     out: frontend/src/gen
-    opt: [target=ts]
+    opt:
+      - target=ts
+      # Emit .js on relative sibling imports — required for pure Node ESM
+      # ("type": "module") since module: ES2020 leaves specifiers verbatim.
+      - import_extension=js
     include_imports: true
   - local: protoc-gen-protosource-ts
     out: frontend/src/gen
@@ -328,6 +332,7 @@ export const thingClient = new ThingHTTPClient(client);
 - Server content-negotiates per request — there is no global server-side mode. A JSON client and a binary client can hit the same handler simultaneously.
 - Go CLI managers (`<aggregate>mgr`) use binary by default; pass `-json` to switch. Use this when piping output to `jq` for inspection.
 - The todoapp frontend currently sets `useJSON: true` because it ships as a debugging showcase. Real apps should omit the flag.
+- Error bodies are content-negotiated too. Non-2xx responses carry an `apierror.v1.Error` (`code`/`message`/`detail`) marshaled in the request's negotiated format — protobuf binary by default, JSON when opted in — with the HTTP status on the status line (not in the body). Both clients decode by `Content-Type` and fall back to a synthetic `UNKNOWN` error carrying the raw body when it isn't a valid Error (e.g. a plaintext LB 503 or HTML gateway page).
 
 **Spotting accidental JSON in prod:** open DevTools → Network → look at the request `Content-Type`. If it says `application/json`, someone left the flag on. There is no server-side log line for this — the request looks normal, just larger and slower.
 
@@ -341,7 +346,7 @@ const h    = await thingClient.history(id);
 
 For embedded message arguments (collection ADD/UPDATE), construct with `create(SchemaName, {...})` from `@bufbuild/protobuf` — see todoapp `App.tsx` `handleAddItem`. `bigint` is the runtime type for proto `int64`.
 
-Error handling: catch `APIError` from `@protosource/client` and branch on `statusCode` (404 for "not found", 401/403 for auth, 503 for `AUTHZ_UNAVAILABLE`).
+Error handling: catch `APIError` from `@protosource/client` (or Go `httpclient.APIError`) and branch on `statusCode` (404 for "not found", 401/403 for auth, 503 for `AUTHZ_UNAVAILABLE`). The `code`, `message`, and `detail` come from the `apierror.v1.Error` wire body (see wire format above).
 
 ---
 
