@@ -81,6 +81,23 @@ func (c *HTTPClient) SetShipping(ctx context.Context, id string, shippingAddress
 	return c.c.Apply(ctx, routePath, cmd)
 }
 
+// SetBilling sends the SetBilling command.
+func (c *HTTPClient) SetBilling(ctx context.Context, id string, billing *Billing) (responsev1.Responseer, error) {
+	cmd := &SetBilling{
+		Id:      id,
+		Billing: billing,
+	}
+	return c.c.Apply(ctx, routePath, cmd)
+}
+
+// ClearBilling sends the ClearBilling command.
+func (c *HTTPClient) ClearBilling(ctx context.Context, id string) (responsev1.Responseer, error) {
+	cmd := &ClearBilling{
+		Id: id,
+	}
+	return c.c.Apply(ctx, routePath, cmd)
+}
+
 // Place sends the Place command.
 func (c *HTTPClient) Place(ctx context.Context, id string, placedAt int64) (responsev1.Responseer, error) {
 	cmd := &Place{

@@ -68,6 +68,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"collectionKeyFieldGoName":   p.collectionKeyFieldGoName,
 		"aggregateFieldGoName":       p.aggregateFieldGoName,
 		"eventFieldGoName":           p.eventFieldGoName,
+		"commandEventArg":            p.commandEventArg,
 		"hasOpaqueAnnotations":       p.hasOpaqueAnnotations,
 		"opaqueKeyMappings":          p.opaqueKeyMappings,
 		"opaqueKeyPrefix":            p.opaqueKeyPrefix,
@@ -182,6 +183,32 @@ func (p *ProtosourceModule) aggregateHasField(eventField pgs.Field, aggregate pg
 		}
 	}
 	return false
+}
+
+// commandEventArg returns the Go expression passed to an event builder method
+// for eventField when emitting events from command cmd. If cmd has a field of
+// the same name, it is forwarded (m.GetX()); otherwise the field's zero value is
+// passed. The zero-value path supports "clear" events that carry an embedded
+// field the command intentionally omits — e.g. ClearBilling (no billing field)
+// emitting BillingCleared{billing: nil}, which On() copies to nil the field.
+func (p *ProtosourceModule) commandEventArg(eventField pgs.Field, cmd pgs.Message) string {
+	for _, f := range cmd.Fields() {
+		if f.Name() == eventField.Name() {
+			return "m.Get" + p.ctx.Name(eventField).String() + "()"
+		}
+	}
+	t := eventField.Type()
+	if t.IsRepeated() || t.IsMap() || t.IsEmbed() || t.ProtoType() == pgs.BytesT {
+		return "nil"
+	}
+	switch t.ProtoType() {
+	case pgs.StringT:
+		return `""`
+	case pgs.BoolT:
+		return "false"
+	default:
+		return "0" // numeric and enum (untyped 0 converts to the named type)
+	}
 }
 
 func (p *ProtosourceModule) messageOptions(m pgs.Message) *optionsv1.MessageOptions {
@@ -443,6 +470,9 @@ func isSingularEmbedField(f pgs.Field) bool {
 }
 
 // validateSingularEmbed enforces the singular embedded-message convention.
+//
+// DECISION: singular embeds are applied by field name (not type inference);
+// see docs/decisions/0001-singular-embedded-messages-by-name.md.
 //
 // A singular embedded message field on an event is applied to the aggregate by
 // the generated On() via a plain by-NAME copy (aggregate.Foo = e.GetFoo()), the
