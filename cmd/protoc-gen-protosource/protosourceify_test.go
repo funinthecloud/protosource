@@ -619,5 +619,24 @@ func TestValidateSingularEmbed_NameMismatch(t *testing.T) {
 	}
 }
 
+func TestValidateSingularEmbed_NameMismatch_MultipleCandidates(t *testing.T) {
+	f := loadTestProto(t, "singular_embed_dual.proto")
+	p := newModule()
+	agg := findMessage(f, "Account")
+	evt := findMessage(f, "ProfileSet")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+	// The aggregate has two Profile fields (primary, backup); the rename hint
+	// must list both, not an arbitrary one.
+	err := p.validateSingularEmbed(evt, agg)
+	if err == nil {
+		t.Fatal("expected error for name mismatch, got nil")
+	}
+	if !strings.Contains(err.Error(), "primary") || !strings.Contains(err.Error(), "backup") {
+		t.Errorf("error should list both candidate fields 'primary' and 'backup', got: %v", err)
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType

@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package test.singular_embed_dual;
+
+option go_package = "github.com/funinthecloud/protosource/test/singular_embed_dual;sedpb";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_ACTIVE      = 1;
+}
+
+// Aggregate with TWO singular embeds of the SAME type (Profile).
+message Account {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+  };
+  string  id        = 1;
+  int64   version   = 2;
+  int64   create_at = 3;
+  string  create_by = 4;
+  int64   modify_at = 5;
+  string  modify_by = 6;
+  State   state     = 7;
+  Profile primary   = 8;
+  Profile backup    = 9;
+}
+
+message Profile {
+  string display_name = 1;
+}
+
+// Carries a Profile under a name matching NEITHER aggregate field -> the rename
+// hint must list both candidates (primary, backup).
+message ProfileSet {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string  id      = 1;
+  int64   version = 2;
+  int64   at      = 3;
+  string  actor   = 4;
+  Profile config  = 5;
+}

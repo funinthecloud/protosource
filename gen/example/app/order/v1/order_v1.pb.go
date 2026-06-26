@@ -416,7 +416,8 @@ func (x *Tag) GetValue() string {
 // Billing is a singular embedded value object on the Order. It is set and
 // cleared by the by-name convention (no annotation): the BillingSet/
 // BillingCleared events carry a field literally named "billing", which On()
-// copies into Order.billing — populated to set, empty to clear.
+// copies into Order.billing — populated to set, unset (nil) to clear. Note a
+// present-but-empty &Billing{} is non-nil and would NOT clear.
 type Billing struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Method        string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`       // e.g. "card", "invoice"
@@ -1611,8 +1612,10 @@ func (x *BillingSet) GetBilling() *Billing {
 	return nil
 }
 
-// BillingCleared carries an empty same-named "billing" embed; the unconditional
-// by-name copy in On() resolves it to nil, clearing Order.billing.
+// BillingCleared declares a same-named "billing" embed but emits it unset (the
+// ClearBilling command carries no billing, so EmitEvents passes nil). On()'s
+// unconditional by-name copy then assigns nil, clearing Order.billing. The field
+// must be unset (nil) to clear — a present-but-empty &Billing{} would not.
 type BillingCleared struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`

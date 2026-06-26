@@ -290,21 +290,21 @@ message ProfileSet {
   Profile profile = 5;            // name matches Account.profile
 }
 
-// Clear: carry the same-named embed left empty.
+// Clear: declare the same-named embed but emit it unset (nil).
 message ProfileCleared {
   option (...).event = {};
   // ... contract fields 1-4 ...
-  Profile profile = 5;            // always empty -> nils the field
+  Profile profile = 5;            // emitted unset (nil) -> nils the field
 }
 ```
 
 **Generated On():**
 - Set: `aggregate.Profile = e.GetProfile()` — the populated message is copied in.
-- Clear: `aggregate.Profile = e.GetProfile()` — the empty message resolves to `nil`, clearing the field (the copy is unconditional).
+- Clear: `aggregate.Profile = e.GetProfile()` — when the event field is **unset**, `GetProfile()` returns `nil`, clearing the field (the copy is unconditional). A clear command that carries no embed emits the field unset, so this just works. Note: a present-but-empty `&Profile{}` is **non-nil** and would **not** clear — clearing requires the field to be unset (nil).
 
 **Rules:**
 - The event's embedded field name **must match** the aggregate field name. Matching is by name, never by type.
-- A "set" event carries the populated message; a "clear" event carries the same-named field left empty.
+- A "set" event carries the populated message; a "clear" event leaves the same-named field **unset (nil)** — not present-but-empty.
 - If an event carries an embedded message of a type that exists on the aggregate but under a **different** name, codegen **fails** with a rename hint (otherwise the assignment would silently never happen — the original GH#96 failure mode). See `validateSingularEmbed` in `protosourceify.go`.
 - Two aggregate fields of the same message type are fine — they are distinguished by name (`SetOidc{Profile oidc}` vs `SetBackup{Profile backup}`).
 

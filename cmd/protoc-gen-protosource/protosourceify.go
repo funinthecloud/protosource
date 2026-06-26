@@ -491,11 +491,12 @@ func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Messa
 		return nil
 	}
 	aggNames := map[string]bool{}
-	aggByFQN := map[string]string{} // embed type FQN -> aggregate field name (for the hint)
+	aggByFQN := map[string][]string{} // embed type FQN -> aggregate field name(s) of that type
 	for _, f := range agg.Fields() {
 		aggNames[f.Name().String()] = true
 		if isSingularEmbedField(f) {
-			aggByFQN[f.Type().Embed().FullyQualifiedName()] = f.Name().String()
+			fqn := f.Type().Embed().FullyQualifiedName()
+			aggByFQN[fqn] = append(aggByFQN[fqn], f.Name().String())
 		}
 	}
 	for _, ef := range evt.Fields() {
@@ -505,13 +506,25 @@ func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Messa
 		if aggNames[ef.Name().String()] {
 			continue // name matches an aggregate field — On() applies it by name
 		}
-		// Name doesn't match. If the aggregate has a singular embed of the same
-		// type under a different name, this is almost certainly a misnamed field.
-		if target, ok := aggByFQN[ef.Type().Embed().FullyQualifiedName()]; ok {
+		// Name doesn't match. If the aggregate has one or more singular embeds of
+		// the same type under a different name, this is almost certainly a
+		// misnamed field. List every candidate so the hint is unambiguous even
+		// when the aggregate has multiple fields of that type.
+		if targets, ok := aggByFQN[ef.Type().Embed().FullyQualifiedName()]; ok {
+			var hint string
+			if len(targets) == 1 {
+				hint = fmt.Sprintf("%q", targets[0])
+			} else {
+				quoted := make([]string, len(targets))
+				for i, t := range targets {
+					quoted[i] = fmt.Sprintf("%q", t)
+				}
+				hint = "one of " + strings.Join(quoted, ", ")
+			}
 			return fmt.Errorf(
-				"event %s: embedded field %q (type %s) will not be applied to aggregate %s: singular embedded fields are matched by field name and no aggregate field is named %q; rename the event field to %q to populate %s.%s",
+				"event %s: embedded field %q (type %s) will not be applied to aggregate %s: singular embedded fields are matched by field name and no aggregate field is named %q; rename the event field to match %s",
 				evt.Name(), ef.Name(), ef.Type().Embed().Name(), agg.Name(),
-				ef.Name(), target, agg.Name(), target)
+				ef.Name(), hint)
 		}
 	}
 	return nil

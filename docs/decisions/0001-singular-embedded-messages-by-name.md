@@ -26,16 +26,18 @@ field name matches the aggregate field — and that the inference was redundant.
 
 Apply singular embedded message fields by the **same by-name mechanism used for
 scalars**. The convention: name the event's embedded field to match the aggregate
-field. A "set" event carries the populated message; a "clear" event carries the
-same-named field left empty, and `On()`'s unconditional copy nils it. No new
-annotation, no type inference, no template branch for the set/clear itself.
+field. A "set" event carries the populated message; a "clear" event leaves the
+same-named field **unset (nil)**, and `On()`'s unconditional copy assigns that
+nil. (A present-but-empty `&Msg{}` is non-nil and would not clear — clearing
+depends on the field being unset.) No new annotation, no type inference, no
+template branch for the set/clear itself.
 
 Two supporting pieces were added:
 - `validateSingularEmbed` fails codegen when an event carries an embedded message
   of a type present on the aggregate but under a **different** field name (the
   silent no-op that was the original GH#96 symptom), with a rename hint.
 - `commandEventArg` lets `EmitEvents` pass a zero value when a command lacks an
-  event field, so a clear command (no embed) can emit a clear event (empty embed).
+  event field, so a clear command (no embed) emits the event field unset (nil).
 
 ## Rejected alternatives
 
@@ -59,13 +61,14 @@ Two supporting pieces were added:
 - Easier: singular embeds need zero framework code on the `On()` side; the
   ambiguity class disappears (field names are unique by construction); two
   same-typed fields are trivially distinguished by name.
-- Harder / risk: "clear" is opt-in by convention — an event must carry an empty
-  same-named field, and `validateSingularEmbed` *cannot* enforce that a clear
-  event was written (an event that omits the field is indistinguishable from one
-  that intentionally doesn't touch it). This is documented, not validated.
+- Harder / risk: "clear" is opt-in by convention — a clear event declares the
+  same-named field and emits it **unset (nil)** (a present-but-empty message does
+  not clear), and `validateSingularEmbed` *cannot* enforce that a clear event was
+  written (an event that omits the field is indistinguishable from one that
+  intentionally doesn't touch it). This is documented, not validated.
 - Load-bearing: the set/clear behavior depends on the generated copy being
   **unconditional**. `TestBilling_SetThenClear` (order example) guards it through
   Apply→Load so a future nil-guard "optimization" can't silently break clears.
 - Cross-repo: protosource-auth must rename `OIDCConfigSet.config` → `oidc` and add
-  an empty `OIDCConfig oidc` to `OIDCConfigCleared`; the validator turns the first
-  into a build failure (good), but not the second.
+  an `OIDCConfig oidc` field to `OIDCConfigCleared` that is emitted unset (nil);
+  the validator turns the first into a build failure (good), but not the second.
