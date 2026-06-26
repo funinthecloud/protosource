@@ -186,11 +186,18 @@ func (p *ProtosourceModule) aggregateHasField(eventField pgs.Field, aggregate pg
 }
 
 // commandEventArg returns the Go expression passed to an event builder method
-// for eventField when emitting events from command cmd. If cmd has a field of
-// the same name, it is forwarded (m.GetX()); otherwise the field's zero value is
-// passed. The zero-value path supports "clear" events that carry an embedded
-// field the command intentionally omits — e.g. ClearBilling (no billing field)
-// emitting BillingCleared{billing: nil}, which On() copies to nil the field.
+// for eventField when emitting events from command cmd.
+//
+// If cmd has a field of the same name, it is forwarded (m.GetX()). If it does
+// not, behavior depends on the event field's type:
+//   - Nilable types (embedded message, bytes, map, repeated) emit nil. This is
+//     the "clear" pattern: e.g. ClearBilling (no billing field) emits
+//     BillingCleared{billing: nil}, which On() copies to nil the field.
+//   - Scalar types (string/bool/numeric/enum) fall through to a command getter
+//     anyway, which does NOT exist — so codegen fails to compile. This preserves
+//     the invariant that an event's scalar payload fields must line up with the
+//     command's, catching an accidentally-dropped field at build time instead of
+//     silently emitting a zero value.
 func (p *ProtosourceModule) commandEventArg(eventField pgs.Field, cmd pgs.Message) string {
 	for _, f := range cmd.Fields() {
 		if f.Name() == eventField.Name() {
@@ -204,14 +211,9 @@ func (p *ProtosourceModule) commandEventArg(eventField pgs.Field, cmd pgs.Messag
 	if t.IsRepeated() || t.IsMap() || t.IsEmbed() || t.ProtoType() == pgs.BytesT {
 		return "nil"
 	}
-	switch t.ProtoType() {
-	case pgs.StringT:
-		return `""`
-	case pgs.BoolT:
-		return "false"
-	default:
-		return "0" // numeric and enum (untyped 0 converts to the named type)
-	}
+	// Scalar field with no matching command field: emit a getter that does not
+	// exist on the command so the generated code fails to compile (fail-fast).
+	return "m.Get" + p.ctx.Name(eventField).String() + "()"
 }
 
 func (p *ProtosourceModule) messageOptions(m pgs.Message) *optionsv1.MessageOptions {

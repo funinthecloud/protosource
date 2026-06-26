@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package test.command_event_arg;
+
+option go_package = "github.com/funinthecloud/protosource/test/command_event_arg;ceapb";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+message Thing {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+  };
+  string  id        = 1;
+  int64   version   = 2;
+  int64   create_at = 3;
+  string  create_by = 4;
+  int64   modify_at = 5;
+  string  modify_by = 6;
+  string  note      = 7;
+  Profile profile   = 8;
+}
+
+message Profile {
+  string display_name = 1;
+}
+
+// Command with no domain fields (only the id/actor contract fields).
+message DoThing {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).command = {
+    produces_events: [ "ThingDone" ]
+    lifecycle: COMMAND_LIFECYCLE_MUTATION
+  };
+  string id    = 1;
+  string actor = 2;
+}
+
+// Event carrying a scalar (note) and an embed (profile) absent on DoThing.
+message ThingDone {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string  id      = 1;
+  int64   version = 2;
+  int64   at      = 3;
+  string  actor   = 4;
+  string  note    = 5;
+  Profile profile = 6;
+}

@@ -638,5 +638,40 @@ func TestValidateSingularEmbed_NameMismatch_MultipleCandidates(t *testing.T) {
 	}
 }
 
+func fieldByName(t *testing.T, m pgs.Message, name string) pgs.Field {
+	t.Helper()
+	for _, f := range m.Fields() {
+		if f.Name().String() == name {
+			return f
+		}
+	}
+	t.Fatalf("field %q not found on %s", name, m.Name())
+	return nil
+}
+
+func TestCommandEventArg(t *testing.T) {
+	f := loadTestProto(t, "command_event_arg.proto")
+	p := newModule()
+	cmd := findMessage(f, "DoThing")
+	evt := findMessage(f, "ThingDone")
+	if cmd == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+
+	// Field present on the command -> forwarded getter.
+	if got := p.commandEventArg(fieldByName(t, evt, "actor"), cmd); got != "m.GetActor()" {
+		t.Errorf("actor (present): got %q, want m.GetActor()", got)
+	}
+	// Embedded message absent on the command -> nil (the clear pattern).
+	if got := p.commandEventArg(fieldByName(t, evt, "profile"), cmd); got != "nil" {
+		t.Errorf("profile (absent embed): got %q, want nil", got)
+	}
+	// Scalar absent on the command -> a command getter that does not exist, so
+	// codegen fails to compile rather than silently emitting a zero value.
+	if got := p.commandEventArg(fieldByName(t, evt, "note"), cmd); got != "m.GetNote()" {
+		t.Errorf("note (absent scalar): got %q, want m.GetNote() (fail-fast)", got)
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType
