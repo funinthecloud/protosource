@@ -42,7 +42,8 @@ message ProfileSet {
   Profile profile = 5;
 }
 
-// Clear event: carries the same-named embed left empty -> On() nils the field.
+// Clear event: declares the same-named embed; emitted unset (nil), On() nils the
+// field. (A present-but-empty Profile{} is non-nil and would not clear.)
 message ProfileCleared {
   option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
   };

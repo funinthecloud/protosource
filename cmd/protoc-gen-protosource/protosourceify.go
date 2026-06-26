@@ -194,7 +194,10 @@ func (p *ProtosourceModule) aggregateHasField(eventField pgs.Field, aggregate pg
 func (p *ProtosourceModule) commandEventArg(eventField pgs.Field, cmd pgs.Message) string {
 	for _, f := range cmd.Fields() {
 		if f.Name() == eventField.Name() {
-			return "m.Get" + p.ctx.Name(eventField).String() + "()"
+			// Getter name is derived from the command's own field (m is the
+			// command); the event field's GoName can differ if either message
+			// triggers protoc-gen-go name disambiguation.
+			return "m.Get" + p.ctx.Name(f).String() + "()"
 		}
 	}
 	t := eventField.Type()

@@ -31,7 +31,8 @@ message Profile {
   string locale       = 2;
 }
 
-// Set event: carries a populated, same-named embed -> On() copies it in.
+// Set event: the embed is DELIBERATELY misnamed "config" (the aggregate field
+// is "profile") to exercise validateSingularEmbed's failure path.
 message ProfileSet {
   option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
   };
@@ -42,7 +43,8 @@ message ProfileSet {
   Profile config  = 5;
 }
 
-// Clear event: carries the same-named embed left empty -> On() nils the field.
+// Clear event: also deliberately misnamed "config" (not "profile") — same
+// failure path as the set event above.
 message ProfileCleared {
   option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
   };
