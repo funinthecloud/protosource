@@ -533,7 +533,7 @@ func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Messa
 			}
 			return fmt.Errorf(
 				"event %s: embedded field %q (type %s) will not be applied to aggregate %s: singular embedded fields are matched by field name and no aggregate field is named %q; rename the event field to match %s",
-				evt.Name(), ef.Name(), ef.Type().Embed().Name(), agg.Name(),
+				evt.Name(), ef.Name(), ef.Type().Embed().FullyQualifiedName(), agg.Name(),
 				ef.Name(), hint)
 		}
 	}
