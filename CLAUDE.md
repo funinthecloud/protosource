@@ -270,6 +270,44 @@ message ItemRemoved {
 - Commands with collection events carry the embedded message type (e.g., `LineItem item = 3`), parsed from JSON in the generated CLI
 - Multiple independent collections on one aggregate are supported (each with its own events)
 
+### Singular Embedded Message Fields
+
+For a singular (non-collection) embedded message on an aggregate — e.g. an `OidcConfig oidc = 8` field — there is **no annotation and no type inference**. The generated `On()` applies embedded message fields the same way it applies scalars: by **field name**. So the convention is simply to name the event's embedded field to match the aggregate's field.
+
+```protobuf
+message Account {
+  option (...).aggregate = {};
+  // ... contract fields ...
+  Profile profile = 8;            // singular embedded message
+}
+
+message Profile { string display_name = 1; string locale = 2; }
+
+// Set: carry a populated, same-named embed.
+message ProfileSet {
+  option (...).event = {};
+  // ... contract fields 1-4 ...
+  Profile profile = 5;            // name matches Account.profile
+}
+
+// Clear: carry the same-named embed left empty.
+message ProfileCleared {
+  option (...).event = {};
+  // ... contract fields 1-4 ...
+  Profile profile = 5;            // always empty -> nils the field
+}
+```
+
+**Generated On():**
+- Set: `aggregate.Profile = e.GetProfile()` — the populated message is copied in.
+- Clear: `aggregate.Profile = e.GetProfile()` — the empty message resolves to `nil`, clearing the field (the copy is unconditional).
+
+**Rules:**
+- The event's embedded field name **must match** the aggregate field name. Matching is by name, never by type.
+- A "set" event carries the populated message; a "clear" event carries the same-named field left empty.
+- If an event carries an embedded message of a type that exists on the aggregate but under a **different** name, codegen **fails** with a rename hint (otherwise the assignment would silently never happen — the original GH#96 failure mode). See `validateSingularEmbed` in `protosourceify.go`.
+- Two aggregate fields of the same message type are fine — they are distinguished by name (`SetOidc{Profile oidc}` vs `SetBackup{Profile backup}`).
+
 ### PostApplyHook (Derived Fields)
 
 For computed/derived fields (totals, counts, etc.), implement `AfterOn()` on the aggregate in a hand-written file:

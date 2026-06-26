@@ -577,5 +577,47 @@ func TestValidateProjectionFields_MapValueMessageMismatch(t *testing.T) {
 	}
 }
 
+// --- Singular embedded message convention (by-name) ---
+
+func TestValidateSingularEmbed_NameMatch(t *testing.T) {
+	f := loadTestProto(t, "singular_embed_valid.proto")
+	p := newModule()
+	agg := findMessage(f, "Account")
+	if agg == nil {
+		t.Fatal("aggregate Account not found")
+	}
+	// Both set and clear events name their embed field to match the aggregate
+	// field (profile), so On()'s by-name copy applies them — no error.
+	for _, name := range []string{"ProfileSet", "ProfileCleared"} {
+		evt := findMessage(f, name)
+		if evt == nil {
+			t.Fatalf("event %s not found", name)
+		}
+		if err := p.validateSingularEmbed(evt, agg); err != nil {
+			t.Errorf("validateSingularEmbed(%s) unexpected error: %v", name, err)
+		}
+	}
+}
+
+func TestValidateSingularEmbed_NameMismatch(t *testing.T) {
+	f := loadTestProto(t, "singular_embed_mismatch.proto")
+	p := newModule()
+	agg := findMessage(f, "Account")
+	evt := findMessage(f, "ProfileSet")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+	// Event carries a Profile under the wrong name ("config"); the aggregate
+	// field is "profile". The by-name copy would silently skip it, so codegen
+	// must fail with a rename hint.
+	err := p.validateSingularEmbed(evt, agg)
+	if err == nil {
+		t.Fatal("expected error for name mismatch, got nil")
+	}
+	if !strings.Contains(err.Error(), "config") || !strings.Contains(err.Error(), "profile") {
+		t.Errorf("error should name the offending field 'config' and the target 'profile', got: %v", err)
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType

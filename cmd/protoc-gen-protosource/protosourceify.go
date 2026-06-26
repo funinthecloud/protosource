@@ -435,6 +435,58 @@ func (p *ProtosourceModule) eventCollectionKeyField(m pgs.Message) string {
 	return cm.GetKeyField()
 }
 
+// isSingularEmbedField reports whether f is a singular (non-collection) embedded
+// message field — an embed that is neither a map nor a repeated field.
+func isSingularEmbedField(f pgs.Field) bool {
+	t := f.Type()
+	return t.IsEmbed() && !t.IsMap() && !t.IsRepeated()
+}
+
+// validateSingularEmbed enforces the singular embedded-message convention.
+//
+// A singular embedded message field on an event is applied to the aggregate by
+// the generated On() via a plain by-NAME copy (aggregate.Foo = e.GetFoo()), the
+// same mechanism used for scalar fields. A "set" event carries the populated
+// message; a "clear" event carries the same-named field left empty (the
+// unconditional copy then nils the aggregate field). There is intentionally no
+// type-based inference.
+//
+// The failure mode this guards against: an event carries an embedded message of
+// the right type but under a different field name than the aggregate uses. The
+// by-name copy then silently does nothing, leaving the aggregate field zero
+// after Apply/Load (the original GH#96 symptom). Rather than fail at runtime, we
+// fail codegen with a rename hint. Collection events (map add/remove) are exempt.
+func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Message) error {
+	if p.eventCollectionMapping(evt) != nil {
+		return nil
+	}
+	aggNames := map[string]bool{}
+	aggByFQN := map[string]string{} // embed type FQN -> aggregate field name (for the hint)
+	for _, f := range agg.Fields() {
+		aggNames[f.Name().String()] = true
+		if isSingularEmbedField(f) {
+			aggByFQN[f.Type().Embed().FullyQualifiedName()] = f.Name().String()
+		}
+	}
+	for _, ef := range evt.Fields() {
+		if !isSingularEmbedField(ef) {
+			continue
+		}
+		if aggNames[ef.Name().String()] {
+			continue // name matches an aggregate field — On() applies it by name
+		}
+		// Name doesn't match. If the aggregate has a singular embed of the same
+		// type under a different name, this is almost certainly a misnamed field.
+		if target, ok := aggByFQN[ef.Type().Embed().FullyQualifiedName()]; ok {
+			return fmt.Errorf(
+				"event %s: embedded field %q (type %s) will not be applied to aggregate %s: singular embedded fields are matched by field name and no aggregate field is named %q; rename the event field to %q to populate %s.%s",
+				evt.Name(), ef.Name(), ef.Type().Embed().Name(), agg.Name(),
+				ef.Name(), target, agg.Name(), target)
+		}
+	}
+	return nil
+}
+
 // validateCollectionMapping validates the collection annotation on an event message.
 // Collections use map<string, Message> fields on the aggregate.
 func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.Message, f pgs.File) error {
@@ -1100,6 +1152,10 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 			}
 			if agg != nil {
 				if err := p.validateCollectionMapping(m, agg, f); err != nil {
+					p.Fail(err.Error())
+					return
+				}
+				if err := p.validateSingularEmbed(m, agg); err != nil {
 					p.Fail(err.Error())
 					return
 				}
