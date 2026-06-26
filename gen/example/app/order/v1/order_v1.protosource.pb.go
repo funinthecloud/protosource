@@ -83,6 +83,7 @@ func (aggregate *Order) RestoreSnapshot(snapshot *Snapshot) {
 	aggregate.PlacedAt = snapshot.GetSnapshot().GetPlacedAt()
 	aggregate.Items = snapshot.GetSnapshot().GetItems()
 	aggregate.Tags = snapshot.GetSnapshot().GetTags()
+	aggregate.Billing = snapshot.GetSnapshot().GetBilling()
 	aggregate.Version = snapshot.GetVersion()
 }
 func (b *Builder) Snapshot(aggregate *Order) {
@@ -148,6 +149,12 @@ func (aggregate *Order) On(event protosource.Event) error {
 	case *ShippingSet:
 		aggregate.setModified(e)
 		aggregate.ShippingAddress = e.GetShippingAddress()
+	case *BillingSet:
+		aggregate.setModified(e)
+		aggregate.Billing = e.GetBilling()
+	case *BillingCleared:
+		aggregate.setModified(e)
+		aggregate.Billing = e.GetBilling()
 	case *Placed:
 		aggregate.setModified(e)
 		aggregate.PlacedAt = e.GetPlacedAt()
@@ -567,6 +574,58 @@ func (m *SetShipping) EmitEvents(aggregate protosource.Aggregate) []protosource.
 	return b.Events
 }
 
+func (m *SetBilling) CommandName() string {
+	return "SetBilling"
+}
+
+func (m *SetBilling) ProtoValidate() error {
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
+}
+
+func (m *SetBilling) ValidateVersion(version int64) error {
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
+}
+func (m *SetBilling) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Order)
+	b.BillingSet(m.GetActor(), m.GetBilling())
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	return b.Events
+}
+
+func (m *ClearBilling) CommandName() string {
+	return "ClearBilling"
+}
+
+func (m *ClearBilling) ProtoValidate() error {
+	if err := validator().Validate(m); err != nil {
+		return fmt.Errorf("command %s: %w: %w", m.CommandName(), protosource.ErrValidationFailed, err)
+	}
+	return nil
+}
+
+func (m *ClearBilling) ValidateVersion(version int64) error {
+	if version == 0 {
+		return fmt.Errorf("command %s requires an existing aggregate (version > 0), got version 0: %w", m.CommandName(), protosource.ErrNotCreatedYet)
+	}
+	return nil
+}
+func (m *ClearBilling) EmitEvents(aggregate protosource.Aggregate) []protosource.Event {
+	b := NewBuilder(m.GetId(), aggregate.GetVersion())
+	a := proto.Clone(aggregate).(*Order)
+	b.BillingCleared(m.GetActor(), nil)
+	_ = a.On(b.Events[len(b.Events)-1]) // safe: On only errors on unhandled event types, and we only emit events defined in this file
+	b.Snapshot(a)                       // Snapshot calls AfterOn() internally only when a snapshot is actually emitted
+	return b.Events
+}
+
 func (m *Place) CommandName() string {
 	return "Place"
 }
@@ -727,6 +786,38 @@ func (b *Builder) ShippingSet(Actor string, ShippingAddress string) {
 		Id:              b.id,
 		Actor:           Actor,
 		ShippingAddress: ShippingAddress,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
+}
+
+func (m *BillingSet) EventName() string {
+	return "BillingSet"
+}
+
+func (b *Builder) BillingSet(Actor string, Billing *Billing) {
+	event := &BillingSet{
+		Id:      b.id,
+		Actor:   Actor,
+		Billing: Billing,
+
+		Version: b.nextVersion(),
+		At:      protosource.NowMicros(),
+	}
+	b.Events = append(b.Events, event)
+}
+
+func (m *BillingCleared) EventName() string {
+	return "BillingCleared"
+}
+
+func (b *Builder) BillingCleared(Actor string, Billing *Billing) {
+	event := &BillingCleared{
+		Id:      b.id,
+		Actor:   Actor,
+		Billing: Billing,
 
 		Version: b.nextVersion(),
 		At:      protosource.NowMicros(),

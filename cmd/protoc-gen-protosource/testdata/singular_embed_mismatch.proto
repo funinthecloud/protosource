@@ -1,0 +1,56 @@
+syntax = "proto3";
+
+package test.singular_embed_mismatch;
+
+option go_package = "github.com/funinthecloud/protosource/test/singular_embed_mismatch;sevmpb";
+
+import "funinthecloud/protosource/options/v1/options_v1.proto";
+
+option (funinthecloud.protosource.options.v1.protosource_file).enabled = true;
+
+enum State {
+  STATE_UNSPECIFIED = 0;
+  STATE_ACTIVE      = 1;
+}
+
+message Account {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).aggregate = {
+  };
+  string  id        = 1;
+  int64   version   = 2;
+  int64   create_at = 3;
+  string  create_by = 4;
+  int64   modify_at = 5;
+  string  modify_by = 6;
+  State   state     = 7;
+  Profile profile   = 8;  // singular embedded message
+}
+
+message Profile {
+  string display_name = 1;
+  string locale       = 2;
+}
+
+// Set event: the embed is DELIBERATELY misnamed "config" (the aggregate field
+// is "profile") to exercise validateSingularEmbed's failure path.
+message ProfileSet {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string  id      = 1;
+  int64   version = 2;
+  int64   at      = 3;
+  string  actor   = 4;
+  Profile config  = 5;
+}
+
+// Clear event: also deliberately misnamed "config" (not "profile") — same
+// failure path as the set event above.
+message ProfileCleared {
+  option (funinthecloud.protosource.options.v1.protosource_message_type).event = {
+  };
+  string  id      = 1;
+  int64   version = 2;
+  int64   at      = 3;
+  string  actor   = 4;
+  Profile config  = 5;
+}

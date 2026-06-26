@@ -65,6 +65,8 @@ func (h *Handler) RegisterRoutes(router *protosource.Router) {
 	router.Handle("POST", "example/app/order/v1/addtag", h.HandleAddTag)
 	router.Handle("POST", "example/app/order/v1/removetag", h.HandleRemoveTag)
 	router.Handle("POST", "example/app/order/v1/setshipping", h.HandleSetShipping)
+	router.Handle("POST", "example/app/order/v1/setbilling", h.HandleSetBilling)
+	router.Handle("POST", "example/app/order/v1/clearbilling", h.HandleClearBilling)
 	router.Handle("POST", "example/app/order/v1/place", h.HandlePlace)
 	router.Handle("POST", "example/app/order/v1/cancel", h.HandleCancel)
 	router.Handle("GET", "example/app/order/v1/load/{id}", h.HandleLoad)
@@ -292,6 +294,88 @@ func (h *Handler) HandleSetShipping(ctx context.Context, request protosource.Req
 	}
 
 	cmd := &SetShipping{}
+	if err := unmarshalCommand(request, cmd); err != nil {
+		return errorResponse(request, http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
+	}
+
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above.
+	// Never trust an actor field coming from the wire
+	// — it would let any caller spoof any identity.
+	cmd.Actor = actor
+
+	version, err := h.repo.Apply(ctx, cmd)
+	if err != nil {
+		return commandErrorResponse(request, err)
+	}
+
+	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
+	body, contentType, err := marshalResponse(request, resp)
+	if err != nil {
+		return errorResponse(request, http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+	}
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
+	}
+}
+
+// HandleSetBilling processes a SetBilling command.
+func (h *Handler) HandleSetBilling(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.order.v1.SetBilling")
+	if err != nil {
+		return authzErrorResponse(request, err)
+	}
+
+	// Actor must be extracted by the Authorizer and put into ctx.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		return errorResponse(request, http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
+	}
+
+	cmd := &SetBilling{}
+	if err := unmarshalCommand(request, cmd); err != nil {
+		return errorResponse(request, http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
+	}
+
+	// Overwrite any Actor the client supplied in the command payload
+	// with the identity resolved above.
+	// Never trust an actor field coming from the wire
+	// — it would let any caller spoof any identity.
+	cmd.Actor = actor
+
+	version, err := h.repo.Apply(ctx, cmd)
+	if err != nil {
+		return commandErrorResponse(request, err)
+	}
+
+	resp := &responsev1.CommandResponse{Id: cmd.GetId(), Version: version}
+	body, contentType, err := marshalResponse(request, resp)
+	if err != nil {
+		return errorResponse(request, http.StatusInternalServerError, "CMD_MARSHAL", "failed to serialize response", err)
+	}
+	return protosource.Response{
+		StatusCode: http.StatusOK,
+		Body:       string(body),
+		Headers:    map[string]string{"Content-Type": contentType},
+	}
+}
+
+// HandleClearBilling processes a ClearBilling command.
+func (h *Handler) HandleClearBilling(ctx context.Context, request protosource.Request) protosource.Response {
+	ctx, err := h.authorizer.Authorize(ctx, request, "example.app.order.v1.ClearBilling")
+	if err != nil {
+		return authzErrorResponse(request, err)
+	}
+
+	// Actor must be extracted by the Authorizer and put into ctx.
+	actor := authz.UserIDFromContext(ctx)
+	if actor == "" {
+		return errorResponse(request, http.StatusUnauthorized, "CMD_NO_ACTOR", "no actor identity found", nil)
+	}
+
+	cmd := &ClearBilling{}
 	if err := unmarshalCommand(request, cmd); err != nil {
 		return errorResponse(request, http.StatusBadRequest, "CMD_UNMARSHAL", "invalid request body", err)
 	}

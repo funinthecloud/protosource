@@ -7,6 +7,7 @@
 package orderv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/funinthecloud/protosource/gen/options/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -100,6 +101,7 @@ type Order struct {
 	PlacedAt        int64                  `protobuf:"varint,13,opt,name=placed_at,json=placedAt,proto3" json:"placed_at,omitempty"`
 	Items           map[string]*LineItem   `protobuf:"bytes,14,rep,name=items,proto3" json:"items,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	Tags            map[string]*Tag        `protobuf:"bytes,15,rep,name=tags,proto3" json:"tags,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Billing         *Billing               `protobuf:"bytes,16,opt,name=billing,proto3" json:"billing,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -235,6 +237,13 @@ func (x *Order) GetItems() map[string]*LineItem {
 func (x *Order) GetTags() map[string]*Tag {
 	if x != nil {
 		return x.Tags
+	}
+	return nil
+}
+
+func (x *Order) GetBilling() *Billing {
+	if x != nil {
+		return x.Billing
 	}
 	return nil
 }
@@ -405,6 +414,63 @@ func (x *Tag) GetValue() string {
 	return ""
 }
 
+// Billing is a singular embedded value object on the Order. It is set and
+// cleared by the by-name convention (no annotation): the BillingSet/
+// BillingCleared events carry a field literally named "billing", which On()
+// copies into Order.billing — populated to set, unset (nil) to clear. Note a
+// present-but-empty &Billing{} is non-nil and would NOT clear.
+type Billing struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Method        string                 `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`       // e.g. "card", "invoice"
+	Reference     string                 `protobuf:"bytes,2,opt,name=reference,proto3" json:"reference,omitempty"` // opaque payment reference
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Billing) Reset() {
+	*x = Billing{}
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Billing) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Billing) ProtoMessage() {}
+
+func (x *Billing) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Billing.ProtoReflect.Descriptor instead.
+func (*Billing) Descriptor() ([]byte, []int) {
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *Billing) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *Billing) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
 type Create struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -417,7 +483,7 @@ type Create struct {
 
 func (x *Create) Reset() {
 	*x = Create{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[4]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -429,7 +495,7 @@ func (x *Create) String() string {
 func (*Create) ProtoMessage() {}
 
 func (x *Create) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[4]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -442,7 +508,7 @@ func (x *Create) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Create.ProtoReflect.Descriptor instead.
 func (*Create) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{4}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *Create) GetId() string {
@@ -484,7 +550,7 @@ type AddItem struct {
 
 func (x *AddItem) Reset() {
 	*x = AddItem{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[5]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -496,7 +562,7 @@ func (x *AddItem) String() string {
 func (*AddItem) ProtoMessage() {}
 
 func (x *AddItem) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[5]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -509,7 +575,7 @@ func (x *AddItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddItem.ProtoReflect.Descriptor instead.
 func (*AddItem) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{5}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AddItem) GetId() string {
@@ -544,7 +610,7 @@ type RemoveItem struct {
 
 func (x *RemoveItem) Reset() {
 	*x = RemoveItem{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[6]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -556,7 +622,7 @@ func (x *RemoveItem) String() string {
 func (*RemoveItem) ProtoMessage() {}
 
 func (x *RemoveItem) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[6]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -569,7 +635,7 @@ func (x *RemoveItem) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveItem.ProtoReflect.Descriptor instead.
 func (*RemoveItem) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{6}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RemoveItem) GetId() string {
@@ -604,7 +670,7 @@ type AddTag struct {
 
 func (x *AddTag) Reset() {
 	*x = AddTag{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -616,7 +682,7 @@ func (x *AddTag) String() string {
 func (*AddTag) ProtoMessage() {}
 
 func (x *AddTag) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[7]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -629,7 +695,7 @@ func (x *AddTag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddTag.ProtoReflect.Descriptor instead.
 func (*AddTag) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{7}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AddTag) GetId() string {
@@ -664,7 +730,7 @@ type RemoveTag struct {
 
 func (x *RemoveTag) Reset() {
 	*x = RemoveTag{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -676,7 +742,7 @@ func (x *RemoveTag) String() string {
 func (*RemoveTag) ProtoMessage() {}
 
 func (x *RemoveTag) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[8]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -689,7 +755,7 @@ func (x *RemoveTag) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveTag.ProtoReflect.Descriptor instead.
 func (*RemoveTag) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{8}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *RemoveTag) GetId() string {
@@ -724,7 +790,7 @@ type SetShipping struct {
 
 func (x *SetShipping) Reset() {
 	*x = SetShipping{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -736,7 +802,7 @@ func (x *SetShipping) String() string {
 func (*SetShipping) ProtoMessage() {}
 
 func (x *SetShipping) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[9]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -749,7 +815,7 @@ func (x *SetShipping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetShipping.ProtoReflect.Descriptor instead.
 func (*SetShipping) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{9}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *SetShipping) GetId() string {
@@ -773,6 +839,123 @@ func (x *SetShipping) GetShippingAddress() string {
 	return ""
 }
 
+type SetBilling struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Actor string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	// required: SetBilling must carry a populated embed. Without this, a
+	// SetBilling with billing unset would pass ProtoValidate and emit
+	// BillingSet{billing=nil}, which On() copies — silently clearing
+	// Order.billing under a "set" event. Clearing is the explicit ClearBilling
+	// command's job. See docs/decisions/0001-singular-embedded-messages-by-name.md.
+	Billing       *Billing `protobuf:"bytes,3,opt,name=billing,proto3" json:"billing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetBilling) Reset() {
+	*x = SetBilling{}
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetBilling) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetBilling) ProtoMessage() {}
+
+func (x *SetBilling) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetBilling.ProtoReflect.Descriptor instead.
+func (*SetBilling) Descriptor() ([]byte, []int) {
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SetBilling) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *SetBilling) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *SetBilling) GetBilling() *Billing {
+	if x != nil {
+		return x.Billing
+	}
+	return nil
+}
+
+type ClearBilling struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ClearBilling) Reset() {
+	*x = ClearBilling{}
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ClearBilling) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ClearBilling) ProtoMessage() {}
+
+func (x *ClearBilling) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ClearBilling.ProtoReflect.Descriptor instead.
+func (*ClearBilling) Descriptor() ([]byte, []int) {
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ClearBilling) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ClearBilling) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
 type Place struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -784,7 +967,7 @@ type Place struct {
 
 func (x *Place) Reset() {
 	*x = Place{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -796,7 +979,7 @@ func (x *Place) String() string {
 func (*Place) ProtoMessage() {}
 
 func (x *Place) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[10]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -809,7 +992,7 @@ func (x *Place) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Place.ProtoReflect.Descriptor instead.
 func (*Place) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{10}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Place) GetId() string {
@@ -844,7 +1027,7 @@ type Cancel struct {
 
 func (x *Cancel) Reset() {
 	*x = Cancel{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -856,7 +1039,7 @@ func (x *Cancel) String() string {
 func (*Cancel) ProtoMessage() {}
 
 func (x *Cancel) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[11]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -869,7 +1052,7 @@ func (x *Cancel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cancel.ProtoReflect.Descriptor instead.
 func (*Cancel) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{11}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Cancel) GetId() string {
@@ -907,7 +1090,7 @@ type Created struct {
 
 func (x *Created) Reset() {
 	*x = Created{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -919,7 +1102,7 @@ func (x *Created) String() string {
 func (*Created) ProtoMessage() {}
 
 func (x *Created) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[12]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -932,7 +1115,7 @@ func (x *Created) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Created.ProtoReflect.Descriptor instead.
 func (*Created) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{12}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Created) GetId() string {
@@ -990,7 +1173,7 @@ type ItemAdded struct {
 
 func (x *ItemAdded) Reset() {
 	*x = ItemAdded{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[13]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1002,7 +1185,7 @@ func (x *ItemAdded) String() string {
 func (*ItemAdded) ProtoMessage() {}
 
 func (x *ItemAdded) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[13]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1015,7 +1198,7 @@ func (x *ItemAdded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemAdded.ProtoReflect.Descriptor instead.
 func (*ItemAdded) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{13}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ItemAdded) GetId() string {
@@ -1066,7 +1249,7 @@ type ItemRemoved struct {
 
 func (x *ItemRemoved) Reset() {
 	*x = ItemRemoved{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[14]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1078,7 +1261,7 @@ func (x *ItemRemoved) String() string {
 func (*ItemRemoved) ProtoMessage() {}
 
 func (x *ItemRemoved) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[14]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1091,7 +1274,7 @@ func (x *ItemRemoved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ItemRemoved.ProtoReflect.Descriptor instead.
 func (*ItemRemoved) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{14}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ItemRemoved) GetId() string {
@@ -1142,7 +1325,7 @@ type TagAdded struct {
 
 func (x *TagAdded) Reset() {
 	*x = TagAdded{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[15]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1154,7 +1337,7 @@ func (x *TagAdded) String() string {
 func (*TagAdded) ProtoMessage() {}
 
 func (x *TagAdded) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[15]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1167,7 +1350,7 @@ func (x *TagAdded) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TagAdded.ProtoReflect.Descriptor instead.
 func (*TagAdded) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{15}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *TagAdded) GetId() string {
@@ -1218,7 +1401,7 @@ type TagRemoved struct {
 
 func (x *TagRemoved) Reset() {
 	*x = TagRemoved{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[16]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1230,7 +1413,7 @@ func (x *TagRemoved) String() string {
 func (*TagRemoved) ProtoMessage() {}
 
 func (x *TagRemoved) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[16]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1243,7 +1426,7 @@ func (x *TagRemoved) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TagRemoved.ProtoReflect.Descriptor instead.
 func (*TagRemoved) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{16}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *TagRemoved) GetId() string {
@@ -1294,7 +1477,7 @@ type ShippingSet struct {
 
 func (x *ShippingSet) Reset() {
 	*x = ShippingSet{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[17]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1306,7 +1489,7 @@ func (x *ShippingSet) String() string {
 func (*ShippingSet) ProtoMessage() {}
 
 func (x *ShippingSet) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[17]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1319,7 +1502,7 @@ func (x *ShippingSet) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShippingSet.ProtoReflect.Descriptor instead.
 func (*ShippingSet) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{17}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ShippingSet) GetId() string {
@@ -1357,6 +1540,164 @@ func (x *ShippingSet) GetShippingAddress() string {
 	return ""
 }
 
+// BillingSet carries a populated "billing" embed; On() copies it into
+// Order.billing by name (no annotation, no inference).
+type BillingSet struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	At            int64                  `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
+	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	Billing       *Billing               `protobuf:"bytes,5,opt,name=billing,proto3" json:"billing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BillingSet) Reset() {
+	*x = BillingSet{}
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BillingSet) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BillingSet) ProtoMessage() {}
+
+func (x *BillingSet) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BillingSet.ProtoReflect.Descriptor instead.
+func (*BillingSet) Descriptor() ([]byte, []int) {
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *BillingSet) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BillingSet) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *BillingSet) GetAt() int64 {
+	if x != nil {
+		return x.At
+	}
+	return 0
+}
+
+func (x *BillingSet) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *BillingSet) GetBilling() *Billing {
+	if x != nil {
+		return x.Billing
+	}
+	return nil
+}
+
+// BillingCleared declares a same-named "billing" embed but emits it unset (the
+// ClearBilling command carries no billing, so EmitEvents passes nil). On()'s
+// unconditional by-name copy then assigns nil, clearing Order.billing. The field
+// must be unset (nil) to clear — a present-but-empty &Billing{} would not.
+type BillingCleared struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Version       int64                  `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	At            int64                  `protobuf:"varint,3,opt,name=at,proto3" json:"at,omitempty"`
+	Actor         string                 `protobuf:"bytes,4,opt,name=actor,proto3" json:"actor,omitempty"`
+	Billing       *Billing               `protobuf:"bytes,5,opt,name=billing,proto3" json:"billing,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BillingCleared) Reset() {
+	*x = BillingCleared{}
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BillingCleared) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BillingCleared) ProtoMessage() {}
+
+func (x *BillingCleared) ProtoReflect() protoreflect.Message {
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BillingCleared.ProtoReflect.Descriptor instead.
+func (*BillingCleared) Descriptor() ([]byte, []int) {
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *BillingCleared) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *BillingCleared) GetVersion() int64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *BillingCleared) GetAt() int64 {
+	if x != nil {
+		return x.At
+	}
+	return 0
+}
+
+func (x *BillingCleared) GetActor() string {
+	if x != nil {
+		return x.Actor
+	}
+	return ""
+}
+
+func (x *BillingCleared) GetBilling() *Billing {
+	if x != nil {
+		return x.Billing
+	}
+	return nil
+}
+
 type Placed struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -1370,7 +1711,7 @@ type Placed struct {
 
 func (x *Placed) Reset() {
 	*x = Placed{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[18]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1382,7 +1723,7 @@ func (x *Placed) String() string {
 func (*Placed) ProtoMessage() {}
 
 func (x *Placed) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[18]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1395,7 +1736,7 @@ func (x *Placed) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Placed.ProtoReflect.Descriptor instead.
 func (*Placed) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{18}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *Placed) GetId() string {
@@ -1446,7 +1787,7 @@ type Cancelled struct {
 
 func (x *Cancelled) Reset() {
 	*x = Cancelled{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[19]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1458,7 +1799,7 @@ func (x *Cancelled) String() string {
 func (*Cancelled) ProtoMessage() {}
 
 func (x *Cancelled) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[19]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1471,7 +1812,7 @@ func (x *Cancelled) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cancelled.ProtoReflect.Descriptor instead.
 func (*Cancelled) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{19}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Cancelled) GetId() string {
@@ -1529,7 +1870,7 @@ type OrderSummary struct {
 
 func (x *OrderSummary) Reset() {
 	*x = OrderSummary{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[20]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1541,7 +1882,7 @@ func (x *OrderSummary) String() string {
 func (*OrderSummary) ProtoMessage() {}
 
 func (x *OrderSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[20]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1554,7 +1895,7 @@ func (x *OrderSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OrderSummary.ProtoReflect.Descriptor instead.
 func (*OrderSummary) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{20}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *OrderSummary) GetId() string {
@@ -1626,7 +1967,7 @@ type Snapshot struct {
 
 func (x *Snapshot) Reset() {
 	*x = Snapshot{}
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[21]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1638,7 +1979,7 @@ func (x *Snapshot) String() string {
 func (*Snapshot) ProtoMessage() {}
 
 func (x *Snapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[21]
+	mi := &file_example_app_order_v1_order_v1_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1651,7 +1992,7 @@ func (x *Snapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Snapshot.ProtoReflect.Descriptor instead.
 func (*Snapshot) Descriptor() ([]byte, []int) {
-	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{21}
+	return file_example_app_order_v1_order_v1_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *Snapshot) GetId() string {
@@ -1693,7 +2034,7 @@ var File_example_app_order_v1_order_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\n" +
-	"#example/app/order/v1/order_v1.proto\x12\x14example.app.order.v1\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xe8\x05\n" +
+	"#example/app/order/v1/order_v1.proto\x12\x14example.app.order.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xa1\x06\n" +
 	"\x05Order\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x121\n" +
@@ -1715,7 +2056,8 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x10shipping_address\x18\f \x01(\tR\x0fshippingAddress\x12\x1b\n" +
 	"\tplaced_at\x18\r \x01(\x03R\bplacedAt\x12<\n" +
 	"\x05items\x18\x0e \x03(\v2&.example.app.order.v1.Order.ItemsEntryR\x05items\x129\n" +
-	"\x04tags\x18\x0f \x03(\v2%.example.app.order.v1.Order.TagsEntryR\x04tags\x1aX\n" +
+	"\x04tags\x18\x0f \x03(\v2%.example.app.order.v1.Order.TagsEntryR\x04tags\x127\n" +
+	"\abilling\x18\x10 \x01(\v2\x1d.example.app.order.v1.BillingR\abilling\x1aX\n" +
 	"\n" +
 	"ItemsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x124\n" +
@@ -1733,7 +2075,10 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\bquantity\x18\x04 \x01(\x05R\bquantity\"-\n" +
 	"\x03Tag\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\x86\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"?\n" +
+	"\aBilling\x12\x16\n" +
+	"\x06method\x18\x01 \x01(\tR\x06method\x12\x1c\n" +
+	"\treference\x18\x02 \x01(\tR\treference\"\x86\x01\n" +
 	"\x06Create\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x1f\n" +
@@ -1773,7 +2118,20 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12)\n" +
 	"\x10shipping_address\x18\x03 \x01(\tR\x0fshippingAddress:!\x8aQ\x1e\n" +
 	"\x1c\n" +
-	"\vShippingSet\x10\x02\x1a\vSTATE_DRAFT\"h\n" +
+	"\vShippingSet\x10\x02\x1a\vSTATE_DRAFT\"\x88\x01\n" +
+	"\n" +
+	"SetBilling\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12?\n" +
+	"\abilling\x18\x03 \x01(\v2\x1d.example.app.order.v1.BillingB\x06\xbaH\x03\xc8\x01\x01R\abilling:\x13\x8aQ\x10\n" +
+	"\x0e\n" +
+	"\n" +
+	"BillingSet\x10\x02\"M\n" +
+	"\fClearBilling\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor:\x17\x8aQ\x14\n" +
+	"\x12\n" +
+	"\x0eBillingCleared\x10\x02\"h\n" +
 	"\x05Place\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12\x1b\n" +
@@ -1829,7 +2187,20 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
 	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
 	"\x05actor\x18\x04 \x01(\tR\x05actor\x12)\n" +
-	"\x10shipping_address\x18\x05 \x01(\tR\x0fshippingAddress:\x05\x8aQ\x02\x12\x00\"\x8a\x01\n" +
+	"\x10shipping_address\x18\x05 \x01(\tR\x0fshippingAddress:\x05\x8aQ\x02\x12\x00\"\x9c\x01\n" +
+	"\n" +
+	"BillingSet\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
+	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor\x127\n" +
+	"\abilling\x18\x05 \x01(\v2\x1d.example.app.order.v1.BillingR\abilling:\x05\x8aQ\x02\x12\x00\"\xa0\x01\n" +
+	"\x0eBillingCleared\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
+	"\x02at\x18\x03 \x01(\x03R\x02at\x12\x14\n" +
+	"\x05actor\x18\x04 \x01(\tR\x05actor\x127\n" +
+	"\abilling\x18\x05 \x01(\v2\x1d.example.app.order.v1.BillingR\abilling:\x05\x8aQ\x02\x12\x00\"\x8a\x01\n" +
 	"\x06Placed\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x12\x0e\n" +
@@ -1888,52 +2259,61 @@ func file_example_app_order_v1_order_v1_proto_rawDescGZIP() []byte {
 }
 
 var file_example_app_order_v1_order_v1_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_example_app_order_v1_order_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
+var file_example_app_order_v1_order_v1_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
 var file_example_app_order_v1_order_v1_proto_goTypes = []any{
-	(State)(0),           // 0: example.app.order.v1.State
-	(*Order)(nil),        // 1: example.app.order.v1.Order
-	(*OrderList)(nil),    // 2: example.app.order.v1.OrderList
-	(*LineItem)(nil),     // 3: example.app.order.v1.LineItem
-	(*Tag)(nil),          // 4: example.app.order.v1.Tag
-	(*Create)(nil),       // 5: example.app.order.v1.Create
-	(*AddItem)(nil),      // 6: example.app.order.v1.AddItem
-	(*RemoveItem)(nil),   // 7: example.app.order.v1.RemoveItem
-	(*AddTag)(nil),       // 8: example.app.order.v1.AddTag
-	(*RemoveTag)(nil),    // 9: example.app.order.v1.RemoveTag
-	(*SetShipping)(nil),  // 10: example.app.order.v1.SetShipping
-	(*Place)(nil),        // 11: example.app.order.v1.Place
-	(*Cancel)(nil),       // 12: example.app.order.v1.Cancel
-	(*Created)(nil),      // 13: example.app.order.v1.Created
-	(*ItemAdded)(nil),    // 14: example.app.order.v1.ItemAdded
-	(*ItemRemoved)(nil),  // 15: example.app.order.v1.ItemRemoved
-	(*TagAdded)(nil),     // 16: example.app.order.v1.TagAdded
-	(*TagRemoved)(nil),   // 17: example.app.order.v1.TagRemoved
-	(*ShippingSet)(nil),  // 18: example.app.order.v1.ShippingSet
-	(*Placed)(nil),       // 19: example.app.order.v1.Placed
-	(*Cancelled)(nil),    // 20: example.app.order.v1.Cancelled
-	(*OrderSummary)(nil), // 21: example.app.order.v1.OrderSummary
-	(*Snapshot)(nil),     // 22: example.app.order.v1.Snapshot
-	nil,                  // 23: example.app.order.v1.Order.ItemsEntry
-	nil,                  // 24: example.app.order.v1.Order.TagsEntry
+	(State)(0),             // 0: example.app.order.v1.State
+	(*Order)(nil),          // 1: example.app.order.v1.Order
+	(*OrderList)(nil),      // 2: example.app.order.v1.OrderList
+	(*LineItem)(nil),       // 3: example.app.order.v1.LineItem
+	(*Tag)(nil),            // 4: example.app.order.v1.Tag
+	(*Billing)(nil),        // 5: example.app.order.v1.Billing
+	(*Create)(nil),         // 6: example.app.order.v1.Create
+	(*AddItem)(nil),        // 7: example.app.order.v1.AddItem
+	(*RemoveItem)(nil),     // 8: example.app.order.v1.RemoveItem
+	(*AddTag)(nil),         // 9: example.app.order.v1.AddTag
+	(*RemoveTag)(nil),      // 10: example.app.order.v1.RemoveTag
+	(*SetShipping)(nil),    // 11: example.app.order.v1.SetShipping
+	(*SetBilling)(nil),     // 12: example.app.order.v1.SetBilling
+	(*ClearBilling)(nil),   // 13: example.app.order.v1.ClearBilling
+	(*Place)(nil),          // 14: example.app.order.v1.Place
+	(*Cancel)(nil),         // 15: example.app.order.v1.Cancel
+	(*Created)(nil),        // 16: example.app.order.v1.Created
+	(*ItemAdded)(nil),      // 17: example.app.order.v1.ItemAdded
+	(*ItemRemoved)(nil),    // 18: example.app.order.v1.ItemRemoved
+	(*TagAdded)(nil),       // 19: example.app.order.v1.TagAdded
+	(*TagRemoved)(nil),     // 20: example.app.order.v1.TagRemoved
+	(*ShippingSet)(nil),    // 21: example.app.order.v1.ShippingSet
+	(*BillingSet)(nil),     // 22: example.app.order.v1.BillingSet
+	(*BillingCleared)(nil), // 23: example.app.order.v1.BillingCleared
+	(*Placed)(nil),         // 24: example.app.order.v1.Placed
+	(*Cancelled)(nil),      // 25: example.app.order.v1.Cancelled
+	(*OrderSummary)(nil),   // 26: example.app.order.v1.OrderSummary
+	(*Snapshot)(nil),       // 27: example.app.order.v1.Snapshot
+	nil,                    // 28: example.app.order.v1.Order.ItemsEntry
+	nil,                    // 29: example.app.order.v1.Order.TagsEntry
 }
 var file_example_app_order_v1_order_v1_proto_depIdxs = []int32{
 	0,  // 0: example.app.order.v1.Order.state:type_name -> example.app.order.v1.State
-	23, // 1: example.app.order.v1.Order.items:type_name -> example.app.order.v1.Order.ItemsEntry
-	24, // 2: example.app.order.v1.Order.tags:type_name -> example.app.order.v1.Order.TagsEntry
-	1,  // 3: example.app.order.v1.OrderList.items:type_name -> example.app.order.v1.Order
-	3,  // 4: example.app.order.v1.AddItem.item:type_name -> example.app.order.v1.LineItem
-	4,  // 5: example.app.order.v1.AddTag.tag:type_name -> example.app.order.v1.Tag
-	3,  // 6: example.app.order.v1.ItemAdded.item:type_name -> example.app.order.v1.LineItem
-	4,  // 7: example.app.order.v1.TagAdded.tag:type_name -> example.app.order.v1.Tag
-	0,  // 8: example.app.order.v1.OrderSummary.state:type_name -> example.app.order.v1.State
-	1,  // 9: example.app.order.v1.Snapshot.snapshot:type_name -> example.app.order.v1.Order
-	3,  // 10: example.app.order.v1.Order.ItemsEntry.value:type_name -> example.app.order.v1.LineItem
-	4,  // 11: example.app.order.v1.Order.TagsEntry.value:type_name -> example.app.order.v1.Tag
-	12, // [12:12] is the sub-list for method output_type
-	12, // [12:12] is the sub-list for method input_type
-	12, // [12:12] is the sub-list for extension type_name
-	12, // [12:12] is the sub-list for extension extendee
-	0,  // [0:12] is the sub-list for field type_name
+	28, // 1: example.app.order.v1.Order.items:type_name -> example.app.order.v1.Order.ItemsEntry
+	29, // 2: example.app.order.v1.Order.tags:type_name -> example.app.order.v1.Order.TagsEntry
+	5,  // 3: example.app.order.v1.Order.billing:type_name -> example.app.order.v1.Billing
+	1,  // 4: example.app.order.v1.OrderList.items:type_name -> example.app.order.v1.Order
+	3,  // 5: example.app.order.v1.AddItem.item:type_name -> example.app.order.v1.LineItem
+	4,  // 6: example.app.order.v1.AddTag.tag:type_name -> example.app.order.v1.Tag
+	5,  // 7: example.app.order.v1.SetBilling.billing:type_name -> example.app.order.v1.Billing
+	3,  // 8: example.app.order.v1.ItemAdded.item:type_name -> example.app.order.v1.LineItem
+	4,  // 9: example.app.order.v1.TagAdded.tag:type_name -> example.app.order.v1.Tag
+	5,  // 10: example.app.order.v1.BillingSet.billing:type_name -> example.app.order.v1.Billing
+	5,  // 11: example.app.order.v1.BillingCleared.billing:type_name -> example.app.order.v1.Billing
+	0,  // 12: example.app.order.v1.OrderSummary.state:type_name -> example.app.order.v1.State
+	1,  // 13: example.app.order.v1.Snapshot.snapshot:type_name -> example.app.order.v1.Order
+	3,  // 14: example.app.order.v1.Order.ItemsEntry.value:type_name -> example.app.order.v1.LineItem
+	4,  // 15: example.app.order.v1.Order.TagsEntry.value:type_name -> example.app.order.v1.Tag
+	16, // [16:16] is the sub-list for method output_type
+	16, // [16:16] is the sub-list for method input_type
+	16, // [16:16] is the sub-list for extension type_name
+	16, // [16:16] is the sub-list for extension extendee
+	0,  // [0:16] is the sub-list for field type_name
 }
 
 func init() { file_example_app_order_v1_order_v1_proto_init() }
@@ -1947,7 +2327,7 @@ func file_example_app_order_v1_order_v1_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_example_app_order_v1_order_v1_proto_rawDesc), len(file_example_app_order_v1_order_v1_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   24,
+			NumMessages:   29,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

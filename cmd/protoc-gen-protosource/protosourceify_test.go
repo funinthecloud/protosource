@@ -577,5 +577,101 @@ func TestValidateProjectionFields_MapValueMessageMismatch(t *testing.T) {
 	}
 }
 
+// --- Singular embedded message convention (by-name) ---
+
+func TestValidateSingularEmbed_NameMatch(t *testing.T) {
+	f := loadTestProto(t, "singular_embed_valid.proto")
+	p := newModule()
+	agg := findMessage(f, "Account")
+	if agg == nil {
+		t.Fatal("aggregate Account not found")
+	}
+	// Both set and clear events name their embed field to match the aggregate
+	// field (profile), so On()'s by-name copy applies them — no error.
+	for _, name := range []string{"ProfileSet", "ProfileCleared"} {
+		evt := findMessage(f, name)
+		if evt == nil {
+			t.Fatalf("event %s not found", name)
+		}
+		if err := p.validateSingularEmbed(evt, agg); err != nil {
+			t.Errorf("validateSingularEmbed(%s) unexpected error: %v", name, err)
+		}
+	}
+}
+
+func TestValidateSingularEmbed_NameMismatch(t *testing.T) {
+	f := loadTestProto(t, "singular_embed_mismatch.proto")
+	p := newModule()
+	agg := findMessage(f, "Account")
+	evt := findMessage(f, "ProfileSet")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+	// Event carries a Profile under the wrong name ("config"); the aggregate
+	// field is "profile". The by-name copy would silently skip it, so codegen
+	// must fail with a rename hint.
+	err := p.validateSingularEmbed(evt, agg)
+	if err == nil {
+		t.Fatal("expected error for name mismatch, got nil")
+	}
+	if !strings.Contains(err.Error(), "config") || !strings.Contains(err.Error(), "profile") {
+		t.Errorf("error should name the offending field 'config' and the target 'profile', got: %v", err)
+	}
+}
+
+func TestValidateSingularEmbed_NameMismatch_MultipleCandidates(t *testing.T) {
+	f := loadTestProto(t, "singular_embed_dual.proto")
+	p := newModule()
+	agg := findMessage(f, "Account")
+	evt := findMessage(f, "ProfileSet")
+	if agg == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+	// The aggregate has two Profile fields (primary, backup); the rename hint
+	// must list both, not an arbitrary one.
+	err := p.validateSingularEmbed(evt, agg)
+	if err == nil {
+		t.Fatal("expected error for name mismatch, got nil")
+	}
+	if !strings.Contains(err.Error(), "primary") || !strings.Contains(err.Error(), "backup") {
+		t.Errorf("error should list both candidate fields 'primary' and 'backup', got: %v", err)
+	}
+}
+
+func fieldByName(t *testing.T, m pgs.Message, name string) pgs.Field {
+	t.Helper()
+	for _, f := range m.Fields() {
+		if f.Name().String() == name {
+			return f
+		}
+	}
+	t.Fatalf("field %q not found on %s", name, m.Name())
+	return nil
+}
+
+func TestCommandEventArg(t *testing.T) {
+	f := loadTestProto(t, "command_event_arg.proto")
+	p := newModule()
+	cmd := findMessage(f, "DoThing")
+	evt := findMessage(f, "ThingDone")
+	if cmd == nil || evt == nil {
+		t.Fatal("messages not found")
+	}
+
+	// Field present on the command -> forwarded getter.
+	if got := p.commandEventArg(fieldByName(t, evt, "actor"), cmd); got != "m.GetActor()" {
+		t.Errorf("actor (present): got %q, want m.GetActor()", got)
+	}
+	// Embedded message absent on the command -> nil (the clear pattern).
+	if got := p.commandEventArg(fieldByName(t, evt, "profile"), cmd); got != "nil" {
+		t.Errorf("profile (absent embed): got %q, want nil", got)
+	}
+	// Scalar absent on the command -> a command getter that does not exist, so
+	// codegen fails to compile rather than silently emitting a zero value.
+	if got := p.commandEventArg(fieldByName(t, evt, "note"), cmd); got != "m.GetNote()" {
+		t.Errorf("note (absent scalar): got %q, want m.GetNote() (fail-fast)", got)
+	}
+}
+
 // Ensure the optionsv1 import is used (extensions must be registered).
 var _ = optionsv1.E_ProtosourceMessageType

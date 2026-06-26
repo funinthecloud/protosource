@@ -68,6 +68,7 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"collectionKeyFieldGoName":   p.collectionKeyFieldGoName,
 		"aggregateFieldGoName":       p.aggregateFieldGoName,
 		"eventFieldGoName":           p.eventFieldGoName,
+		"commandEventArg":            p.commandEventArg,
 		"hasOpaqueAnnotations":       p.hasOpaqueAnnotations,
 		"opaqueKeyMappings":          p.opaqueKeyMappings,
 		"opaqueKeyPrefix":            p.opaqueKeyPrefix,
@@ -182,6 +183,37 @@ func (p *ProtosourceModule) aggregateHasField(eventField pgs.Field, aggregate pg
 		}
 	}
 	return false
+}
+
+// commandEventArg returns the Go expression passed to an event builder method
+// for eventField when emitting events from command cmd.
+//
+// If cmd has a field of the same name, it is forwarded (m.GetX()). If it does
+// not, behavior depends on the event field's type:
+//   - Nilable types (embedded message, bytes, map, repeated) emit nil. This is
+//     the "clear" pattern: e.g. ClearBilling (no billing field) emits
+//     BillingCleared{billing: nil}, which On() copies to nil the field.
+//   - Scalar types (string/bool/numeric/enum) fall through to a command getter
+//     anyway, which does NOT exist — so codegen fails to compile. This preserves
+//     the invariant that an event's scalar payload fields must line up with the
+//     command's, catching an accidentally-dropped field at build time instead of
+//     silently emitting a zero value.
+func (p *ProtosourceModule) commandEventArg(eventField pgs.Field, cmd pgs.Message) string {
+	for _, f := range cmd.Fields() {
+		if f.Name() == eventField.Name() {
+			// Getter name is derived from the command's own field (m is the
+			// command); the event field's GoName can differ if either message
+			// triggers protoc-gen-go name disambiguation.
+			return "m.Get" + p.ctx.Name(f).String() + "()"
+		}
+	}
+	t := eventField.Type()
+	if t.IsRepeated() || t.IsMap() || t.IsEmbed() || t.ProtoType() == pgs.BytesT {
+		return "nil"
+	}
+	// Scalar field with no matching command field: emit a getter that does not
+	// exist on the command so the generated code fails to compile (fail-fast).
+	return "m.Get" + p.ctx.Name(eventField).String() + "()"
 }
 
 func (p *ProtosourceModule) messageOptions(m pgs.Message) *optionsv1.MessageOptions {
@@ -433,6 +465,79 @@ func (p *ProtosourceModule) eventCollectionKeyField(m pgs.Message) string {
 		return ""
 	}
 	return cm.GetKeyField()
+}
+
+// isSingularEmbedField reports whether f is a singular (non-collection) embedded
+// message field — an embed that is neither a map nor a repeated field.
+func isSingularEmbedField(f pgs.Field) bool {
+	t := f.Type()
+	return t.IsEmbed() && !t.IsMap() && !t.IsRepeated()
+}
+
+// validateSingularEmbed enforces the singular embedded-message convention.
+//
+// DECISION: singular embeds are applied by field name (not type inference);
+// see docs/decisions/0001-singular-embedded-messages-by-name.md.
+//
+// A singular embedded message field on an event is applied to the aggregate by
+// the generated On() via a plain by-NAME copy (aggregate.Foo = e.GetFoo()), the
+// same mechanism used for scalar fields. A "set" event carries the populated
+// message; a "clear" event carries the same-named field left empty (the
+// unconditional copy then nils the aggregate field). There is intentionally no
+// type-based inference.
+//
+// The failure mode this guards against: an event carries an embedded message of
+// the right type but under a different field name than the aggregate uses. The
+// by-name copy then silently does nothing, leaving the aggregate field zero
+// after Apply/Load (the original GH#96 symptom). Rather than fail at runtime, we
+// fail codegen with a rename hint. Collection events (map add/remove) are exempt.
+func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Message) error {
+	if p.eventCollectionMapping(evt) != nil {
+		return nil
+	}
+	// Track only *singular embed* aggregate field names for the early-continue.
+	// A name match against a non-embed field (scalar/map/repeated) does not mean
+	// On() will apply the embed — the by-name copy would be a Go type mismatch.
+	// Narrowing to singular embeds lets us still surface the rename hint when the
+	// aggregate has a same-typed embed under a different name.
+	aggEmbedNames := map[string]bool{}
+	aggByFQN := map[string][]string{} // embed type FQN -> aggregate field name(s) of that type
+	for _, f := range agg.Fields() {
+		if isSingularEmbedField(f) {
+			aggEmbedNames[f.Name().String()] = true
+			fqn := f.Type().Embed().FullyQualifiedName()
+			aggByFQN[fqn] = append(aggByFQN[fqn], f.Name().String())
+		}
+	}
+	for _, ef := range evt.Fields() {
+		if !isSingularEmbedField(ef) {
+			continue
+		}
+		if aggEmbedNames[ef.Name().String()] {
+			continue // name matches a singular-embed aggregate field — On() applies it by name
+		}
+		// Name doesn't match. If the aggregate has one or more singular embeds of
+		// the same type under a different name, this is almost certainly a
+		// misnamed field. List every candidate so the hint is unambiguous even
+		// when the aggregate has multiple fields of that type.
+		if targets, ok := aggByFQN[ef.Type().Embed().FullyQualifiedName()]; ok {
+			var hint string
+			if len(targets) == 1 {
+				hint = fmt.Sprintf("%q", targets[0])
+			} else {
+				quoted := make([]string, len(targets))
+				for i, t := range targets {
+					quoted[i] = fmt.Sprintf("%q", t)
+				}
+				hint = "one of " + strings.Join(quoted, ", ")
+			}
+			return fmt.Errorf(
+				"event %s: embedded field %q (type %s) will not be applied to aggregate %s: singular embedded fields are matched by field name and no aggregate field is named %q; rename the event field to match %s",
+				evt.Name(), ef.Name(), ef.Type().Embed().FullyQualifiedName(), agg.Name(),
+				ef.Name(), hint)
+		}
+	}
+	return nil
 }
 
 // validateCollectionMapping validates the collection annotation on an event message.
@@ -1100,6 +1205,10 @@ func (p *ProtosourceModule) generate(f pgs.File) {
 			}
 			if agg != nil {
 				if err := p.validateCollectionMapping(m, agg, f); err != nil {
+					p.Fail(err.Error())
+					return
+				}
+				if err := p.validateSingularEmbed(m, agg); err != nil {
 					p.Fail(err.Error())
 					return
 				}

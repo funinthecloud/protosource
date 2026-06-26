@@ -26,6 +26,8 @@ var usage = "Usage: ordermgr [-json] <command> [args]\n\nFlags:\n" +
 	"  addtag  <id>  <tag:json>\n" +
 	"  removetag  <id>  <key>\n" +
 	"  setshipping  <id>  <shipping_address>\n" +
+	"  setbilling  <id>  <billing:json>\n" +
+	"  clearbilling  <id>\n" +
 	"  place  <id>  <placed_at>\n" +
 	"  cancel  <id>  <reason>\n" +
 	"  get      <id>\n" +
@@ -135,6 +137,26 @@ func main() {
 			fatal("usage: ordermgr setshipping <id> <shipping_address>")
 		}
 		result, err := client.SetShipping(ctx, os.Args[2], os.Args[3])
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
+		}
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
+
+	case "setbilling":
+		if len(os.Args) != 4 {
+			fatal("usage: ordermgr setbilling <id> <billing:json>")
+		}
+		result, err := client.SetBilling(ctx, os.Args[2], mustParseJSON[*pkg.Billing](os.Args[3], "billing"))
+		if err != nil {
+			fatal(fmt.Sprintf("error: %v", err))
+		}
+		fmt.Printf("{\"id\":%q,\"version\":%d}\n", result.GetId(), result.GetVersion())
+
+	case "clearbilling":
+		if len(os.Args) != 3 {
+			fatal("usage: ordermgr clearbilling <id>")
+		}
+		result, err := client.ClearBilling(ctx, os.Args[2])
 		if err != nil {
 			fatal(fmt.Sprintf("error: %v", err))
 		}
