@@ -108,6 +108,22 @@ func encodeResponse(resp protosource.Response) events.APIGatewayProxyResponse {
 		StatusCode: resp.StatusCode,
 		Headers:    resp.Headers,
 	}
+	// DECISION: render Cookies via v1 MultiValueHeaders, not v2 Cookies (see docs/decisions/0002-multi-cookie-response-support.md).
+	// REST API Gateway (proxy v1) collapses the single-value Headers map to one
+	// value per key, so multiple Set-Cookie headers must go through
+	// MultiValueHeaders. http.Cookie.String returns "" for an invalid cookie,
+	// which we skip rather than emit a blank header.
+	if len(resp.Cookies) > 0 {
+		var setCookies []string
+		for _, c := range resp.Cookies {
+			if s := c.String(); s != "" {
+				setCookies = append(setCookies, s)
+			}
+		}
+		if len(setCookies) > 0 {
+			apiResp.MultiValueHeaders = map[string][]string{"Set-Cookie": setCookies}
+		}
+	}
 	if isBinary {
 		apiResp.Body = base64.StdEncoding.EncodeToString([]byte(resp.Body))
 		apiResp.IsBase64Encoded = true

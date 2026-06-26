@@ -45,6 +45,54 @@ func TestWrap(t *testing.T) {
 	}
 }
 
+func TestWrap_EmitsMultipleSetCookieHeaders(t *testing.T) {
+	// A login/rotation response must set one cookie and clear another in the
+	// same reply. The single-value Headers map can hold only one Set-Cookie,
+	// so cookies travel through Response.Cookies and each becomes its own line.
+	handler := func(_ context.Context, _ protosource.Request) protosource.Response {
+		return protosource.Response{
+			StatusCode: http.StatusOK,
+			Cookies: []*http.Cookie{
+				{Name: "shadow", Value: "session-token", Path: "/", HttpOnly: true},
+				{Name: "shadow_oauth_state", Value: "", Path: "/oauth/callback", MaxAge: -1},
+			},
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	Wrap(handler)(rec, httptest.NewRequest(http.MethodPost, "/oauth/callback", nil))
+
+	setCookies := rec.Result().Header.Values("Set-Cookie")
+	if len(setCookies) != 2 {
+		t.Fatalf("expected 2 Set-Cookie headers, got %d: %v", len(setCookies), setCookies)
+	}
+
+	cookies := rec.Result().Cookies()
+	byName := map[string]*http.Cookie{}
+	for _, c := range cookies {
+		byName[c.Name] = c
+	}
+	if got := byName["shadow"]; got == nil || got.Value != "session-token" {
+		t.Errorf("expected shadow cookie set to session-token, got %+v", got)
+	}
+	if got := byName["shadow_oauth_state"]; got == nil || got.MaxAge >= 0 {
+		t.Errorf("expected shadow_oauth_state cookie cleared (MaxAge<0), got %+v", got)
+	}
+}
+
+func TestWrap_NoCookiesUnchanged(t *testing.T) {
+	// Backward-compat: a response that leaves Cookies nil emits no Set-Cookie.
+	handler := func(_ context.Context, _ protosource.Request) protosource.Response {
+		return protosource.Response{StatusCode: http.StatusOK, Body: "ok"}
+	}
+	rec := httptest.NewRecorder()
+	Wrap(handler)(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if got := rec.Result().Header.Values("Set-Cookie"); len(got) != 0 {
+		t.Errorf("expected no Set-Cookie headers, got %v", got)
+	}
+}
+
 func TestWrap_PopulatesHostHeader(t *testing.T) {
 	// net/http strips Host from r.Header into r.Host, so the adapter must
 	// re-inject it. Downstream same-origin CSRF checks (e.g. protosource-auth
