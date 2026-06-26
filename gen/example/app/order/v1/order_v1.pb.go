@@ -7,6 +7,7 @@
 package orderv1
 
 import (
+	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/funinthecloud/protosource/gen/options/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -839,10 +840,15 @@ func (x *SetShipping) GetShippingAddress() string {
 }
 
 type SetBilling struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Actor         string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
-	Billing       *Billing               `protobuf:"bytes,3,opt,name=billing,proto3" json:"billing,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Id    string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Actor string                 `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
+	// required: SetBilling must carry a populated embed. Without this, a
+	// SetBilling with billing unset would pass ProtoValidate and emit
+	// BillingSet{billing=nil}, which On() copies — silently clearing
+	// Order.billing under a "set" event. Clearing is the explicit ClearBilling
+	// command's job. See docs/decisions/0001-singular-embedded-messages-by-name.md.
+	Billing       *Billing `protobuf:"bytes,3,opt,name=billing,proto3" json:"billing,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2028,7 +2034,7 @@ var File_example_app_order_v1_order_v1_proto protoreflect.FileDescriptor
 
 const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\n" +
-	"#example/app/order/v1/order_v1.proto\x12\x14example.app.order.v1\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xa1\x06\n" +
+	"#example/app/order/v1/order_v1.proto\x12\x14example.app.order.v1\x1a\x1bbuf/validate/validate.proto\x1a5funinthecloud/protosource/options/v1/options_v1.proto\"\xa1\x06\n" +
 	"\x05Order\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\x03R\aversion\x121\n" +
@@ -2112,12 +2118,12 @@ const file_example_app_order_v1_order_v1_proto_rawDesc = "" +
 	"\x05actor\x18\x02 \x01(\tR\x05actor\x12)\n" +
 	"\x10shipping_address\x18\x03 \x01(\tR\x0fshippingAddress:!\x8aQ\x1e\n" +
 	"\x1c\n" +
-	"\vShippingSet\x10\x02\x1a\vSTATE_DRAFT\"\x80\x01\n" +
+	"\vShippingSet\x10\x02\x1a\vSTATE_DRAFT\"\x88\x01\n" +
 	"\n" +
 	"SetBilling\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
-	"\x05actor\x18\x02 \x01(\tR\x05actor\x127\n" +
-	"\abilling\x18\x03 \x01(\v2\x1d.example.app.order.v1.BillingR\abilling:\x13\x8aQ\x10\n" +
+	"\x05actor\x18\x02 \x01(\tR\x05actor\x12?\n" +
+	"\abilling\x18\x03 \x01(\v2\x1d.example.app.order.v1.BillingB\x06\xbaH\x03\xc8\x01\x01R\abilling:\x13\x8aQ\x10\n" +
 	"\x0e\n" +
 	"\n" +
 	"BillingSet\x10\x02\"M\n" +

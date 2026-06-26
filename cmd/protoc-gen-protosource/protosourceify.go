@@ -495,11 +495,16 @@ func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Messa
 	if p.eventCollectionMapping(evt) != nil {
 		return nil
 	}
-	aggNames := map[string]bool{}
+	// Track only *singular embed* aggregate field names for the early-continue.
+	// A name match against a non-embed field (scalar/map/repeated) does not mean
+	// On() will apply the embed — the by-name copy would be a Go type mismatch.
+	// Narrowing to singular embeds lets us still surface the rename hint when the
+	// aggregate has a same-typed embed under a different name.
+	aggEmbedNames := map[string]bool{}
 	aggByFQN := map[string][]string{} // embed type FQN -> aggregate field name(s) of that type
 	for _, f := range agg.Fields() {
-		aggNames[f.Name().String()] = true
 		if isSingularEmbedField(f) {
+			aggEmbedNames[f.Name().String()] = true
 			fqn := f.Type().Embed().FullyQualifiedName()
 			aggByFQN[fqn] = append(aggByFQN[fqn], f.Name().String())
 		}
@@ -508,8 +513,8 @@ func (p *ProtosourceModule) validateSingularEmbed(evt pgs.Message, agg pgs.Messa
 		if !isSingularEmbedField(ef) {
 			continue
 		}
-		if aggNames[ef.Name().String()] {
-			continue // name matches an aggregate field — On() applies it by name
+		if aggEmbedNames[ef.Name().String()] {
+			continue // name matches a singular-embed aggregate field — On() applies it by name
 		}
 		// Name doesn't match. If the aggregate has one or more singular embeds of
 		// the same type under a different name, this is almost certainly a

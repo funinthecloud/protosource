@@ -67,3 +67,30 @@ func TestBilling_SetThenClear(t *testing.T) {
 		t.Errorf("after ClearBilling, billing = %+v, want nil", b)
 	}
 }
+
+// TestSetBilling_RequiresBilling guards the protovalidate (required) constraint
+// on SetBilling.billing. A "set" command with no embed would otherwise emit
+// BillingSet{billing=nil}, which On() copies — silently clearing Order.billing
+// under a set event. ProtoValidate must reject it so clearing stays the explicit
+// ClearBilling command's job.
+func TestSetBilling_RequiresBilling(t *testing.T) {
+	repo := newOrderRepo(t)
+	ctx := context.Background()
+
+	if _, err := repo.Apply(ctx, &orderv1.Create{
+		Id:           "order-bv",
+		Actor:        "alice",
+		CustomerId:   "cust-1",
+		CustomerName: "Alice",
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+
+	// SetBilling with billing unset must fail validation, not silently clear.
+	if _, err := repo.Apply(ctx, &orderv1.SetBilling{
+		Id:    "order-bv",
+		Actor: "alice",
+	}); err == nil {
+		t.Fatal("SetBilling with nil billing: got nil error, want validation failure")
+	}
+}
