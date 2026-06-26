@@ -45,6 +45,53 @@ func TestWrap(t *testing.T) {
 	}
 }
 
+func TestWrap_EmitsMultipleSetCookieHeaders(t *testing.T) {
+	// A login/rotation response must set one cookie and clear another in the
+	// same reply. The single-value Headers map can hold only one Set-Cookie,
+	// so cookies travel through Response.Cookies and each becomes its own line.
+	handler := func(_ context.Context, _ protosource.Request) protosource.Response {
+		return protosource.Response{
+			StatusCode: http.StatusOK,
+			Cookies: []*http.Cookie{
+				{Name: "shadow", Value: "session-token", Path: "/", HttpOnly: true},
+				{Name: "shadow_oauth_state", Value: "", Path: "/oauth/callback", MaxAge: -1},
+			},
+		}
+	}
+
+	rec := httptest.NewRecorder()
+	Wrap(handler)(rec, httptest.NewRequest(http.MethodPost, "/oauth/callback", nil))
+
+	setCookies := rec.Result().Header.Values("Set-Cookie")
+	if len(setCookies) != 2 {
+		t.Fatalf("expected 2 Set-Cookie headers, got %d: %v", len(setCookies), setCookies)
+	}
+
+	// Assert on the raw Set-Cookie wire values. A cleared cookie (MaxAge<0)
+	// serializes as "Max-Age=0", which is the bytes the client actually sees;
+	// checking the raw header avoids depending on net/http's round-trip parse.
+	joined := strings.Join(setCookies, "\n")
+	if !strings.Contains(joined, "shadow=session-token") {
+		t.Errorf("expected shadow cookie set to session-token, got %v", setCookies)
+	}
+	if !strings.Contains(joined, "shadow_oauth_state=") || !strings.Contains(joined, "Max-Age=0") {
+		t.Errorf("expected shadow_oauth_state cookie cleared (Max-Age=0), got %v", setCookies)
+	}
+}
+
+func TestWrap_NoCookiesUnchanged(t *testing.T) {
+	// Backward-compat: a response that leaves Cookies nil emits no Set-Cookie.
+	handler := func(_ context.Context, _ protosource.Request) protosource.Response {
+		return protosource.Response{StatusCode: http.StatusOK, Body: "ok"}
+	}
+	rec := httptest.NewRecorder()
+	Wrap(handler)(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if got := rec.Result().Header.Values("Set-Cookie"); len(got) != 0 {
+		t.Errorf("expected no Set-Cookie headers, got %v", got)
+	}
+}
+
 func TestWrap_PopulatesHostHeader(t *testing.T) {
 	// net/http strips Host from r.Header into r.Host, so the adapter must
 	// re-inject it. Downstream same-origin CSRF checks (e.g. protosource-auth

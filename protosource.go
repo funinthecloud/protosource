@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"time"
@@ -609,6 +610,13 @@ type Response struct {
 	StatusCode int
 	Body       string
 	Headers    map[string]string
+	// Cookies are rendered as separate Set-Cookie headers, one per entry.
+	// This is the cloud-agnostic way to emit multiple cookies in a single
+	// response (e.g. set a session cookie while clearing a transient one),
+	// which the single-value Headers map cannot express. Adapters render
+	// each cookie independently; Headers semantics are unaffected, so a
+	// response that leaves Cookies nil behaves exactly as before.
+	Cookies []*http.Cookie
 }
 
 // HandlerFunc is the signature for provider-agnostic request handlers.

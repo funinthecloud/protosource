@@ -3,6 +3,7 @@ package awslambda
 import (
 	"context"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -114,6 +115,58 @@ func TestAdapter_Handle_BinaryResponse(t *testing.T) {
 	}
 	if resp.Body != "YmluYXJ5LWRhdGE=" {
 		t.Errorf("expected base64-encoded body, got %q", resp.Body)
+	}
+}
+
+func TestAdapter_Handle_MultipleCookies(t *testing.T) {
+	// REST API Gateway collapses Headers to one value per key, so multiple
+	// Set-Cookie headers (set one + clear another) must come through
+	// MultiValueHeaders. The single-value Headers map is left untouched.
+	handler := func(_ context.Context, _ protosource.Request) protosource.Response {
+		return protosource.Response{
+			StatusCode: http.StatusOK,
+			Headers:    map[string]string{"Content-Type": "application/json"},
+			Cookies: []*http.Cookie{
+				{Name: "shadow", Value: "session-token", Path: "/", HttpOnly: true},
+				{Name: "shadow_oauth_state", Value: "", Path: "/oauth/callback", MaxAge: -1},
+			},
+		}
+	}
+
+	resp, err := New(handler).Handle(context.Background(), events.APIGatewayProxyRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	setCookies := resp.MultiValueHeaders["Set-Cookie"]
+	if len(setCookies) != 2 {
+		t.Fatalf("expected 2 Set-Cookie values, got %d: %v", len(setCookies), setCookies)
+	}
+	if !strings.Contains(setCookies[0], "shadow=session-token") {
+		t.Errorf("expected first cookie to set shadow session, got %q", setCookies[0])
+	}
+	if !strings.Contains(setCookies[1], "shadow_oauth_state=") ||
+		!strings.Contains(setCookies[1], "Max-Age=0") {
+		t.Errorf("expected second cookie to clear shadow_oauth_state, got %q", setCookies[1])
+	}
+	// Single-value Headers remain intact and untouched by cookie handling.
+	if resp.Headers["Content-Type"] != "application/json" {
+		t.Errorf("expected Content-Type header preserved, got %q", resp.Headers["Content-Type"])
+	}
+}
+
+func TestAdapter_Handle_NoCookiesLeavesMultiValueNil(t *testing.T) {
+	// Backward-compat: a response with no Cookies must not populate
+	// MultiValueHeaders at all.
+	handler := func(_ context.Context, _ protosource.Request) protosource.Response {
+		return protosource.Response{StatusCode: http.StatusOK, Body: "ok"}
+	}
+	resp, err := New(handler).Handle(context.Background(), events.APIGatewayProxyRequest{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if resp.MultiValueHeaders != nil {
+		t.Errorf("expected nil MultiValueHeaders, got %v", resp.MultiValueHeaders)
 	}
 }
 

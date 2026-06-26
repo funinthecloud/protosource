@@ -61,6 +61,12 @@ func Wrap(handler protosource.HandlerFunc) http.HandlerFunc {
 		for k, v := range resp.Headers {
 			w.Header().Set(k, v)
 		}
+		// http.SetCookie uses Header().Add, so each cookie becomes its own
+		// Set-Cookie line — multiple cookies survive where the Headers map
+		// (one value per key) could not.
+		for _, c := range resp.Cookies {
+			http.SetCookie(w, c)
+		}
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.WriteString(w, resp.Body)
 	}
@@ -103,6 +109,12 @@ func WrapRouter(router *protosource.Router) http.Handler {
 
 		for k, v := range resp.Headers {
 			w.Header().Set(k, v)
+		}
+		// http.SetCookie uses Header().Add, so each cookie becomes its own
+		// Set-Cookie line — multiple cookies survive where the Headers map
+		// (one value per key) could not.
+		for _, c := range resp.Cookies {
+			http.SetCookie(w, c)
 		}
 		w.WriteHeader(resp.StatusCode)
 		_, _ = io.WriteString(w, resp.Body)
