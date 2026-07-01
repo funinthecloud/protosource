@@ -435,6 +435,16 @@ func (s *failingAggregateStore) SaveAggregate(ctx context.Context, aggregate pro
 	return fmt.Errorf("simulated store failure")
 }
 
+// failingLoadStore wraps a memorystore but fails Load with a non-NotFound error.
+// This is used to test that Apply propagates load errors instead of swallowing them.
+type failingLoadStore struct {
+	*memorystore.MemoryStore
+}
+
+func (s *failingLoadStore) Load(ctx context.Context, aggregateID string) (*historyv1.History, error) {
+	return nil, fmt.Errorf("simulated load failure")
+}
+
 // testLogger records Warn calls for assertion.
 type testLogger struct {
 	warnings []string
@@ -558,6 +568,24 @@ func TestApply_NoProjectionsForAggregateWithoutProjector(t *testing.T) {
 	}
 	if _, ok := store.saved[0].(*testv1.Test); !ok {
 		t.Errorf("expected *Test, got %T", store.saved[0])
+	}
+}
+
+func TestApply_LoadErrorIsPropagated(t *testing.T) {
+	store := &failingLoadStore{MemoryStore: memorystore.New(0)}
+	repo := protosource.New(
+		&testv1.Test{},
+		store,
+		protobinaryserializer.NewSerializer(),
+	)
+	ctx := context.Background()
+
+	_, err := repo.Apply(ctx, &testv1.Create{Id: "id-1", Actor: "actor", Body: "hello"})
+	if err == nil {
+		t.Fatal("expected Apply to return load error")
+	}
+	if err.Error() != "simulated load failure" {
+		t.Errorf("expected load error to be propagated, got: %v", err)
 	}
 }
 

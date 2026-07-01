@@ -300,3 +300,33 @@ func TestLoad_RecordProtoEquality(t *testing.T) {
 		t.Errorf("saved and loaded records are not proto-equal\nsaved:  %v\nloaded: %v", saved, loaded)
 	}
 }
+
+func TestLoad_ReturnsDeepCopy(t *testing.T) {
+	m := memorystore.New(0)
+	ctx := context.Background()
+
+	_ = m.Save(ctx, "agg-1", record(1, "original-data"))
+
+	h1, err := m.Load(ctx, "agg-1")
+	if err != nil {
+		t.Fatalf("load failed: %v", err)
+	}
+
+	// Mutate the returned history to prove it's not sharing the internal slice.
+	h1.Records = append(h1.Records, record(99, "mutated"))
+	if len(h1.GetRecords()) != 2 {
+		t.Fatalf("expected mutation on h1 to succeed temporarily")
+	}
+
+	// Fresh load must return the original unmodified data.
+	h2, err := m.Load(ctx, "agg-1")
+	if err != nil {
+		t.Fatalf("second load failed: %v", err)
+	}
+	if got := len(h2.GetRecords()); got != 1 {
+		t.Errorf("expected 1 record (mutation of previous Load should not affect store), got %d", got)
+	}
+	if string(h2.GetRecords()[0].GetData()) != "original-data" {
+		t.Errorf("expected original data, got %q", h2.GetRecords()[0].GetData())
+	}
+}
