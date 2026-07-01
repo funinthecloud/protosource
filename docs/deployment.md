@@ -142,7 +142,7 @@ import (
 func main() {
     // ... create store, repo, handler as above ...
 
-    handler := taskv1.NewHandler(repo, taskv1.NewTaskClient(opaqueStore))
+    handler := taskv1.NewHandler(repo, taskv1.NewTaskClient(opaqueStore), authzImpl)
     router := protosource.NewRouter(handler)
 
     // Extract actor from Authorization header (JWT sub claim, etc.)
@@ -170,7 +170,7 @@ import (
     "github.com/funinthecloud/protosource/adapters/httpstandard"
 )
 
-handler := taskv1.NewHandler(repo, taskv1.NewTaskClient(opaqueStore))
+handler := taskv1.NewHandler(repo, taskv1.NewTaskClient(opaqueStore), authzImpl)
 router := protosource.NewRouter(handler)
 
 // BearerTokenExtractor reads the Authorization header

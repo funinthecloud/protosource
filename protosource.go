@@ -294,9 +294,11 @@ func (r *Repository) History(ctx context.Context, aggregateID string) (*historyv
 //  2. ProtoValidater — annotation-driven field and cross-field constraints via buf/protovalidate
 //  3. StateGuard — gate command on current aggregate state (state-machine transitions)
 //  4. EventEmitter check — verify command can emit events (fail fast before custom logic)
-//  5. CommandEvaluator — optional custom business logic (duplicate detection, idempotency, conditional no-ops)
+//  5. CommandEvaluator — optional custom business logic (return ErrSkip for silent no-op)
 //  6. EventEmitter — emit events
 //  7. Persist — save events to store
+//  8. Materialize — if store is AggregateStore, persist the projected aggregate (best-effort)
+//  9. PostApplyHook (AfterOn) — derived/computed fields on the materialized view
 func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error) {
 	if command == nil {
 		return 0, ErrNilCommand
@@ -311,9 +313,16 @@ func (r *Repository) Apply(ctx context.Context, command Commander) (int64, error
 	}
 
 	// Load the aggregate (or create a fresh one if it doesn't exist yet).
+	// Only treat a genuine "not found" (empty history) as create-new; propagate
+	// deserialization, store, or corruption errors so Apply cannot silently
+	// resurrect a broken aggregate as a brand new one.
 	aggregate, version, err := r.loadAggregateVersion(ctx, aggregateID)
 	if err != nil {
-		aggregate = r.new()
+		if errors.Is(err, ErrAggregateNotFound) {
+			aggregate = r.new()
+		} else {
+			return 0, err
+		}
 	}
 
 	// 1. Validate lifecycle constraints (create vs update).

@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"io/fs"
-	"path/filepath"
 	"sort"
 	"strings"
 	"text/template"
@@ -88,20 +87,15 @@ func (p *ProtosourceModule) templateFuncs() template.FuncMap {
 		"protoPackage":               p.protoPackage,
 		"lower":                      strings.ToLower,
 		"importPath":                 p.importPath,
-		"cliCommandFields":           CLICommandFields,
-		"cliParseExpr":               cliParseExpr,
-		"cliParseExprFull":           p.cliParseExprFull,
-		"cliFieldUsageHint":          cliFieldUsageHint,
-		"commandSupportsCLI":         commandSupportsCLI,
-		"add":                        func(a, b int) int { return a + b },
-		"lastPathComponent":          lastPathComponent,
-		"unexport":                   unexport,
-		"enumDisplays":               p.enumDisplays,
-		"queryRoutePath":             queryRoutePath,
-		"gsiQueryRoutePath":          gsiQueryRoutePath,
-		"queryParseExpr":             p.queryParseExpr,
-		"queryFormatExpr":            p.queryFormatExpr,
-		"cliQueryParseExpr":          p.cliQueryParseExpr,
+		"cliCommandFields":  CLICommandFields, // shared: extracts non-id/actor fields for client + (removed) CLI generator
+		"add":               func(a, b int) int { return a + b },
+		"lastPathComponent": lastPathComponent,
+		"unexport":          unexport,
+		"enumDisplays":      p.enumDisplays,
+		"queryRoutePath":    queryRoutePath,
+		"gsiQueryRoutePath": gsiQueryRoutePath,
+		"queryParseExpr":    p.queryParseExpr,
+		"queryFormatExpr":   p.queryFormatExpr,
 	}
 }
 
@@ -692,30 +686,6 @@ func (p *ProtosourceModule) validateCollectionMapping(evt pgs.Message, agg pgs.M
 	return nil
 }
 
-// commandSupportsCLI returns true if a command's fields can be parsed from CLI
-// arguments. Scalar, enum, and embedded message fields are supported. Repeated
-// and map fields are not (the command is omitted from the generated CLI).
-func commandSupportsCLI(m pgs.Message) bool {
-	for _, field := range CLICommandFields(m.Fields()) {
-		if field.Type().IsRepeated() || field.Type().IsMap() {
-			return false
-		}
-	}
-	return true
-}
-
-// cliFieldUsageHint returns a usage placeholder for a command field.
-func cliFieldUsageHint(f pgs.Field) string {
-	name := strings.ToLower(f.Name().String())
-	if f.Type().IsEmbed() {
-		return "<" + name + ":json>"
-	}
-	if f.Type().IsEnum() {
-		return "<" + name + ":num>"
-	}
-	return "<" + name + ">"
-}
-
 // eventMessage looks up a message by name within the same file.
 func (p *ProtosourceModule) eventMessage(name string, f pgs.File) pgs.Message {
 	for _, m := range f.Messages() {
@@ -739,8 +709,8 @@ func ExcludeCommandInternal(fields []pgs.Field) interface{} {
 	return results
 }
 
-// CLICommandFields returns command fields excluding id and actor (both are
-// handled automatically by the CLI: id from args, actor from OS user+hostname).
+// CLICommandFields returns the domain fields of a command (excluding the
+// required "id" and "actor" contract fields). Used by generated client code.
 func CLICommandFields(fields []pgs.Field) []pgs.Field {
 	results := make([]pgs.Field, 0)
 	for _, field := range fields {
@@ -750,86 +720,6 @@ func CLICommandFields(fields []pgs.Field) []pgs.Field {
 		results = append(results, field)
 	}
 	return results
-}
-
-// cliParseExpr returns the Go expression to parse an os.Args value into the
-// correct type for a command field. For strings it returns the arg directly;
-// for numeric/bool types it wraps with a mustParseXxx helper; for bytes it
-// reads the contents from the file path given as the argument.
-//
-// Note: pgs names the signed/fixed variants without the T suffix (SInt32,
-// SFixed64) while the primary types use it (Int32T, UInt64T). This is a
-// naming inconsistency in protoc-gen-star, not a typo.
-func cliParseExpr(f pgs.Field, argIdx int) string {
-	arg := fmt.Sprintf("os.Args[%d]", argIdx)
-	name := strings.ToLower(f.Name().String())
-	switch f.Type().ProtoType() {
-	case pgs.StringT:
-		return arg
-	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
-		return fmt.Sprintf("mustParseInt32(%s, %q)", arg, name)
-	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
-		return fmt.Sprintf("mustParseInt64(%s, %q)", arg, name)
-	case pgs.UInt32T, pgs.Fixed32T:
-		return fmt.Sprintf("mustParseUint32(%s, %q)", arg, name)
-	case pgs.UInt64T, pgs.Fixed64T:
-		return fmt.Sprintf("mustParseUint64(%s, %q)", arg, name)
-	case pgs.FloatT:
-		return fmt.Sprintf("float32(mustParseFloat(%s, 32, %q))", arg, name)
-	case pgs.DoubleT:
-		return fmt.Sprintf("mustParseFloat(%s, 64, %q)", arg, name)
-	case pgs.BoolT:
-		return fmt.Sprintf("mustParseBool(%s, %q)", arg, name)
-	case pgs.BytesT:
-		return fmt.Sprintf("mustReadFile(%s, %q)", arg, name)
-	default:
-		return arg
-	}
-}
-
-// cliParseExprFull extends cliParseExpr with support for enum and embedded
-// message fields. Enum fields are parsed as int32 and cast to the Go enum type.
-// Embedded message fields are parsed from a JSON string via mustParseJSON.
-func (p *ProtosourceModule) cliParseExprFull(f pgs.Field, argIdx int) string {
-	arg := fmt.Sprintf("os.Args[%d]", argIdx)
-	name := strings.ToLower(f.Name().String())
-	if f.Type().IsEnum() {
-		return fmt.Sprintf("pkg.%s(mustParseInt32(%s, %q))", p.ctx.Type(f).String(), arg, name)
-	}
-	if f.Type().IsEmbed() {
-		typeName := p.ctx.Name(f.Type().Embed()).String()
-		return fmt.Sprintf("mustParseJSON[*pkg.%s](%s, %q)", typeName, arg, name)
-	}
-	return cliParseExpr(f, argIdx)
-}
-
-// cliQueryParseExpr returns a Go expression to parse a string variable into
-// the correct type for a query parameter. Like cliParseExpr but takes a
-// variable name and explicit label for error messages.
-func (p *ProtosourceModule) cliQueryParseExpr(f pgs.Field, varName string, label string) string {
-	if f.Type().IsEnum() {
-		return fmt.Sprintf("pkg.%s(mustParseInt32(%s, %q))", p.ctx.Type(f).String(), varName, label)
-	}
-	switch f.Type().ProtoType() {
-	case pgs.StringT:
-		return varName
-	case pgs.Int32T, pgs.SInt32, pgs.SFixed32:
-		return fmt.Sprintf("mustParseInt32(%s, %q)", varName, label)
-	case pgs.Int64T, pgs.SInt64, pgs.SFixed64:
-		return fmt.Sprintf("mustParseInt64(%s, %q)", varName, label)
-	case pgs.UInt32T, pgs.Fixed32T:
-		return fmt.Sprintf("mustParseUint32(%s, %q)", varName, label)
-	case pgs.UInt64T, pgs.Fixed64T:
-		return fmt.Sprintf("mustParseUint64(%s, %q)", varName, label)
-	case pgs.FloatT:
-		return fmt.Sprintf("float32(mustParseFloat(%s, 32, %q))", varName, label)
-	case pgs.DoubleT:
-		return fmt.Sprintf("mustParseFloat(%s, 64, %q)", varName, label)
-	case pgs.BoolT:
-		return fmt.Sprintf("mustParseBool(%s, %q)", varName, label)
-	default:
-		return varName
-	}
 }
 
 // queryParseExpr returns a Go expression that parses a string variable into
@@ -1055,16 +945,10 @@ func (p *ProtosourceModule) validateFileStructure(f pgs.File) error {
 
 // outputPathForTemplate computes the output file path for a proto file and template.
 // The default template ("protosource.gotext") produces ".protosource.pb.go" (backward compatible).
-// The cli template ("cli.gotext") produces a subdirectory: "<aggregate_lower>mgr/main.go".
-// Other templates produce ".protosource.<name>.pb.go" where <name> is the template name
-// without the ".gotext" extension.
+// Other templates (wire, lambda, client) produce ".protosource.<name>.pb.go" where <name> is
+// the template name without the ".gotext" extension.
 func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Template) string {
 	importPath := p.ctx.ImportPath(f).String()
-
-	// CLI template goes into a <aggregate>mgr/ subdirectory as package main.
-	if tpl.Name() == "cli.gotext" {
-		return p.cliOutputPath(f, importPath)
-	}
 
 	suffix := ".protosource.pb.go"
 	if tplName := tpl.Name(); tplName != "protosource.gotext" {
@@ -1083,33 +967,6 @@ func (p *ProtosourceModule) outputPathForTemplate(f pgs.File, tpl *template.Temp
 	// Fallback: use OutputPath from pgsgo context
 	out := p.ctx.OutputPath(f).String()
 	return strings.TrimSuffix(out, ".pb.go") + suffix
-}
-
-// cliOutputPath returns the output path for the CLI template, placing it in
-// a <aggregate_lower>mgr/ subdirectory (e.g., "example/app/test/v1/testmgr/main.go").
-func (p *ProtosourceModule) cliOutputPath(f pgs.File, importPath string) string {
-	aggregateName := ""
-	for _, m := range f.Messages() {
-		if p.isAggregate(m) {
-			aggregateName = strings.ToLower(m.Name().String())
-			break
-		}
-	}
-	if aggregateName == "" {
-		aggregateName = "cli"
-	}
-
-	dir := aggregateName + "mgr"
-
-	if mod := p.params.Str("module"); mod != "" {
-		rel := strings.TrimPrefix(importPath, mod)
-		rel = strings.TrimPrefix(rel, "/")
-		return rel + "/" + dir + "/main.go"
-	}
-
-	out := p.ctx.OutputPath(f).String()
-	parent := filepath.Dir(out)
-	return filepath.Join(parent, dir, "main.go")
 }
 
 // importPath returns the full Go import path for the proto file's package.

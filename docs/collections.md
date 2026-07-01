@@ -185,7 +185,7 @@ These fields are populated by `AfterOn`, not by events. No event should have `to
 
 ## CLI Generation
 
-Commands with collection events (embedded message types like `LineItem item = 3`) produce a **stub** CLI manager (`*mgr/main.go`) instead of the interactive CLI. This is because non-scalar command fields can't be entered interactively. Use curl or the generated clients for testing these commands.
+Commands with collection events (embedded message types like `LineItem item = 3`) are omitted from any legacy interactive CLIs (the per-aggregate `*mgr` generators have been removed). Use curl or the generated typed clients (`*Client` / `ProtosourceClient`) for testing these commands.
 
 ## Rules Summary
 

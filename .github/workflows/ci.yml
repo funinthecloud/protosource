@@ -12,17 +12,27 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git to use GITHUB_TOKEN (avoid GitHub rate limits)
+        run: |
+          git config --global url."https://${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
 
       - uses: actions/setup-go@v5
         with:
           go-version: "1.25"
+          cache: true
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - uses: arduino/setup-protoc@v3
 
       - uses: bufbuild/buf-action@v1
         with:
           setup_only: true
+          token: ${{ secrets.BUF_TOKEN }}
 
       - name: Install protoc-gen-go
         run: go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
@@ -31,6 +41,8 @@ jobs:
         run: go install ./cmd/protoc-gen-protosource
 
       - name: Generate code
+        env:
+          BUF_TOKEN: ${{ secrets.BUF_TOKEN }}
         run: buf generate
 
       - name: Build
