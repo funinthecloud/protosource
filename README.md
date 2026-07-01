@@ -1,5 +1,19 @@
 # protosource
-Protocol buffers only eventsourcing
+
+Event sourcing framework where domain models are defined entirely in protocol buffers. A buf plugin generates Go (and TypeScript) boilerplate so your aggregates, commands, events, handlers, and clients are driven from annotations.
+
+**Docs:** see `docs/` — start with [quickstart](docs/quickstart.md), [consumer-guide](docs/consumer-guide.md), [pipeline](docs/pipeline.md).
+
+## Build & develop
+
+```bash
+go install ./cmd/protoc-gen-protosource
+buf generate
+go build ./...
+go test ./...
+```
+
+See [CLAUDE.md](CLAUDE.md) for full dev notes (including the TS generator and releases).
 
 # Inspiration
 

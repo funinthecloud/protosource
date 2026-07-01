@@ -268,7 +268,7 @@ because its output is human-readable JSON, making failures easier to debug.
 func newTestRepo() *protosource.Repository {
     return protosource.New(
         &MyAggregate{},
-        protosource.WithStore(memorystore.New()),
+        protosource.WithStore(memorystore.New(0)),
         protosource.WithSerializer(protojsonserializer.NewSerializer()),
     )
 }

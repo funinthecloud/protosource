@@ -264,7 +264,6 @@ This produces:
 | `task/v1/task_v1.protosource.lambda.pb.go` | HTTP handlers (Create, Complete, Reopen, Get, History) |
 | `task/v1/task_v1.protosource.wire.pb.go` | Wire dependency injection providers |
 | `task/v1/task_v1.protosource.client.pb.go` | Typed Go HTTP client |
-| `task/v1/taskmgr/main.go` | CLI manager for interactive testing |
 | `ts-gen/task/v1/task_v1_pb.ts` | TypeScript proto types (by protoc-gen-es) |
 | `ts-gen/task/v1/task_v1.protosource.client.ts` | TypeScript HTTP client |
 
@@ -288,6 +287,7 @@ import (
 
 	"github.com/funinthecloud/protosource"
 	"github.com/funinthecloud/protosource/adapters/httpstandard"
+	"github.com/funinthecloud/protosource/authz/allowall"
 	"github.com/funinthecloud/protosource/serializers/protojsonserializer"
 	"github.com/funinthecloud/protosource/stores/memorystore"
 
@@ -295,7 +295,7 @@ import (
 )
 
 func main() {
-	store := memorystore.New()
+	store := memorystore.New(0)
 	serializer := protojsonserializer.NewSerializer()
 
 	repo := protosource.New(
@@ -304,7 +304,8 @@ func main() {
 		serializer,
 	)
 
-	handler := taskv1.NewHandler(repo, nil)
+	authz := allowall.Authorizer{}
+	handler := taskv1.NewHandler(repo, nil, authz)
 	router := protosource.NewRouter(handler)
 
 	// HeaderExtractor reads actor identity from X-Actor header.
@@ -322,7 +323,7 @@ Run it:
 go run main.go
 ```
 
-> **Note:** We pass `nil` for the second argument to `NewHandler` because GSI queries require DynamoDB. Commands, Load, and History all work with memorystore. See [Deployment](deployment.md) for the DynamoDB setup.
+> **Note:** Pass `nil` for the client when you do not have a materialized aggregate store (e.g. quickstart with memorystore). `NewHandler` requires a non-nil authorizer (use `allowall.Authorizer{}` for dev). Commands, Load (replay), and History work without a client; the direct `GET /{id}` materialized read requires a client. See [Deployment](deployment.md).
 
 ## 6. Test with curl
 
@@ -334,7 +335,7 @@ curl -s -X POST http://localhost:8080/task/v1/create \
   -d '{"id":"task-1","title":"Write documentation"}' | jq
 
 # Load the task (event replay)
-curl -s http://localhost:8080/task/v1/task-1 \
+curl -s http://localhost:8080/task/v1/load/task-1 \
   -H "X-Actor: alice" | jq
 
 # Complete it
@@ -360,17 +361,7 @@ curl -s http://localhost:8080/task/v1/task-1/history \
   -H "X-Actor: alice" | jq
 ```
 
-## 7. Use the generated CLI
-
-The code generator also produces an interactive CLI manager at `task/v1/taskmgr/main.go`:
-
-```bash
-go run ./task/v1/taskmgr/
-```
-
-This gives you an interactive prompt to send commands and inspect aggregate state without writing curl commands.
-
-## 8. TypeScript client
+## 7. TypeScript client
 
 Install the runtime package and protobuf dependency:
 
@@ -434,7 +425,7 @@ import (
 func newTestRepo() *protosource.Repository {
 	return protosource.New(
 		&taskv1.Task{},
-		memorystore.New(),
+		memorystore.New(0),
 		protojsonserializer.NewSerializer(),
 	)
 }

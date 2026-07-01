@@ -38,9 +38,11 @@ import (
 //
 //   - Returning [ErrUnauthenticated] yields HTTP 401.
 //   - Returning [ErrForbidden] yields HTTP 403.
-//   - Any other non-nil error is treated as [ErrForbidden] for conservative
-//     safety — implementations should wrap their internal errors in one of
-//     the typed sentinels above when they want a specific status code.
+//   - Any other non-nil error yields 503 Service Unavailable ("AUTHZ_UNAVAILABLE").
+//     This is deliberate: transient failures (timeouts, upstream 5xx, DNS) must
+//     not be misclassified as permission denials so that load-balancers and
+//     clients can retry. Implementations should wrap internal errors in one of
+//     the typed sentinels when a specific 401/403 is desired.
 //
 // Implementations should be safe for concurrent use.
 type Authorizer interface {

@@ -220,9 +220,8 @@ Per proto package, the Go plugin emits:
   - `GET /load/{id}` — replay from events
   - `GET /{id}/history` — event records
   - `GET /query/...` — one per GSI (`QueryBy…`, with optional `…WithState`/`BetweenSK` variants)
-- `*.protosource.wire.pb.go` — `ProviderSet`, `NewRepository`, `NewHandler`
+- `*.protosource.wire.pb.go` — `ProviderSet`, `NewRepository` (NewHandler is generated in lambda.pb.go)
 - `*.protosource.client.pb.go` — Go HTTP client (mirror of TS client)
-- `<aggregate>mgr/main.go` — CLI for testing
 
 TS plugin emits `*.protosource.client.ts` — class with one method per command plus `load`, `history`, `queryBy…`.
 
@@ -330,7 +329,7 @@ export const thingClient = new ThingHTTPClient(client);
 - Default request: `Content-Type: application/protobuf`, `Accept: application/protobuf`. Body is binary-serialized.
 - With `useJSON: true`: `Content-Type` and `Accept` flip to `application/json`, body is `protojson` (camelCase fields, base64 bytes, string `int64`).
 - Server content-negotiates per request — there is no global server-side mode. A JSON client and a binary client can hit the same handler simultaneously.
-- Go CLI managers (`<aggregate>mgr`) use binary by default; pass `-json` to switch. Use this when piping output to `jq` for inspection.
+- The generated HTTP clients (Go and TS) plus curl examples are the primary way to exercise commands and queries. (Per-aggregate CLI managers have been removed.)
 - The todoapp frontend currently sets `useJSON: true` because it ships as a debugging showcase. Real apps should omit the flag.
 - Error bodies are content-negotiated too. Non-2xx responses carry an `apierror.v1.Error` (`code`/`message`/`detail`) marshaled in the request's negotiated format — protobuf binary by default, JSON when opted in — with the HTTP status on the status line (not in the body). Both clients decode by `Content-Type` and fall back to a synthetic `UNKNOWN` error carrying the raw body when it isn't a valid Error (e.g. a plaintext LB 503 or HTML gateway page).
 

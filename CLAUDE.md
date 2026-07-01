@@ -39,7 +39,7 @@ The same rule applies when modifying the TS generator: use `go install` or the l
 
 ## Releasing
 
-Real releases are triggered automatically on `v*` tags via GitHub Actions (see `.github/workflows/release-binaries.yml`).
+Real releases are triggered automatically on `v*` tags via GitHub Actions (see `.github/workflows/release-binaries.yml` for plugins + `.github/workflows/release.yml` for the proto module + npm package).
 
 When changing `.goreleaser.yaml`, the templates, or anything release-related, test locally first using snapshot mode:
 
@@ -53,7 +53,7 @@ goreleaser release --snapshot --clean
 
 After the second command, inspect the `dist/` directory. You should see one combined archive per platform containing both plugins (e.g. `protosource_vX.Y.Z-next_linux_amd64.tar.gz`).
 
-When actively developing the generator itself, continue using `buf generate --template buf.gen.local.yaml`.
+When actively developing the generator itself, use `buf generate --template buf.gen.yaml` (or a local override if you maintain one outside the repo). The checked-in generators are driven by buf.gen.yaml + buf.gen.ts.yaml.
 
 ## Architecture
 
@@ -86,7 +86,7 @@ The buf plugin reads proto annotations and generates four files per domain packa
 - `*.protosource.pb.go` — aggregate `On` method, command builders, event emission, version validation, authorization, snapshot support (from `protosource.gotext`)
 - `*.protosource.lambda.pb.go` — per-command HTTP handlers plus read endpoints `GET /{id}` (materialized), `GET /load/{id}` (event replay), `GET /{id}/history`, and `GET /query/...` (from `lambda.gotext`). All handlers — commands and reads — call `authz.Authorizer.Authorize` with a canonical function name (`{proto_package}.{Op}` where Op is the command name or `Get{Aggregate}` / `Load{Aggregate}` / `History{Aggregate}` / `QueryBy{Fields}…`).
 - `*.protosource.wire.pb.go` — Wire `Repository` wrapper, `ProvideRepository`, and `ProviderSet` in the same package (from `wire.gotext`). Store-agnostic: the concrete `protosource.Store` is wired separately.
-- `*mgr/main.go` — CLI manager for interactive testing (from `cli.gotext`); commands with embedded message fields accept JSON args, commands with repeated/map fields are omitted
+- (removed) per-aggregate *mgr CLIs were previously generated from `cli.gotext` for interactive testing. Use the typed clients or curl instead.
 
 The plugin logic is in `protosourceify.go`; templates are in `content/`.
 
@@ -116,7 +116,7 @@ Generated TS clients import from `@protosource/client` (runtime) and sibling `*_
 - **`adapters/awslambda/`** — converts API Gateway proxy requests to/from `Request`/`Response`. Supports `Wrap` (single handler) and `WrapRouter` (router dispatch).
 - **`adapters/httpstandard/`** — converts `net/http` requests to/from `Request`/`Response`. Includes `BearerTokenExtractor` and `HeaderExtractor` for actor identity.
 
-**Wire format: binary protobuf by default, everywhere.** Generated handlers, `httpclient`, `ts/client`, and the `*mgr` CLIs all default to `application/protobuf` and content-negotiate per request via `Accept`/`Content-Type`. JSON (`protojson`) is a dev/debug opt-in: `httpclient.WithJSON()`, TS `ProtosourceClient({ useJSON: true })`, or `<aggregate>mgr -json`. There is no global server-side mode — each request stands alone. JSON should never reach production traffic; the only signal it has is the `Content-Type` on the wire (no log line).
+**Wire format: binary protobuf by default, everywhere.** Generated handlers, `httpclient`, and `ts/client` default to `application/protobuf` and content-negotiate per request via `Accept`/`Content-Type`. JSON (`protojson`) is a dev/debug opt-in: `httpclient.WithJSON()` or TS `ProtosourceClient({ useJSON: true })`. (The per-aggregate mgr CLIs have been removed.) There is no global server-side mode — each request stands alone. JSON should never reach production traffic; the only signal it has is the `Content-Type` on the wire (no log line).
 
 **Error bodies are content-negotiated too.** Non-2xx responses carry an `apierror.v1.Error` (`code`/`message`/`detail`) marshaled in the request's negotiated format — protobuf binary by default, JSON when the request opted in — with the HTTP status on the status line, not in the body. Both clients (`httpclient.APIError`, TS `APIError`) decode by the response `Content-Type` and fall back to a synthetic `UNKNOWN` error carrying the raw body when it isn't a valid `Error` (e.g. a plaintext LB 503 or HTML gateway page).
 
@@ -361,7 +361,7 @@ git checkout -b <branch-name> origin/main
 
 ## Releasing
 
-Pushes to `main` and git tags (`v*`) trigger `.github/workflows/release.yml`:
+Pushes to `main` and git tags (`v*`) trigger `.github/workflows/release.yml` (proto module BSR push + npm for `@protosource/client`):
 
 - On `main` pushes: proto module is pushed with label `main` (for `:main` consumers).
 - On `v*` tags: proto module pushed with the tag label + `@protosource/client` npm package published.

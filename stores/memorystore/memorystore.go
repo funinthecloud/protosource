@@ -7,6 +7,7 @@ import (
 
 	historyv1 "github.com/funinthecloud/protosource/gen/history/v1"
 	recordv1 "github.com/funinthecloud/protosource/gen/record/v1"
+	"google.golang.org/protobuf/proto"
 )
 
 // MemoryStore is an in-memory implementation for managing and storing histories.
@@ -69,8 +70,10 @@ func (m *MemoryStore) Load(ctx context.Context, aggregateId string) (*historyv1.
 	defer m.mu.RUnlock() // Unlock when finished.
 
 	// Retrieve the history if it exists or return a new empty history.
+	// Always return a deep copy so callers cannot mutate our internal state
+	// (prevents concurrent Apply/observers from seeing surprising mutations).
 	if history, exists := m.events[aggregateId]; exists {
-		return history, nil
+		return proto.Clone(history).(*historyv1.History), nil
 	}
 	return &historyv1.History{}, nil
 }
